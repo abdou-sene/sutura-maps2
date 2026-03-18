@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- AVANT -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>GéoCarte Sénégal Pro</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bangers&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Remplace html2canvas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js"></script>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1>
+        <a href="index.html ">Sutura <span> Maps</span></a>
+      </h1>
+    </header>
+    <div id="error-toast"></div>
+    <main>
+      <section id="step-loading" class="step">
+        <div id="loading-screen">
+          <div id="loading-map-icon">🗺️</div>
+          <div id="loading-title">Génération en cours</div>
+          <div id="loading-commune"></div>
+          <div id="loading-bar-wrap">
+            <div id="loading-bar"></div>
+          </div>
+          <div id="loading-steps">
+            <span class="lstep" id="ls1">Chargement des données</span>
+            <span class="lstep" id="ls2">Calcul des voisins</span>
+            <span class="lstep" id="ls3">Rendu cartographique</span>
+          </div>
+        </div>
+      </section>
+      <section id="step-1" class="step active">
+        <div class="card">
+          <h2>1. Zone d'étude</h2>
+          <div class="form-group">
+            <label>Type de carte</label>
+            <div class="map-type-grid" id="map-type-grid">
+              <button
+                class="map-type-btn active"
+                data-type="localisation"
+                onclick="selectMapType(this)"
+              >
+                <span class="map-type-icon">🗺️</span>
+                <span class="map-type-label">Localisation</span>
+              </button>
+
+              <button
+                class="map-type-btn"
+                data-type="occupation"
+                onclick="selectMapType(this)"
+              >
+                <span class="map-type-icon">🌿</span>
+                <span class="map-type-label">Occupation du sol</span>
+              </button>
+
+              <button class="map-type-btn soon" data-type="population" disabled>
+                <span class="map-type-icon">👥</span>
+                <span class="map-type-label">Population</span>
+                <span class="map-type-soon">Bientôt</span>
+              </button>
+
+              <button class="map-type-btn soon" data-type="relief" disabled>
+                <span class="map-type-icon">⛰️</span>
+                <span class="map-type-label">Relief (MNT)</span>
+                <span class="map-type-soon">Bientôt</span>
+              </button>
+
+              <button class="map-type-btn soon" data-type="pentes" disabled>
+                <span class="map-type-icon">📐</span>
+                <span class="map-type-label">Pentes</span>
+                <span class="map-type-soon">Bientôt</span>
+              </button>
+            </div>
+          </div>
+          <div class="filter-group">
+            <select id="select-reg">
+              <option value="">-- Région --</option>
+            </select>
+            <select id="select-dept" disabled>
+              <option value="">-- Département --</option>
+            </select>
+            <select id="select-commune" disabled>
+              <option value="">-- Commune --</option>
+            </select>
+          </div>
+          <button
+            class="btn-next"
+            id="btn-to-step2"
+            disabled
+            onclick="goToStep(2)"
+          >
+            Suivant
+          </button>
+        </div>
+      </section>
+
+      <section id="step-2" class="step">
+        <div class="card">
+          <h2>2. Style & Signature</h2>
+          <div class="form-group">
+            <label>Couleur de la commune</label>
+
+            <input type="color" id="color-picker" value="#fbe96f" />
+            <div class="color-palette" id="color-palette">
+              <div
+                class="color-swatch"
+                data-color="#7BA05B"
+                style="background: #7ba05b"
+                title="Vert olive"
+              ></div>
+              <div
+                class="color-swatch selected"
+                data-color="#7BA05B"
+                style="background: #7ba05b"
+                title="Vert olive"
+              ></div>
+              <div
+                class="color-swatch"
+                data-color="#C4956A"
+                style="background: #c4956a"
+                title="Terre cuite douce"
+              ></div>
+              <div
+                class="color-swatch"
+                data-color="#C9A84C"
+                style="background: #c9a84c"
+                title="Or"
+              ></div>
+              <div
+                class="color-swatch"
+                data-color="#7B6B8D"
+                style="background: #7b6b8d"
+                title="Violet doux"
+              ></div>
+              <div
+                class="color-swatch"
+                data-color="#5B8C7A"
+                style="background: #5b8c7a"
+                title="Vert sauge"
+              ></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Nom de l'auteur</label>
+            <input
+              type="text"
+              id="author-name"
+              placeholder="Votre nom complet"
+            />
+          </div>
+          <div class="btn-group">
+            <button class="btn-back" onclick="goToStep(1)">Retour</button>
+            <button class="btn-next" onclick="generateFinalMap()">
+              Générer la carte
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section id="step-3" class="step">
+        <!-- Conteneur exportable : carte (70%) + panneau latéral (30%) -->
+        <div id="export-container">
+          <!-- Zone carte -->
+          <div id="map-area">
+            <div id="map-canvas"></div>
+            <!-- Titre de la commune superposé en bas de carte -->
+            <div id="map-title-bar">
+              <h3 id="display-commune">COMMUNE</h3>
+            </div>
+            <!-- Échelle Leaflet + flèche Nord s'ajoutent ici automatiquement -->
+          </div>
+          <div id="drag-hint">
+            <span
+              >💬 Psst... tu peux déplacer<br />les noms des communes
+              limitrophes !</span
+            >
+          </div>
+
+          <!-- Panneau latéral 30% -->
+          <aside id="side-panel">
+            <!-- Carton 1 : Légende -->
+            <div class="panel-card" id="legend-card">
+              <div class="panel-card-header">
+                <span class="panel-card-icon">&#9776;</span>
+                LÉGENDE
+              </div>
+              <div class="panel-card-body">
+                <div class="legend-item" id="legend-chef-lieu">
+                  <span
+                    class="legend-point"
+                    style="background: #e74c3c; border-color: #fff"
+                  ></span>
+                  <span>Chef-lieu</span>
+                </div>
+                <div class="legend-item" id="legend-autres">
+                  <span
+                    class="legend-point"
+                    style="background: #555555; border-color: #fff"
+                  ></span>
+                  <span>Village</span>
+                </div>
+                <div class="legend-item" id="legend-routes">
+                  <span class="legend-line road-line"></span>
+                  <span>Route</span>
+                </div>
+                <div class="legend-item" id="legend-cours-eau">
+                  <span class="legend-line water-line"></span>
+                  <span>Cours d'eau</span>
+                </div>
+                <div class="legend-item">
+                  <span
+                    class="legend-swatch commune-swatch"
+                    id="legend-commune-swatch"
+                  ></span>
+                  <span id="legend-commune-label">Zone d'étude</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-swatch neighbor-swatch"></span>
+                  <span>Communes limitrophes</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- CARTON DEPARTEMENT -->
+            <div class="panel-card" id="locator-card">
+              <div class="panel-card-header">
+                <span class="panel-card-icon">&#9671;</span>
+                DEPARTEMENT
+              </div>
+              <div id="locator-map"></div>
+            </div>
+            <div class="panel-card" id="region-card">
+              <div class="panel-card-header" id="region-card-header">
+                <span class="panel-card-icon">&#9671;</span>
+                RÉGION
+              </div>
+              <div id="region-map"></div>
+            </div>
+
+            <!-- Carton 2 : Informations -->
+            <div class="panel-card" id="info-card">
+              <div class="panel-card-header">
+                <span class="panel-card-icon"></span>
+              </div>
+              <div class="panel-card-body">
+                <div class="info-row">
+                  <span class="info-label">Auteur</span>
+                  <span class="info-value" id="display-author">—</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Source</span>
+                  <span class="info-value" id="data-source">DTGC</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Date</span>
+                  <span class="info-value" id="display-date">—</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">SCR</span>
+                  <span class="info-value">WGS 84</span>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="btn-group footer-btns">
+          <button class="btn-back" onclick="goToStep(2)">Modifier</button>
+          <button class="btn-export" onclick="exportToPNG()">
+            PAYEZ ET TÉLÉCHARGEZ
+          </button>
+        </div>
+      </section>
+    </main>
+    <!-- Logo / cartouche bas de panneau -->
+    <div class="panel-footer">
+      <div class="panel-logo">
+        <img width="25px" src="assets/Logo__GEOTECHDEV.png" alt="" />
+        <span>GeoTechDev</span>
+      </div>
+    </div>
+    <div
+      id="payment-modal"
+      style="
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(14, 12, 10, 0.7);
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <div
+        style="
+          background: #f7f3ec;
+          padding: 2.5rem;
+          max-width: 420px;
+          width: 90%;
+          border-radius: 2px;
+          border: 1px solid rgba(14, 12, 10, 0.1);
+          text-align: center;
+        "
+      >
+        <p
+          style="
+            font-family: &quot;Cormorant Garamond&quot;, serif;
+            font-size: 1.6rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+          "
+        >
+          Export HD sans filigrane
+        </p>
+        <p
+          style="
+            font-family: &quot;DM Sans&quot;, sans-serif;
+            font-size: 0.82rem;
+            color: #db0f0f;
+            margin-bottom: 1.5rem;
+          "
+        >
+          Après paiement Veuillez patienter quelques secondes pour télécharger.
+        </p>
+
+        <div
+          style="
+            background: #0e0c0a;
+            color: #c9a84c;
+            font-family: &quot;Cormorant Garamond&quot;, serif;
+            font-size: 2rem;
+            font-weight: 700;
+            padding: 1rem;
+            border-radius: 2px;
+            margin-bottom: 1.5rem;
+          "
+        >
+          2 000 FCFA
+        </div>
+
+        <a
+          id="wave-pay-link"
+          href="https://pay.wave.com/m/M_sn_d2M6Pe0j1DGg?amount=2000"
+          target="_blank"
+          onclick="startPaymentTimer()"
+          style="
+            display: block;
+            background: #1dc7b0;
+            color: white;
+            padding: 14px;
+            font-family: &quot;DM Sans&quot;, sans-serif;
+            font-size: 0.82rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            text-decoration: none;
+            border-radius: 2px;
+            margin-bottom: 0.5rem;
+          "
+        >
+          Payer avec Wave
+        </a>
+
+        <!-- Barre de progression discrète — invisible au départ -->
+
+        <button
+          id="confirm-pay-btn"
+          onclick="confirmPayment()"
+          disabled
+          style="
+            width: 100%;
+            background: #ccc;
+            color: #fff;
+            padding: 14px;
+            font-family: &quot;DM Sans&quot;, sans-serif;
+            font-size: 0.82rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            border: none;
+            border-radius: 2px;
+            cursor: not-allowed;
+            margin-bottom: 1rem;
+            transition:
+              background 0.4s,
+              transform 0.2s;
+          "
+        >
+          ✅ J'ai payé — Télécharger
+        </button>
+        <button
+          onclick="closePaymentModal()"
+          style="
+            background: transparent;
+            border: none;
+            color: #7a7068;
+            font-family: &quot;DM Sans&quot;, sans-serif;
+            font-size: 0.75rem;
+            cursor: pointer;
+            text-decoration: underline;
+          "
+        >
+          Annuler
+        </button>
+      </div>
+    </div>
+    <script src="script.js"></script>
+  </body>
+</html>

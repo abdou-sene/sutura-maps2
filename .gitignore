@@ -1,0 +1,10 @@
+.env
+environment.env
+node_modules/
+data/communes.geojson
+data/localites.geojson
+data/cours_eau.geojson
+data/routes.geojson
+data/departements.geojson
+data/regions.geojson
+data/occupation_du_sol.geojson

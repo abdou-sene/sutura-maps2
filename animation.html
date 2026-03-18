@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sutura Maps — Intro</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --ink: #0e0c0a;
+        --sand: #f7f3ec;
+        --terra: #b85c2c;
+        --terra2: #d4784a;
+        --gold: #c9a84c;
+        --muted: #7a7068;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        background: var(--ink);
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* ── GRAIN ── */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        pointer-events: none;
+        opacity: 0.04;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      }
+
+      .scene {
+        position: relative;
+        width: 600px;
+        height: 400px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+      }
+
+      /* ── SVG MAP LINES ── */
+      .map-lines {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        animation: fadeLines 1.2s ease 0.2s forwards;
+      }
+
+      @keyframes fadeLines {
+        to {
+          opacity: 1;
+        }
+      }
+
+      .map-lines svg {
+        width: 100%;
+        height: 100%;
+      }
+
+      /* ── CERCLES CONCENTRIQUES ── */
+      .rings {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .ring {
+        position: absolute;
+        border-radius: 50%;
+        border: 1px solid rgba(201, 168, 76, 0.15);
+        transform: scale(0);
+        animation: expandRing 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+
+      .ring:nth-child(1) {
+        width: 80px;
+        height: 80px;
+        animation-delay: 0.1s;
+        border-color: rgba(201, 168, 76, 0.35);
+      }
+      .ring:nth-child(2) {
+        width: 160px;
+        height: 160px;
+        animation-delay: 0.25s;
+        border-color: rgba(201, 168, 76, 0.22);
+      }
+      .ring:nth-child(3) {
+        width: 260px;
+        height: 260px;
+        animation-delay: 0.4s;
+        border-color: rgba(201, 168, 76, 0.14);
+      }
+      .ring:nth-child(4) {
+        width: 380px;
+        height: 380px;
+        animation-delay: 0.55s;
+        border-color: rgba(201, 168, 76, 0.07);
+      }
+
+      @keyframes expandRing {
+        to {
+          transform: scale(1);
+        }
+      }
+
+      /* ── POINT CENTRAL ── */
+      .center-dot {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--terra2);
+        box-shadow: 0 0 0 0 rgba(212, 120, 74, 0.5);
+        transform: scale(0);
+        animation:
+          popDot 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.05s forwards,
+          pulseDot 2.4s ease 1s infinite;
+        z-index: 10;
+      }
+
+      @keyframes popDot {
+        to {
+          transform: scale(1);
+        }
+      }
+
+      @keyframes pulseDot {
+        0% {
+          box-shadow: 0 0 0 0 rgba(212, 120, 74, 0.5);
+        }
+        70% {
+          box-shadow: 0 0 0 16px rgba(212, 120, 74, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(212, 120, 74, 0);
+        }
+      }
+
+      /* ── LIGNE HORIZONTALE ── */
+      .h-line {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(201, 168, 76, 0.3),
+          transparent
+        );
+        transform: translateX(-50%);
+        animation: expandHLine 1s ease 0.6s forwards;
+      }
+
+      @keyframes expandHLine {
+        to {
+          width: 500px;
+        }
+      }
+
+      /* ── LOGO TEXTE ── */
+      .logo-wrap {
+        position: relative;
+        z-index: 20;
+        text-align: center;
+        margin-top: -10px;
+      }
+
+      .logo-sutura {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 4.8rem;
+        font-weight: 700;
+        color: var(--sand);
+        letter-spacing: 2px;
+        line-height: 1;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: riseText 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.7s forwards;
+        display: block;
+      }
+
+      .logo-maps {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 4.8rem;
+        font-weight: 400;
+        font-style: italic;
+        color: var(--terra2);
+        letter-spacing: 2px;
+        line-height: 1;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: riseText 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.95s forwards;
+        display: block;
+      }
+
+      @keyframes riseText {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ── SÉPARATEUR ── */
+      .separator {
+        width: 0;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--gold),
+          transparent
+        );
+        margin: 18px auto 16px;
+        animation: expandSep 0.8s ease 1.4s forwards;
+      }
+
+      @keyframes expandSep {
+        to {
+          width: 120px;
+        }
+      }
+
+      /* ── TAGLINE ── */
+      .tagline {
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.72rem;
+        font-weight: 300;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        color: var(--muted);
+        opacity: 0;
+        animation: fadeTagline 1s ease 1.7s forwards;
+      }
+
+      @keyframes fadeTagline {
+        to {
+          opacity: 1;
+        }
+      }
+
+      /* ── COIN COORDS ── */
+      .coords {
+        position: absolute;
+        bottom: 28px;
+        right: 32px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.6rem;
+        font-weight: 300;
+        letter-spacing: 1.5px;
+        color: rgba(201, 168, 76, 0.4);
+        opacity: 0;
+        animation: fadeTagline 1s ease 2s forwards;
+      }
+
+      .coords-top {
+        bottom: auto;
+        top: 28px;
+        left: 32px;
+        right: auto;
+      }
+
+      /* ── REPLAY ── */
+      .replay-btn {
+        position: absolute;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: transparent;
+        border: 1px solid rgba(201, 168, 76, 0.3);
+        color: rgba(201, 168, 76, 0.5);
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.62rem;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        padding: 6px 16px;
+        cursor: pointer;
+        border-radius: 1px;
+        opacity: 0;
+        transition: all 0.3s;
+        animation: fadeTagline 0.6s ease 3s forwards;
+      }
+
+      .replay-btn:hover {
+        border-color: var(--gold);
+        color: var(--gold);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="scene" id="scene">
+      <!-- Lignes cartographiques de fond -->
+      <div class="map-lines">
+        <svg
+          viewBox="0 0 600 400"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <!-- Graticule subtil -->
+          <line
+            x1="0"
+            y1="100"
+            x2="600"
+            y2="100"
+            stroke="rgba(201,168,76,0.06)"
+            stroke-width="0.5"
+          />
+          <line
+            x1="0"
+            y1="200"
+            x2="600"
+            y2="200"
+            stroke="rgba(201,168,76,0.06)"
+            stroke-width="0.5"
+          />
+          <line
+            x1="0"
+            y1="300"
+            x2="600"
+            y2="300"
+            stroke="rgba(201,168,76,0.06)"
+            stroke-width="0.5"
+          />
+          <line
+            x1="150"
+            y1="0"
+            x2="150"
+            y2="400"
+            stroke="rgba(201,168,76,0.06)"
+            stroke-width="0.5"
+          />
+          <line
+            x1="300"
+            y1="0"
+            x2="300"
+            y2="400"
+            stroke="rgba(201,168,76,0.06)"
+            stroke-width="0.5"
+          />
+          <line
+            x1="450"
+            y1="0"
+            x2="450"
+            y2="400"
+            stroke="rgba(201,168,76,0.06)"
+            stroke-width="0.5"
+          />
+
+          <!-- Contours communes stylisés -->
+          <path
+            d="M180,140 L240,120 L310,130 L350,160 L340,210 L290,230 L230,220 L190,190 Z"
+            stroke="rgba(201,168,76,0.18)"
+            stroke-width="1"
+            fill="none"
+            stroke-dasharray="4 3"
+          />
+          <path
+            d="M340,160 L400,145 L430,170 L420,210 L370,225 L340,210 Z"
+            stroke="rgba(201,168,76,0.12)"
+            stroke-width="1"
+            fill="none"
+            stroke-dasharray="4 3"
+          />
+          <path
+            d="M230,220 L290,230 L300,270 L260,285 L210,265 Z"
+            stroke="rgba(201,168,76,0.12)"
+            stroke-width="1"
+            fill="none"
+            stroke-dasharray="4 3"
+          />
+          <path
+            d="M130,160 L190,145 L190,190 L180,140 L150,155 Z"
+            stroke="rgba(201,168,76,0.1)"
+            stroke-width="1"
+            fill="none"
+            stroke-dasharray="4 3"
+          />
+
+          <!-- Cours d'eau stylisé -->
+          <path
+            d="M100,180 Q180,195 240,185 Q300,175 360,200 Q420,225 500,210"
+            stroke="rgba(74,144,184,0.2)"
+            stroke-width="1.5"
+            fill="none"
+          />
+
+          <!-- Route stylisée -->
+          <path
+            d="M120,260 L200,245 L280,255 L360,240 L460,250 L540,240"
+            stroke="rgba(184,92,44,0.15)"
+            stroke-width="1"
+            fill="none"
+            stroke-dasharray="6 2"
+          />
+        </svg>
+      </div>
+
+      <!-- Cercles concentriques -->
+      <div class="rings">
+        <div class="ring"></div>
+        <div class="ring"></div>
+        <div class="ring"></div>
+        <div class="ring"></div>
+        <div class="center-dot"></div>
+        <div class="h-line"></div>
+      </div>
+
+      <!-- Logo -->
+      <div class="logo-wrap">
+        <span class="logo-sutura">Sutura</span>
+        <span class="logo-maps">Maps</span>
+        <div class="separator"></div>
+        <p class="tagline">Cartographiez avec dignité</p>
+      </div>
+
+      <!-- Coordonnées décoratives -->
+      <div class="coords coords-top">14°41′N · 17°26′W</div>
+      <div class="coords">© Sutura Maps · Sénégal</div>
+    </div>
+
+    <button class="replay-btn" onclick="replay()">↺ Rejouer</button>
+
+    <script>
+      function replay() {
+        const scene = document.getElementById("scene");
+        scene.style.display = "none";
+        document.querySelector(".replay-btn").style.opacity = "0";
+        setTimeout(() => {
+          scene.style.display = "flex";
+          // Force reflow pour relancer les animations
+          const els = scene.querySelectorAll("*");
+          els.forEach((el) => {
+            el.style.animation = "none";
+            el.offsetHeight;
+            el.style.animation = "";
+          });
+        }, 100);
+      }
+    </script>
+  </body>
+</html>
