@@ -1103,10 +1103,18 @@ async function generateOccupationMap(
   source,
 ) {
   const clipped = occupationClipped;
-  const PALETTE =
-    Object.keys(occupationPalette).length > 0
-      ? occupationPalette
-      : PALETTE_DEFAULT;
+  const classesReelles = [
+    ...new Set(
+      occupationClipped
+        .map((f) => (f.properties.NOM || "").trim())
+        .filter(Boolean),
+    ),
+  ];
+
+  const PALETTE = {};
+  classesReelles.forEach((nom) => {
+    PALETTE[nom] = occupationPalette[nom] || PALETTE_DEFAULT[nom] || "#cccccc";
+  });
 
   if (!clipped || clipped.length === 0) {
     showError("Aucune donnée d'occupation du sol pour cette commune.");
