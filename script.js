@@ -199,6 +199,10 @@ function goToStep2() {
 function buildStep2Occupation(classes) {
   occupationPalette = {};
   classes.forEach((nom) => {
+    // Chercher la couleur dans le premier feature qui a ce NOM
+    const feature = occupationClipped.find(
+      (f) => (f.properties.NOM || "").trim() === nom,
+    );
     occupationPalette[nom] = PALETTE_DEFAULT[nom] || "#cccccc";
   });
 
@@ -1103,23 +1107,19 @@ async function generateOccupationMap(
   source,
 ) {
   const clipped = occupationClipped;
-  const classesReelles = [
-    ...new Set(
-      occupationClipped
-        .map((f) => (f.properties.NOM || "").trim())
-        .filter(Boolean),
-    ),
-  ];
-
-  const PALETTE = {};
-  classesReelles.forEach((nom) => {
-    PALETTE[nom] = occupationPalette[nom] || PALETTE_DEFAULT[nom] || "#cccccc";
-  });
-
   if (!clipped || clipped.length === 0) {
     showError("Aucune donnée d'occupation du sol pour cette commune.");
     return;
   }
+
+  // Palette construite depuis les propriétés retournées par Supabase
+  const PALETTE = {};
+  clipped.forEach((f) => {
+    const nom = (f.properties.NOM || "").trim();
+    if (nom)
+      PALETTE[nom] =
+        f.properties.couleur || occupationPalette[nom] || "#cccccc";
+  });
 
   // 1. Voisins (style neutre pour ne pas masquer l'occupation)
   const neighbors = geoData.communes.features.filter((f) => {
