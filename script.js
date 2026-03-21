@@ -332,39 +332,39 @@ function restoreLocalisationLegend() {
   const body = document.querySelector("#legend-card .panel-card-body");
   if (!body) return;
   body.innerHTML = `
-    <div class="legend-item" id="legend-chef-lieu">
-      <span class="legend-point" style="background:#e74c3c;border-color:#fff"></span>
-      <span>Chef-lieu</span>
-    </div>
-    <div class="legend-item" id="legend-quartiers">
-  <span class="legend-point" style="background:#8e44ad;border-color:#fff"></span>
-  <span>Quartier</span>
-</div>
-    <div class="legend-item" id="legend-autres">
-      <span class="legend-point" style="background:#555555;border-color:#fff"></span>
-      <span>Village</span>
-    </div>
-    <div class="legend-item" id="legend-routes">
-      <span class="legend-line road-line"></span>
-      <span>Route</span>
-    </div>
-    <div class="legend-item" id="legend-cours-eau">
-      <span class="legend-line water-line"></span>
-      <span>Cours d'eau</span>
-    </div>
-    <div class="legend-item">
-      <span class="legend-swatch commune-swatch" id="legend-commune-swatch"></span>
-      <span id="legend-commune-label">Zone d'étude</span>
-    </div>
-    <div class="legend-item">
-      <span class="legend-swatch neighbor-swatch"></span>
-      <span>Communes limitrophes</span>
-    </div>
-    <div class="legend-item" id="legend-ocean" style="display:none">
-  <span class="legend-swatch" style="background:#c8dfe8;border-color:#a8c8d8;opacity:1"></span>
-  <span>Océan</span>
-</div>
-  `;
+  <div class="legend-item" id="legend-chef-lieu">
+    <span class="legend-point" style="background:#e74c3c;border-color:#fff"></span>
+    <span class="legend-label">Chef-lieu</span>
+  </div>
+  <div class="legend-item" id="legend-quartiers">
+    <span class="legend-point" style="background:#8e44ad;border-color:#fff"></span>
+    <span class="legend-label">Quartier</span>
+  </div>
+  <div class="legend-item" id="legend-autres">
+    <span class="legend-point" style="background:#555555;border-color:#fff"></span>
+    <span class="legend-label">Village</span>
+  </div>
+  <div class="legend-item" id="legend-routes">
+    <span class="legend-line road-line"></span>
+    <span class="legend-label">Route</span>
+  </div>
+  <div class="legend-item" id="legend-cours-eau">
+    <span class="legend-line water-line"></span>
+    <span class="legend-label">Cours d'eau</span>
+  </div>
+  <div class="legend-item">
+    <span class="legend-swatch commune-swatch" id="legend-commune-swatch"></span>
+    <span class="legend-label" id="legend-commune-label">Zone d'étude</span>
+  </div>
+  <div class="legend-item">
+    <span class="legend-swatch neighbor-swatch"></span>
+    <span class="legend-label">Communes limitrophes</span>
+  </div>
+  <div class="legend-item" id="legend-ocean" style="display:none">
+    <span class="legend-swatch" style="background:#c8dfe8;border-color:#a8c8d8;opacity:1"></span>
+    <span class="legend-label">Océan</span>
+  </div>
+`;
 }
 
 /* ════════════════════════════════
@@ -487,11 +487,13 @@ async function addPoints(url, communeFeature) {
     });
     const elQU = document.getElementById("legend-quartiers");
     if (elQU) elQU.style.display = hasQuartier ? "flex" : "none";
-    const hasAutres = features.some(
-      (f) =>
-        !CHEF_LIEUX.some((c) => (f.properties.popPlace_1 || "").includes(c)),
-    );
-
+    const hasAutres = features.some((f) => {
+      const type = (f.properties.popPlace_1 || "").trim();
+      const isChefLieu = CHEF_LIEUX.some((c) => type.includes(c));
+      const isQuartier =
+        type === "Quartier" || type === "Chef lieu de quartier";
+      return !isChefLieu && !isQuartier;
+    });
     // Mettre à jour la légende localisation (IDs existent déjà)
     const elCL = document.getElementById("legend-chef-lieu");
     const elAU = document.getElementById("legend-autres");

@@ -310,7 +310,7 @@ button {
 }
 
 .panel-card:first-child {
-  flex: 0.9;
+  flex: 1;
 }
 .panel-card:last-child {
   border-bottom: none;
@@ -354,7 +354,7 @@ button {
   gap: 5px;
   margin-bottom: 4px;
   font-size: 0.78rem;
-  color: #333;
+  color: #000000;
 }
 
 .legend-swatch {
@@ -364,6 +364,7 @@ button {
   border-radius: 2px;
   border: 1px solid rgba(0, 0, 0, 0.2);
   display: inline-block;
+  color: #000000;
 }
 
 #legend-commune-label {
@@ -372,13 +373,21 @@ button {
 }
 .neighbor-swatch + span {
   width: 100%;
-  opacity: 0.7;
+  color: #000000;
 }
 .neighbor-swatch {
-  background: #ecf0f1;
-  border-color: #bdc3c7;
+  background: #ffffff;
+  border-color: #7c7c7c;
+  color: #000000;
 }
 
+.legend-label {
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: #000000;
+  font-family: "DM Sans", sans-serif;
+  font-style: normal;
+}
 .legend-line {
   flex-shrink: 0;
   width: 22px;
