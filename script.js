@@ -336,6 +336,10 @@ function restoreLocalisationLegend() {
       <span class="legend-point" style="background:#e74c3c;border-color:#fff"></span>
       <span>Chef-lieu</span>
     </div>
+    <div class="legend-item" id="legend-quartiers">
+  <span class="legend-point" style="background:#8e44ad;border-color:#fff"></span>
+  <span>Quartier</span>
+</div>
     <div class="legend-item" id="legend-autres">
       <span class="legend-point" style="background:#555555;border-color:#fff"></span>
       <span>Village</span>
@@ -356,6 +360,10 @@ function restoreLocalisationLegend() {
       <span class="legend-swatch neighbor-swatch"></span>
       <span>Communes limitrophes</span>
     </div>
+    <div class="legend-item" id="legend-ocean" style="display:none">
+  <span class="legend-swatch" style="background:#c8dfe8;border-color:#a8c8d8;opacity:1"></span>
+  <span>Océan</span>
+</div>
   `;
 }
 
@@ -460,7 +468,6 @@ async function addPoints(url, communeFeature) {
       try {
         const type = (f.properties.popPlace_1 || "").trim();
         if (type === "Hameau") return false;
-        if (type === "Quartier") return false;
         if (type === "Chef lieu de quartier") return false;
         const [x, y] = f.geometry.coordinates;
         if (x < bbox[0] || x > bbox[2] || y < bbox[1] || y > bbox[3])
@@ -474,6 +481,12 @@ async function addPoints(url, communeFeature) {
     const hasChefLieu = features.some((f) =>
       CHEF_LIEUX.some((c) => (f.properties.popPlace_1 || "").includes(c)),
     );
+    const hasQuartier = features.some((f) => {
+      const type = (f.properties.popPlace_1 || "").trim();
+      return type === "Quartier" || type === "Chef lieu de quartier";
+    });
+    const elQU = document.getElementById("legend-quartiers");
+    if (elQU) elQU.style.display = hasQuartier ? "flex" : "none";
     const hasAutres = features.some(
       (f) =>
         !CHEF_LIEUX.some((c) => (f.properties.popPlace_1 || "").includes(c)),
@@ -493,9 +506,15 @@ async function addPoints(url, communeFeature) {
         pointToLayer: (feature, latlng) => {
           const type = (feature.properties.popPlace_1 || "").trim();
           const isChefLieu = CHEF_LIEUX.some((c) => type.includes(c));
+          const isQuartier = type === "Quartier";
+
           return L.circleMarker(latlng, {
-            radius: isChefLieu ? 6 : 4,
-            fillColor: isChefLieu ? "#e74c3c" : "#555555",
+            radius: isChefLieu ? 6 : isQuartier ? 4 : 4,
+            fillColor: isChefLieu
+              ? "#e74c3c"
+              : isQuartier
+                ? "#ae22eb"
+                : "#555555",
             color: "#fff",
             weight: 1.5,
             fillOpacity: 1,
@@ -567,7 +586,7 @@ function addGraticule(map) {
 
   const spanX = maxX - minX;
   const interval = spanX < 0.1 ? 0.02 : spanX < 0.3 ? 0.05 : 0.1;
-  const style = { color: "#555", weight: 0.5, opacity: 0.5, dashArray: "3 4" };
+  const style = { color: "#555", weight: 0.5, opacity: 0.5, dashArray: "3 10" };
 
   for (
     let x = Math.ceil(minX / interval) * interval;
@@ -615,7 +634,7 @@ function addGraticule(map) {
 
   L.rectangle(bounds, {
     color: "#2c3e50",
-    weight: 3,
+    weight: 0.5,
     fill: false,
     interactive: false,
   }).addTo(map);
@@ -685,8 +704,8 @@ function createNeighborMarker(latlng, name, anchorX) {
 function addNeighborLabels(neighbors, targetFeature, neighborStyle) {
   const style = neighborStyle || {
     color: "#777879",
-    fillColor: "#bdc3c7",
-    fillOpacity: 0.5,
+    fillColor: "#ffffff",
+    fillOpacity: 0.7,
     weight: 2,
   };
 
@@ -769,7 +788,41 @@ function addNeighborLabels(neighbors, targetFeature, neighborStyle) {
     },
   }).addTo(map);
 }
+async function addOceanLayer(url, targetFeature) {
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.features?.length) return false;
 
+    const filtered = data.features.filter((f) => {
+      try {
+        return turf.booleanIntersects(f, targetFeature);
+      } catch (e) {
+        return false;
+      }
+    });
+
+    if (!filtered.length) return false;
+
+    L.geoJSON(
+      { type: "FeatureCollection", features: filtered },
+      {
+        style: {
+          color: "#a8c8d8",
+          fillColor: "#c8dfe8",
+          fillOpacity: 0.6,
+          weight: 0.5,
+        },
+        interactive: false,
+      },
+    ).addTo(map);
+
+    return true;
+  } catch (e) {
+    console.error("addOceanLayer error:", e);
+    return false;
+  }
+}
 /* ════════════════════════════════
    CARTES DE LOCALISATION (PANNEAU)
 ════════════════════════════════ */
@@ -1042,7 +1095,10 @@ async function generateLocalisationMap(
     return turf.booleanIntersects(targetFeature, f);
   });
   addNeighborLabels(neighbors, targetFeature);
-
+  // Couche océan
+  const hasOcean = await addOceanLayer("data/ocean.geojson", targetFeature);
+  const elOC = document.getElementById("legend-ocean");
+  if (elOC) elOC.style.display = hasOcean ? "flex" : "none";
   // 3. Zone d'étude
   const studyAreaLayer = L.geoJSON(targetFeature, {
     style: {
