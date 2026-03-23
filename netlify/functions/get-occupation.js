@@ -12,29 +12,16 @@ exports.handler = async (event) => {
 
   const { commune, dept, reg, level } = JSON.parse(event.body);
 
-  // Déterminer le niveau effectif si non fourni explicitement
   const effectiveLevel =
-    level || (commune ? "commune" : dept ? "dept" : reg ? "region" : null);
-
-  if (!effectiveLevel) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({
-        error: "Paramètres insuffisants — fournissez au moins reg",
-      }),
-    };
-  }
+    level || (commune ? "commune" : dept ? "dept" : "region");
 
   let data, error;
 
   if (effectiveLevel === "commune") {
-    // ── Niveau commune ──
     if (!commune || !dept || !reg) {
       return {
         statusCode: 400,
-        body: JSON.stringify({
-          error: "commune, dept et reg sont requis pour le niveau commune",
-        }),
+        body: JSON.stringify({ error: "Paramètres manquants" }),
       };
     }
     ({ data, error } = await supabase.rpc("get_occupation_par_commune", {
@@ -43,13 +30,10 @@ exports.handler = async (event) => {
       p_reg: reg,
     }));
   } else if (effectiveLevel === "dept") {
-    // ── Niveau département ──
     if (!dept || !reg) {
       return {
         statusCode: 400,
-        body: JSON.stringify({
-          error: "dept et reg sont requis pour le niveau département",
-        }),
+        body: JSON.stringify({ error: "dept et reg requis" }),
       };
     }
     ({ data, error } = await supabase.rpc("get_occupation_par_dept", {
@@ -57,11 +41,10 @@ exports.handler = async (event) => {
       p_reg: reg,
     }));
   } else if (effectiveLevel === "region") {
-    // ── Niveau région ──
     if (!reg) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "reg est requis pour le niveau région" }),
+        body: JSON.stringify({ error: "reg requis" }),
       };
     }
     ({ data, error } = await supabase.rpc("get_occupation_par_region", {

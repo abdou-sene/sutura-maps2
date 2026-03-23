@@ -1,5 +1,6 @@
 let map;
 let geoData = { communes: null };
+let metaData = [];
 let mapControls = { scale: null, north: null };
 let locatorMap = null;
 let regionMap = null;
@@ -130,8 +131,8 @@ window.onload = async () => {
   map.tap?.disable();
 
   try {
-    const res = await fetch("data/communes.geojson");
-    geoData.communes = await res.json();
+    const res = await fetch("data/meta.json");
+    metaData = await res.json();
     initFilters();
     document.querySelectorAll(".color-swatch").forEach((swatch) => {
       swatch.onclick = () => {
@@ -157,14 +158,12 @@ window.onload = async () => {
 function initFilters() {
   const selReg = document.getElementById("select-reg");
   const regions = [
-    ...new Set(geoData.communes.features.map((f) => f.properties.REG)),
+    ...new Set(metaData.map((f) => f.REG)),
   ].sort();
   regions.forEach((r) => selReg.add(new Option(r, r)));
 
   selReg.onchange = () => {
     const reg = selReg.value;
-    const selDept = document.getElementById("select-dept");
-    const selCom = document.getElementById("select-commune");
 
     selDept.innerHTML = '<option value="">-- Département --</option>';
     selDept.disabled = !reg;
@@ -178,9 +177,9 @@ function initFilters() {
     if (reg) {
       const depts = [
         ...new Set(
-          geoData.communes.features
-            .filter((f) => f.properties.REG === reg)
-            .map((f) => f.properties.DEPT),
+          metaData
+          .filter((f) => f.REG === reg)
+          .map((f) => f.DEPT)
         ),
       ].sort();
       depts.forEach((d) => selDept.add(new Option(d, d)));
@@ -201,11 +200,11 @@ function updateCommunes() {
   occupationPalette = {};
 
   if (dept) {
-    const coms = geoData.communes.features
-      .filter((f) => f.properties.DEPT === dept)
-      .sort((a, b) => a.properties.CCRCA.localeCompare(b.properties.CCRCA));
+    const coms = metaData
+    .filter((f) => f.DEPT === dept)
+    .sort((a, b) => a.CCRCA.localeCompare(b.CCRCA))
     coms.forEach((c) =>
-      selCom.add(new Option(c.properties.CCRCA, c.properties.CCRCA)),
+      selCom.add(new Option(c.CCRCA, c.CCRCA)),
     );
     selCom.onchange = () => {
       occupationClipped = null;
