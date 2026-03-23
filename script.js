@@ -157,6 +157,8 @@ window.onload = async () => {
 
 function initFilters() {
   const selReg = document.getElementById("select-reg");
+  const selDept = document.getElementById("select-dept"); // ← ajouter
+  const selCom = document.getElementById("select-commune"); // ← ajouter
   const regions = [
     ...new Set(metaData.map((f) => f.REG)),
   ].sort();
