@@ -6,6 +6,18 @@ const supabase = createClient(
 );
 
 exports.handler = async (event) => {
+  // Gestion CORS preflight
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+      },
+      body: "",
+    };
+  }
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
@@ -18,7 +30,7 @@ exports.handler = async (event) => {
   let data, error;
 
   if (effectiveLevel === "commune") {
-    if (!commune || !dept || !reg) {
+    if (!reg) {
       return {
         statusCode: 400,
         body: JSON.stringify({ error: "Paramètres manquants" }),

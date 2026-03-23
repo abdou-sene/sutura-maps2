@@ -389,6 +389,7 @@ async function preloadOccupation() {
   const reg = document.getElementById("select-reg").value;
   const level = commune ? "commune" : dept ? "dept" : "region";
   selectedLevel = level;
+ console.log("preloadOccupation envoi →", { commune, dept, reg, level });
 
   try {
     const res = await fetch("/.netlify/functions/get-occupation", {
