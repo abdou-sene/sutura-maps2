@@ -391,7 +391,7 @@ async function preloadOccupation() {
     });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
+    console.log("réponse status →", res.status);
     const geojson = await res.json();
     console.log("geojson brut reçu →", geojson);
     console.log("type →", typeof geojson);

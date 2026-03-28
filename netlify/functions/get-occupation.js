@@ -70,7 +70,11 @@ exports.handler = async (event) => {
   }
 
   if (error) {
-    return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+    console.log("Supabase error →", JSON.stringify(error));
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: error.message, details: error }),
+    };
   }
 
   return {
