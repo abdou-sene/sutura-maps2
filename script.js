@@ -238,7 +238,7 @@ function showStep2LoadingScreen() {
       "></div>
       <div>
         <p style="font-size:0.82rem;color:var(--ink);font-weight:500;margin:0 0 4px;">
-          Analyse du ${zoneLevel}
+          Analyse ${zoneLevel}
         </p>
         <p style="font-size:0.72rem;color:var(--terra);font-weight:500;letter-spacing:2px;text-transform:uppercase;margin:0;">
           ${zoneName}
@@ -393,6 +393,9 @@ async function preloadOccupation() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const geojson = await res.json();
+    console.log("geojson brut reçu →", geojson);
+    console.log("type →", typeof geojson);
+    console.log("features →", geojson?.features);
     occupationClipped = geojson.features || [];
 
     if (occupationClipped.length === 0) {
