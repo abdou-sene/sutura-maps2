@@ -389,7 +389,8 @@ async function preloadOccupation() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ commune, dept, reg, level }),
     });
-
+    const text = await res.text();
+    console.log("réponse brute serveur →", text); // je check l'erreur Supabase ici
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     console.log("réponse status →", res.status);
     const geojson = await res.json();
