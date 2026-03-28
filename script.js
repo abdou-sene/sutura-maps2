@@ -159,9 +159,7 @@ function initFilters() {
   const selReg = document.getElementById("select-reg");
   const selDept = document.getElementById("select-dept"); // ← ajouter
   const selCom = document.getElementById("select-commune"); // ← ajouter
-  const regions = [
-    ...new Set(metaData.map((f) => f.REG)),
-  ].sort();
+  const regions = [...new Set(metaData.map((f) => f.REG))].sort();
   regions.forEach((r) => selReg.add(new Option(r, r)));
 
   selReg.onchange = () => {
@@ -178,11 +176,7 @@ function initFilters() {
 
     if (reg) {
       const depts = [
-        ...new Set(
-          metaData
-          .filter((f) => f.REG === reg)
-          .map((f) => f.DEPT)
-        ),
+        ...new Set(metaData.filter((f) => f.REG === reg).map((f) => f.DEPT)),
       ].sort();
       depts.forEach((d) => selDept.add(new Option(d, d)));
       selDept.onchange = updateCommunes;
@@ -203,11 +197,9 @@ function updateCommunes() {
 
   if (dept) {
     const coms = metaData
-    .filter((f) => f.DEPT === dept)
-    .sort((a, b) => a.CCRCA.localeCompare(b.CCRCA))
-    coms.forEach((c) =>
-      selCom.add(new Option(c.CCRCA, c.CCRCA)),
-    );
+      .filter((f) => f.DEPT === dept)
+      .sort((a, b) => a.CCRCA.localeCompare(b.CCRCA));
+    coms.forEach((c) => selCom.add(new Option(c.CCRCA, c.CCRCA)));
     selCom.onchange = () => {
       occupationClipped = null;
       occupationPalette = {};
@@ -389,7 +381,7 @@ async function preloadOccupation() {
   const reg = document.getElementById("select-reg").value;
   const level = commune ? "commune" : dept ? "dept" : "region";
   selectedLevel = level;
- console.log("preloadOccupation envoi →", { commune, dept, reg, level });
+  console.log("preloadOccupation envoi →", { commune, dept, reg, level });
 
   try {
     const res = await fetch("/.netlify/functions/get-occupation", {
@@ -1059,7 +1051,11 @@ function showError(msg) {
 /* ════════════════════════════════
    GÉNÉRATION — POINT D'ENTRÉE
 ════════════════════════════════ */
-
+async function ensureCommunesLoaded() {
+  if (geoData.communes) return;
+  const res = await fetch("data/communes.geojson");
+  geoData.communes = await res.json();
+}
 async function generateFinalMap() {
   const commune = document.getElementById("select-commune").value;
   const dept = document.getElementById("select-dept").value;
@@ -1071,6 +1067,7 @@ async function generateFinalMap() {
   const level = commune ? "commune" : dept ? "dept" : "region";
   selectedLevel = level;
   const zoneName = commune || dept || reg;
+  await ensureCommunesLoaded();
 
   goToStep("loading");
   document.getElementById("loading-commune").innerText = zoneName.toUpperCase();
