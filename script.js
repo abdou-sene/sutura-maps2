@@ -728,15 +728,41 @@ function addLiveWatermark() {
   wm.id = "live-watermark";
   wm.style.cssText = `position:absolute;inset:0;z-index:999;pointer-events:none;overflow:hidden;`;
   wm.innerHTML = `
-    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+    <!-- Filigrane dense -->
+    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0">
       <defs>
-        <pattern id="wm" x="0" y="0" width="280" height="180" patternUnits="userSpaceOnUse" patternTransform="rotate(-25)">
-          <text x="0" y="40" font-family="DM Sans" font-size="13" font-weight="300"
-                fill="rgba(14,12,10,0.23)" letter-spacing="1">© Sutura Maps</text>
+        <pattern id="wm" x="0" y="0" width="180" height="120" patternUnits="userSpaceOnUse" patternTransform="rotate(-25)">
+          <text x="0" y="30" font-family="DM Sans" font-size="13" font-weight="600"
+                fill="rgba(14,12,10,0.28)" letter-spacing="1">© Sutura Maps</text>
+          <text x="0" y="55" font-family="DM Sans" font-size="9" font-weight="300"
+                fill="rgba(14,12,10,0.18)" letter-spacing="1">Non payé</text>
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill="url(#wm)"/>
-    </svg>`;
+    </svg>
+
+
+    <!-- Bandeau central -->
+    <div style="
+      position:absolute;
+      top:44%;left:0;right:0;
+      text-align:center;
+      z-index:1001;
+      pointer-events:none;
+    ">
+      <span style="
+        background:rgba(184,92,44,0.88);
+        color:white;
+        font-family:'DM Sans',sans-serif;
+        font-size:0.72rem;
+        font-weight:500;
+        letter-spacing:2px;
+        text-transform:uppercase;
+        padding:6px 18px;
+        border-radius:1px;
+      ">Payez pour télécharger sans filigrane</span>
+    </div>
+  `;
   mapArea.appendChild(wm);
 }
 
@@ -1456,7 +1482,7 @@ function startPaymentTimer() {
     btn.style.cursor = "pointer";
     btn.style.transform = "scale(1.02)";
     setTimeout(() => (btn.style.transform = "scale(1)"), 300);
-  }, 30000);
+  }, 35000);
 }
 
 function exportToPNG() {
