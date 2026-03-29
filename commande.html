@@ -1,0 +1,1380 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Commander une carte — Sutura Maps</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script>
+      emailjs.init("1dslQf29O5eIx1ke9");
+    </script>
+    <style>
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --ink: #0e0c0a;
+        --sand: #f7f3ec;
+        --cream: #ede8df;
+        --terra: #b85c2c;
+        --terra2: #d4784a;
+        --gold: #c9a84c;
+        --muted: #7a7068;
+        --line: rgba(14, 12, 10, 0.1);
+        --white: #ffffff;
+        --pad-x: clamp(1.5rem, 6vw, 7rem);
+        --pad-y: clamp(4rem, 8vw, 8rem);
+      }
+
+      html {
+        scroll-behavior: smooth;
+        font-size: 16px;
+      }
+
+      body {
+        font-family: "DM Sans", sans-serif;
+        background: var(--sand);
+        color: var(--ink);
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* grain */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        pointer-events: none;
+        opacity: 0.022;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      }
+
+      a {
+        text-decoration: none;
+        color: inherit;
+      }
+      img,
+      svg {
+        display: block;
+        max-width: 100%;
+      }
+
+      /* ── NAV ── */
+      nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1.2rem var(--pad-x);
+        background: rgba(247, 243, 236, 0.92);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--line);
+      }
+      .nav-logo {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: var(--ink);
+      }
+      .nav-logo em {
+        color: var(--terra);
+        font-style: italic;
+      }
+
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        list-style: none;
+      }
+      .nav-links a {
+        font-size: 0.76rem;
+        font-weight: 400;
+        color: var(--muted);
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        transition: color 0.2s;
+      }
+      .nav-links a:hover {
+        color: var(--ink);
+      }
+      .nav-links li:last-child a {
+        color: #fff;
+      }
+
+      .nav-burger {
+        display: none;
+        flex-direction: column;
+        gap: 5px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px;
+      }
+      .nav-burger span {
+        display: block;
+        width: 24px;
+        height: 1.5px;
+        background: var(--ink);
+        transition: all 0.3s;
+      }
+      .nav-mobile {
+        display: none;
+        position: fixed;
+        top: 60px;
+        left: 0;
+        right: 0;
+        z-index: 999;
+        background: var(--sand);
+        border-bottom: 1px solid var(--line);
+        padding: 2rem var(--pad-x);
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+      .nav-mobile.open {
+        display: flex;
+      }
+      .nav-mobile a {
+        font-size: 0.9rem;
+        color: var(--muted);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .nav-mobile a:last-child {
+        border-bottom: none;
+      }
+
+      /* ── HERO BAND ── */
+      .page-hero {
+        padding-top: 62px;
+        background: var(--ink);
+        padding-bottom: 0;
+        position: relative;
+        overflow: hidden;
+      }
+      .page-hero::before {
+        content: "COMMANDE";
+        font-family: "Cormorant Garamond", serif;
+        font-size: 18vw;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.02);
+        position: absolute;
+        bottom: -2rem;
+        left: -1rem;
+        letter-spacing: -4px;
+        pointer-events: none;
+        line-height: 1;
+        white-space: nowrap;
+      }
+      .page-hero-inner {
+        padding: clamp(3rem, 6vw, 5rem) var(--pad-x) clamp(3rem, 6vw, 5rem);
+        position: relative;
+        z-index: 2;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4rem;
+        align-items: center;
+      }
+      .hero-label {
+        font-size: 0.68rem;
+        font-weight: 500;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: var(--gold);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 1.2rem;
+      }
+      .hero-label::after {
+        content: "";
+        display: block;
+        width: 24px;
+        height: 1px;
+        background: currentColor;
+      }
+      .page-hero h1 {
+        font-family: "Cormorant Garamond", serif;
+        font-size: clamp(2.2rem, 4vw, 3.8rem);
+        font-weight: 300;
+        line-height: 1.08;
+        letter-spacing: -0.5px;
+        color: white;
+      }
+      .page-hero h1 strong {
+        font-weight: 700;
+      }
+      .page-hero h1 em {
+        font-style: italic;
+        color: var(--terra2);
+      }
+      .page-hero p {
+        font-size: 0.9rem;
+        font-weight: 300;
+        line-height: 1.8;
+        color: rgba(255, 255, 255, 0.4);
+        margin-top: 1.2rem;
+      }
+      .page-hero p strong {
+        color: rgba(255, 255, 255, 0.8);
+        font-weight: 500;
+      }
+
+      /* Étapes rapides côté droit */
+      .hero-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
+      .hero-step {
+        display: flex;
+        gap: 1.4rem;
+        align-items: flex-start;
+        padding: 1.2rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .hero-step:last-child {
+        border-bottom: none;
+      }
+      .hero-step-num {
+        flex-shrink: 0;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 1px solid var(--terra);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Cormorant Garamond", serif;
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--terra);
+      }
+      .hero-step-text h4 {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.85);
+        margin-bottom: 2px;
+      }
+      .hero-step-text p {
+        font-size: 0.76rem;
+        color: rgba(255, 255, 255, 0.35);
+        line-height: 1.5;
+        margin-top: 0;
+      }
+
+      /* ── FORMULAIRE ── */
+      .form-section {
+        padding: var(--pad-y) var(--pad-x);
+        background: var(--sand);
+      }
+      .form-wrap {
+        max-width: 680px;
+        margin: 0 auto;
+      }
+      .form-section-label {
+        font-size: 0.68rem;
+        font-weight: 500;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: var(--terra);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 1.2rem;
+      }
+      .form-section-label::after {
+        content: "";
+        display: block;
+        width: 24px;
+        height: 1px;
+        background: currentColor;
+      }
+
+      /* Card formulaire */
+      .form-card {
+        background: var(--white);
+        border: 1px solid var(--line);
+        border-radius: 2px;
+        box-shadow: 0 8px 40px rgba(14, 12, 10, 0.07);
+        overflow: hidden;
+      }
+      .form-card-header {
+        background: var(--ink);
+        padding: 1.5rem 2rem;
+        border-bottom: 2px solid var(--terra);
+      }
+      .form-card-header p {
+        font-size: 0.78rem;
+        font-weight: 300;
+        color: rgba(255, 255, 255, 0.4);
+        margin-top: 0.4rem;
+      }
+      .form-card-header h2 {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: white;
+      }
+      .form-card-body {
+        padding: 2rem;
+      }
+
+      /* Fields */
+      .cf-group {
+        margin-bottom: 1.4rem;
+      }
+      .cf-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 1.8px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      .cf-label .cf-icon {
+        font-size: 0.9rem;
+      }
+      .cf-label .cf-required {
+        color: var(--terra);
+        font-size: 0.6rem;
+        letter-spacing: 0;
+        text-transform: none;
+        font-weight: 400;
+      }
+      .cf-input,
+      .cf-select,
+      .cf-textarea {
+        width: 100%;
+        padding: 11px 14px;
+        border: 1px solid rgba(14, 12, 10, 0.15);
+        border-radius: 1px;
+        background: var(--sand);
+        color: var(--ink);
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.88rem;
+        font-weight: 300;
+        transition:
+          border-color 0.2s,
+          box-shadow 0.2s,
+          background 0.2s;
+        box-sizing: border-box;
+        appearance: none;
+      }
+      .cf-input:focus,
+      .cf-select:focus,
+      .cf-textarea:focus {
+        outline: none;
+        border-color: var(--terra);
+        background: var(--white);
+        box-shadow: 0 0 0 3px rgba(184, 92, 44, 0.08);
+      }
+      .cf-textarea {
+        resize: vertical;
+        min-height: 100px;
+        line-height: 1.7;
+      }
+
+      /* Pills type de carte */
+      .cf-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+      }
+      .cf-pill {
+        padding: 7px 16px;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        font-size: 0.76rem;
+        font-weight: 400;
+        color: var(--muted);
+        background: var(--sand);
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-family: "DM Sans", sans-serif;
+      }
+      .cf-pill:hover {
+        border-color: var(--terra);
+        color: var(--terra);
+      }
+      .cf-pill.selected {
+        background: var(--ink);
+        border-color: var(--ink);
+        color: white;
+      }
+
+      /* Style visuel */
+      .cf-style-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+      }
+      .cf-style-btn {
+        padding: 12px 8px;
+        border: 1px solid var(--line);
+        border-radius: 1px;
+        background: var(--sand);
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.2s;
+        font-family: "DM Sans", sans-serif;
+      }
+      .cf-style-btn:hover {
+        border-color: var(--terra);
+      }
+      .cf-style-btn.selected {
+        background: var(--ink);
+        border-color: var(--ink);
+      }
+      .cf-style-icon {
+        font-size: 1.3rem;
+        display: block;
+        margin-bottom: 5px;
+      }
+      .cf-style-name {
+        font-size: 0.72rem;
+        font-weight: 500;
+        color: var(--ink);
+        display: block;
+      }
+      .cf-style-btn.selected .cf-style-name {
+        color: white;
+      }
+      .cf-style-desc {
+        font-size: 0.62rem;
+        font-weight: 300;
+        color: var(--muted);
+        display: block;
+        margin-top: 2px;
+      }
+      .cf-style-btn.selected .cf-style-desc {
+        color: rgba(255, 255, 255, 0.45);
+      }
+
+      /* Date + urgent */
+      .cf-date-wrap {
+        display: flex;
+        gap: 8px;
+        align-items: stretch;
+      }
+      .cf-date-wrap .cf-input {
+        flex: 1;
+      }
+      .cf-urgent-btn {
+        padding: 10px 14px;
+        border: 1px solid rgba(184, 92, 44, 0.3);
+        border-radius: 1px;
+        background: rgba(184, 92, 44, 0.05);
+        color: var(--terra);
+        font-size: 0.7rem;
+        font-weight: 500;
+        letter-spacing: 0.3px;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: "DM Sans", sans-serif;
+      }
+      .cf-urgent-btn.selected {
+        background: var(--terra);
+        color: white;
+        border-color: var(--terra);
+      }
+
+      /* Budget */
+      .cf-budget-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 7px;
+      }
+      .cf-budget-btn {
+        padding: 10px 6px;
+        border: 1px solid var(--line);
+        border-radius: 1px;
+        background: var(--sand);
+        font-size: 0.74rem;
+        font-weight: 500;
+        color: var(--muted);
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.2s;
+        font-family: "DM Sans", sans-serif;
+      }
+      .cf-budget-btn:hover {
+        border-color: var(--terra);
+        color: var(--terra);
+      }
+      .cf-budget-btn.selected {
+        background: var(--ink);
+        border-color: var(--ink);
+        color: white;
+      }
+
+      /* 2 colonnes pour certains champs */
+      .cf-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+
+      /* Divider */
+      .cf-divider {
+        height: 1px;
+        background: var(--line);
+        margin: 1.6rem 0;
+      }
+
+      /* Submit */
+      .cf-submit {
+        width: 100%;
+        padding: 15px;
+        background: var(--terra);
+        color: white;
+        border: none;
+        border-radius: 1px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.82rem;
+        font-weight: 500;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: all 0.25s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+      .cf-submit:hover:not(:disabled) {
+        background: var(--ink);
+        transform: translateY(-1px);
+      }
+      .cf-submit:disabled {
+        background: var(--cream);
+        color: var(--muted);
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* Success */
+      .commande-success {
+        display: none;
+        padding: 4rem 2rem;
+        text-align: center;
+      }
+      .commande-success.show {
+        display: block;
+      }
+      .success-icon {
+        font-size: 3.5rem;
+        margin-bottom: 1.2rem;
+        display: block;
+        animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      @keyframes popIn {
+        from {
+          transform: scale(0);
+        }
+        to {
+          transform: scale(1);
+        }
+      }
+      .success-title {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 2.2rem;
+        font-weight: 600;
+        color: var(--ink);
+        margin-bottom: 0.5rem;
+      }
+      .success-ref {
+        font-size: 0.72rem;
+        font-weight: 500;
+        letter-spacing: 2px;
+        color: var(--terra);
+        text-transform: uppercase;
+        margin-bottom: 1rem;
+        display: block;
+      }
+      .success-msg {
+        font-size: 0.88rem;
+        font-weight: 300;
+        line-height: 1.8;
+        color: var(--muted);
+        max-width: 380px;
+        margin: 0 auto 2rem;
+      }
+      .success-msg strong {
+        color: var(--ink);
+        font-weight: 500;
+      }
+
+      /* ── INFO SIDEBAR ── */
+      .form-outer {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 3rem;
+        align-items: start;
+      }
+      .form-sidebar {
+        position: sticky;
+        top: 90px;
+      }
+      .sidebar-card {
+        background: var(--ink);
+        border-radius: 2px;
+        padding: 2rem 1.8rem;
+        margin-bottom: 1rem;
+      }
+      .sidebar-card h3 {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 1rem;
+      }
+      .sidebar-item {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        padding: 0.7rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        font-size: 0.78rem;
+        font-weight: 300;
+        color: rgba(255, 255, 255, 0.5);
+        line-height: 1.5;
+      }
+      .sidebar-item:last-child {
+        border-bottom: none;
+      }
+      .sidebar-item strong {
+        color: rgba(255, 255, 255, 0.85);
+        font-weight: 500;
+      }
+      .sidebar-icon {
+        flex-shrink: 0;
+        font-size: 1rem;
+      }
+
+      .sidebar-card2 {
+        background: rgba(184, 92, 44, 0.08);
+        border: 1px solid rgba(184, 92, 44, 0.2);
+        border-radius: 2px;
+        padding: 1.5rem 1.8rem;
+      }
+      .sidebar-card2 p {
+        font-size: 0.78rem;
+        font-weight: 300;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+      .sidebar-card2 strong {
+        color: var(--terra);
+        font-weight: 500;
+      }
+
+      /* ── FOOTER ── */
+      footer {
+        background: var(--ink);
+        padding: 2rem var(--pad-x);
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+      }
+      .footer-logo {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: white;
+      }
+      .footer-logo em {
+        color: var(--terra);
+        font-style: normal;
+      }
+      .footer-links {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+      }
+      .footer-links a {
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.28);
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        transition: color 0.2s;
+      }
+      .footer-links a:hover {
+        color: rgba(255, 255, 255, 0.65);
+      }
+      .footer-copy {
+        font-size: 0.68rem;
+        color: rgba(255, 255, 255, 0.18);
+      }
+
+      /* ── RESPONSIVE ── */
+      @media (max-width: 900px) {
+        nav {
+          padding: 1rem 1.5rem;
+        }
+        .nav-links {
+          display: none;
+        }
+        .nav-burger {
+          display: flex;
+        }
+        .page-hero-inner {
+          grid-template-columns: 1fr;
+          gap: 2rem;
+        }
+        .hero-steps {
+          display: none;
+        }
+        .form-outer {
+          grid-template-columns: 1fr;
+        }
+        .form-sidebar {
+          position: static;
+        }
+        .cf-style-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .cf-budget-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .cf-row {
+          grid-template-columns: 1fr;
+        }
+        footer {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
+      @media (max-width: 600px) {
+        .cf-style-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .cf-budget-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+
+      /* Animations */
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(24px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .reveal {
+        opacity: 0;
+        transform: translateY(28px);
+        transition:
+          opacity 0.75s ease,
+          transform 0.75s ease;
+      }
+      .reveal.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .d1 {
+        transition-delay: 0.12s;
+      }
+      .d2 {
+        transition-delay: 0.24s;
+      }
+
+      /* btn primary réutilisé */
+      .btn--primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0.9rem 2rem;
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.78rem;
+        font-weight: 500;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+        border-radius: 1px;
+        border: 1px solid var(--terra);
+        background: var(--terra);
+        color: white;
+        cursor: pointer;
+        transition: all 0.25s;
+      }
+      .btn--primary:hover {
+        background: var(--ink);
+        border-color: var(--ink);
+        transform: translateY(-2px);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- NAV -->
+    <nav>
+      <a class="nav-logo" href="index.html">Sutura<em>·Maps</em></a>
+      <ul class="nav-links">
+        <li><a href="index.html#sutura">Philosophie</a></li>
+        <li><a href="index.html#features">Fonctionnalités</a></li>
+        <li><a href="index.html#pricing">Tarif</a></li>
+        <li>
+          <a href="commande.html" style="color: var(--terra)">Commander</a>
+        </li>
+        <li>
+          <a
+            href="map.html"
+            class="btn--primary"
+            style="padding: 0.55rem 1.4rem; font-size: 0.72rem"
+          >
+            Créer une carte
+          </a>
+        </li>
+      </ul>
+      <button class="nav-burger" onclick="toggleMenu()" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </nav>
+
+    <!-- MOBILE MENU -->
+    <div class="nav-mobile" id="nav-mobile">
+      <a href="index.html#sutura" onclick="toggleMenu()">Philosophie</a>
+      <a href="index.html#features" onclick="toggleMenu()">Fonctionnalités</a>
+      <a href="index.html#pricing" onclick="toggleMenu()">Tarif</a>
+      <a href="commande.html" onclick="toggleMenu()">Commander</a>
+      <a
+        href="map.html"
+        class="btn--primary"
+        style="margin-top: 0.5rem; justify-content: center"
+      >
+        Créer une carte →
+      </a>
+    </div>
+
+    <!-- HERO -->
+    <section class="page-hero">
+      <div class="page-hero-inner">
+        <div>
+          <div class="hero-label">Sur mesure</div>
+          <h1>
+            Une carte<br />
+            <em>à votre image.</em><br />
+            <strong>Commandée en ligne.</strong>
+          </h1>
+          <p>
+            Votre commune ne suffit pas ? Vous avez besoin d'une carte
+            <strong>population, relief, réseau routier</strong> ou d'une
+            spécificité particulière ?<br />
+            Décrivez votre besoin — nous livrons dans les délais convenus.
+          </p>
+        </div>
+        <div class="hero-steps">
+          <div class="hero-step">
+            <div class="hero-step-num">1</div>
+            <div class="hero-step-text">
+              <h4>Décrivez votre besoin</h4>
+              <p>Type de carte, zone, deadline, etc.</p>
+            </div>
+          </div>
+          <div class="hero-step">
+            <div class="hero-step-num">2</div>
+            <div class="hero-step-text">
+              <h4>Recevez un devis</h4>
+              <p>Réponse sous 24h avec prix et délai.</p>
+            </div>
+          </div>
+          <div class="hero-step">
+            <div class="hero-step-num">3</div>
+            <div class="hero-step-text">
+              <h4>Payez et recevez</h4>
+              <p>Paiement Wave · Livraison par email.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FORMULAIRE -->
+    <section class="form-section">
+      <div class="form-wrap">
+        <div class="form-section-label">Votre demande</div>
+        <div class="form-outer">
+          <!-- CARD FORMULAIRE -->
+          <div class="form-card reveal">
+            <div class="form-card-header">
+              <h2>Commander une carte personnalisée</h2>
+              <p>Remplissez le formulaire · Devis gratuit · Sans engagement</p>
+            </div>
+
+            <!-- FORM BODY -->
+            <div class="form-card-body" id="commande-form-body">
+              <!-- Type de carte -->
+              <div class="cf-group">
+                <div class="cf-label">
+                  <span class="cf-icon">🗺️</span>
+                  Type de carte
+                  <span class="cf-required">* requis</span>
+                </div>
+                <div class="cf-pills" id="cf-type-pills">
+                  <button
+                    class="cf-pill"
+                    data-value="Population"
+                    onclick="selectPill(this, 'cf-type-pills')"
+                  >
+                    👥 Population
+                  </button>
+                  <button
+                    class="cf-pill"
+                    data-value="Relief MNT"
+                    onclick="selectPill(this, 'cf-type-pills')"
+                  >
+                    ⛰️ Relief (MNT)
+                  </button>
+                  <button
+                    class="cf-pill"
+                    data-value="Pentes"
+                    onclick="selectPill(this, 'cf-type-pills')"
+                  >
+                    📐 Pentes
+                  </button>
+                  <button
+                    class="cf-pill"
+                    data-value="Réseau routier"
+                    onclick="selectPill(this, 'cf-type-pills')"
+                  >
+                    🛣️ Réseau routier
+                  </button>
+                  <button
+                    class="cf-pill"
+                    data-value="Hydrographie"
+                    onclick="selectPill(this, 'cf-type-pills')"
+                  >
+                    💧 Hydrographie
+                  </button>
+                  <button
+                    class="cf-pill"
+                    data-value="Occupation du sol"
+                    onclick="selectPill(this, 'cf-type-pills')"
+                  >
+                    🌿 Occupation du sol
+                  </button>
+                  <button
+                    class="cf-pill"
+                    data-value="Autre"
+                    onclick="selectPill(this, 'cf-type-pills')"
+                  >
+                    ✏️ Autre
+                  </button>
+                </div>
+              </div>
+
+              <!-- Zone géographique -->
+              <div class="cf-group">
+                <div class="cf-label">
+                  <span class="cf-icon">📍</span>
+                  Zone géographique
+                  <span class="cf-required">* requis</span>
+                </div>
+                <input
+                  class="cf-input"
+                  id="cf-zone"
+                  type="text"
+                  placeholder="Ex: Commune de Mbour, Département de Thiès, Région de Dakar..."
+                  oninput="checkCommandeForm()"
+                />
+              </div>
+
+              <!-- Description -->
+              <div class="cf-group">
+                <div class="cf-label">
+                  <span class="cf-icon">✏️</span>
+                  Décrivez votre besoin
+                  <span class="cf-required">* requis</span>
+                </div>
+                <textarea
+                  class="cf-textarea"
+                  id="cf-description"
+                  placeholder="Je veux une carte qui montre... avec les données... destinée à... pour un rapport / une présentation / une publication..."
+                  oninput="checkCommandeForm()"
+                ></textarea>
+              </div>
+
+              <!-- Deadline + Urgent -->
+              <div class="cf-group">
+                <div class="cf-label">
+                  <span class="cf-icon">📅</span>
+                  Deadline souhaitée
+                </div>
+                <div class="cf-date-wrap">
+                  <input class="cf-input" id="cf-deadline" type="date" />
+                  <button
+                    class="cf-urgent-btn"
+                    id="cf-urgent-btn"
+                    onclick="toggleUrgent()"
+                  >
+                    ⚡ Urgent +3 000 FCFA
+                  </button>
+                </div>
+              </div>
+
+              <!-- Email + WhatsApp -->
+              <div class="cf-row">
+                <div class="cf-group">
+                  <div class="cf-label">
+                    <span class="cf-icon">📧</span>
+                    Email de livraison
+                    <span class="cf-required">* requis</span>
+                  </div>
+                  <input
+                    class="cf-input"
+                    id="cf-email"
+                    type="email"
+                    placeholder="votre@email.com"
+                    oninput="checkCommandeForm()"
+                  />
+                </div>
+                <div class="cf-group">
+                  <div class="cf-label">
+                    <span class="cf-icon">👤</span>
+                    Nom complet
+                    <span class="cf-required">* requis</span>
+                  </div>
+                  <input
+                    class="cf-input"
+                    id="cf-nom"
+                    type="text"
+                    placeholder="Prénom Nom"
+                    oninput="checkCommandeForm()"
+                  />
+                </div>
+
+                <div class="cf-group">
+                  <div class="cf-label">
+                    <span class="cf-icon">💬</span>
+                    WhatsApp
+                    <span
+                      style="
+                        font-size: 0.6rem;
+                        font-weight: 300;
+                        color: var(--muted);
+                        text-transform: none;
+                        letter-spacing: 0;
+                      "
+                      >(optionnel)</span
+                    >
+                  </div>
+                  <input
+                    class="cf-input"
+                    id="cf-whatsapp"
+                    type="tel"
+                    placeholder="+221 77 XXX XX XX"
+                  />
+                </div>
+              </div>
+
+              <!-- Budget -->
+              <div class="cf-group">
+                <div class="cf-label">
+                  <span class="cf-icon">💰</span>
+                  Budget estimé
+                </div>
+                <div class="cf-budget-grid" id="cf-budget-grid">
+                  <button
+                    class="cf-budget-btn"
+                    data-value="5 000 FCFA"
+                    onclick="selectBudget(this)"
+                  >
+                    5 000 FCFA
+                  </button>
+                  <button
+                    class="cf-budget-btn"
+                    data-value="10 000 FCFA"
+                    onclick="selectBudget(this)"
+                  >
+                    10 000 FCFA
+                  </button>
+                  <button
+                    class="cf-budget-btn"
+                    data-value="15 000 FCFA"
+                    onclick="selectBudget(this)"
+                  >
+                    15 000 FCFA
+                  </button>
+                  <button
+                    class="cf-budget-btn"
+                    data-value="À discuter"
+                    onclick="selectBudget(this)"
+                  >
+                    À discuter
+                  </button>
+                </div>
+              </div>
+
+              <div class="cf-divider"></div>
+
+              <button
+                class="cf-submit"
+                id="cf-submit-btn"
+                disabled
+                onclick="submitCommande()"
+              >
+                <span>✦</span> Envoyer ma demande
+              </button>
+              <p
+                style="
+                  font-size: 0.7rem;
+                  color: var(--muted);
+                  text-align: center;
+                  margin-top: 0.8rem;
+                  font-weight: 300;
+                "
+              >
+                Réponse sous 24h · Devis gratuit et sans engagement
+              </p>
+            </div>
+
+            <!-- SUCCESS -->
+            <div class="commande-success" id="commande-success">
+              <span class="success-icon">✦</span>
+              <div class="success-title">Demande envoyée !</div>
+              <span class="success-ref" id="success-ref"></span>
+              <p class="success-msg">
+                Votre demande a bien été reçue.<br />
+                Nous vous contacterons sous <strong>24h</strong> avec un devis
+                personnalisé.
+              </p>
+              <a
+                href="index.html"
+                class="btn--primary"
+                style="display: inline-flex; margin: 0 auto"
+              >
+                Retour à l'accueil
+              </a>
+            </div>
+          </div>
+
+          <!-- SIDEBAR -->
+          <div class="form-sidebar reveal d1">
+            <div class="sidebar-card">
+              <h3>Ce qui est inclus</h3>
+              <div class="sidebar-item">
+                <span class="sidebar-icon">✦</span>
+                <span
+                  ><strong>Export PNG haute définition</strong> prêt pour
+                  impression</span
+                >
+              </div>
+              <div class="sidebar-item">
+                <span class="sidebar-icon">✦</span>
+                <span
+                  ><strong>Légende dynamique</strong> adaptée à votre
+                  carte</span
+                >
+              </div>
+              <div class="sidebar-item">
+                <span class="sidebar-icon">✦</span>
+                <span
+                  >Possibilité de travailler sur<strong>
+                    vos propres données</strong
+                  >
+                </span>
+              </div>
+              <div class="sidebar-item">
+                <span class="sidebar-icon">✦</span>
+                <span
+                  ><strong>Une (1) révision</strong> incluse dans le prix</span
+                >
+              </div>
+              <div class="sidebar-item">
+                <span class="sidebar-icon">✦</span>
+                <span
+                  >Livraison par <strong>email</strong> dans les délais</span
+                >
+              </div>
+            </div>
+
+            <div class="sidebar-card2">
+              <p>
+                💡 <strong>Astuce</strong> — Plus votre description est précise,
+                plus la carte sera exactement ce que vous imaginez. N'hésitez
+                pas à mentionner l'usage prévu (rapport, présentation,
+                publication).
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+      <div class="footer-logo">Sutura<em>·</em>Maps</div>
+      <div class="footer-links">
+        <a href="index.html#sutura">Philosophie</a>
+        <a href="index.html#features">Fonctionnalités</a>
+        <a href="index.html#pricing">Tarif</a>
+        <a href="mailto:contact@suturamaps.sn">Contact</a>
+      </div>
+      <div class="footer-copy">© 2026 Sutura Maps · Dakar, Sénégal</div>
+    </footer>
+
+    <script>
+      /* ── NAV ── */
+      function toggleMenu() {
+        document.getElementById("nav-mobile").classList.toggle("open");
+      }
+      document.addEventListener("click", (e) => {
+        const menu = document.getElementById("nav-mobile");
+        const burger = document.querySelector(".nav-burger");
+        if (
+          menu.classList.contains("open") &&
+          !menu.contains(e.target) &&
+          !burger.contains(e.target)
+        ) {
+          menu.classList.remove("open");
+        }
+      });
+
+      /* ── SCROLL REVEAL ── */
+      const observer = new IntersectionObserver(
+        (entries) =>
+          entries.forEach((e) => {
+            if (e.isIntersecting) {
+              e.target.classList.add("visible");
+              observer.unobserve(e.target);
+            }
+          }),
+        { threshold: 0.1 },
+      );
+      document
+        .querySelectorAll(".reveal")
+        .forEach((el) => observer.observe(el));
+
+      /* ── ÉTAT FORMULAIRE ── */
+      let commandeState = { type: "", style: "", budget: "", urgent: false };
+
+      function selectPill(btn, groupId) {
+        document
+          .querySelectorAll(`#${groupId} .cf-pill`)
+          .forEach((b) => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        commandeState.type = btn.dataset.value;
+        checkCommandeForm();
+      }
+
+      function selectStyle(btn) {
+        document
+          .querySelectorAll("#cf-style-grid .cf-style-btn")
+          .forEach((b) => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        commandeState.style = btn.dataset.value;
+      }
+
+      function selectBudget(btn) {
+        document
+          .querySelectorAll("#cf-budget-grid .cf-budget-btn")
+          .forEach((b) => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        commandeState.budget = btn.dataset.value;
+      }
+
+      function toggleUrgent() {
+        commandeState.urgent = !commandeState.urgent;
+        document
+          .getElementById("cf-urgent-btn")
+          .classList.toggle("selected", commandeState.urgent);
+      }
+
+      function checkCommandeForm() {
+        const nom = document.getElementById("cf-nom")?.value?.trim();
+        const email = document.getElementById("cf-email")?.value?.trim();
+        const zone = document.getElementById("cf-zone")?.value?.trim();
+        const desc = document.getElementById("cf-description")?.value?.trim();
+        const btn = document.getElementById("cf-submit-btn");
+        console.log("check →", {
+          nom,
+          email,
+          zone,
+          desc,
+          type: commandeState.type,
+        });
+
+        if (!btn) return;
+        btn.disabled = !(
+          commandeState.type &&
+          email &&
+          nom &&
+          zone &&
+          desc &&
+          email.includes("@")
+        );
+      }
+
+      /* ── ENVOI EMAILJS ── */
+      function submitCommande() {
+        const btn = document.getElementById("cf-submit-btn");
+        btn.disabled = true;
+        btn.innerHTML = "<span>⏳</span> Envoi en cours...";
+
+        const ref = "CMD-" + Date.now().toString(36).toUpperCase().slice(-6);
+
+        const params = {
+          ref,
+          nom: document.getElementById("cf-nom").value,
+          type_carte: commandeState.type,
+          zone: document.getElementById("cf-zone").value,
+          description: document.getElementById("cf-description").value,
+          style: commandeState.style || "Non précisé",
+          deadline:
+            document.getElementById("cf-deadline").value || "Non précisée",
+          urgent: commandeState.urgent ? "OUI (+3 000 FCFA)" : "Non",
+          email: document.getElementById("cf-email").value,
+          whatsapp:
+            document.getElementById("cf-whatsapp").value || "Non renseigné",
+          budget: commandeState.budget || "Non précisé",
+        };
+
+        emailjs
+          .send("service_sutura-maps", "template_sutura-maps", params)
+          .then(() => {
+            document.getElementById("commande-form-body").style.display =
+              "none";
+            document.getElementById("success-ref").innerText =
+              `Référence : ${ref}`;
+            document.getElementById("commande-success").classList.add("show");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          })
+          .catch((err) => {
+            console.error("EmailJS error:", err);
+            btn.disabled = false;
+            btn.innerHTML = "<span>✦</span> Réessayer";
+          });
+      }
+    </script>
+  </body>
+</html>
