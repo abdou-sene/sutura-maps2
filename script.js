@@ -742,26 +742,6 @@ function addLiveWatermark() {
     </svg>
 
 
-    <!-- Bandeau central -->
-    <div style="
-      position:absolute;
-      top:44%;left:0;right:0;
-      text-align:center;
-      z-index:1001;
-      pointer-events:none;
-    ">
-      <span style="
-        background:rgba(184,92,44,0.88);
-        color:white;
-        font-family:'DM Sans',sans-serif;
-        font-size:0.72rem;
-        font-weight:500;
-        letter-spacing:2px;
-        text-transform:uppercase;
-        padding:6px 18px;
-        border-radius:1px;
-      ">Payez pour télécharger sans filigrane</span>
-    </div>
   `;
   mapArea.appendChild(wm);
 }
