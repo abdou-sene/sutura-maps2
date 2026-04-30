@@ -1,3 +1,13 @@
+async function track(event, commune = null, token = null) {
+  try {
+    await fetch("/.netlify/functions/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event, commune, token }),
+    });
+  } catch (e) {}
+}
+
 let map;
 let geoData = { communes: null };
 let metaData = [];
@@ -9,17 +19,6 @@ let selectedMapType = "localisation";
 let selectedLevel = "commune"; // "commune" | "dept" | "region"
 let occupationClipped = null;
 let occupationPalette = {};
-
-// Tracking
-async function track(event, commune = null, token = null) {
-  try {
-    await fetch("/.netlify/functions/track", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event, commune, token }),
-    });
-  } catch (e) {}
-}
 
 const PALETTE_DEFAULT = {
   "Carrière Mine Infrastructure": "#8B7355",
@@ -1078,23 +1077,16 @@ async function ensureCommunesLoaded() {
   const res = await fetch("data/communes.geojson");
   geoData.communes = await res.json();
 }
+
 async function generateFinalMap() {
-  const commune = document.getElementById("select-commune").value;
-  const dept = document.getElementById("select-dept").value;
-  const reg = document.getElementById("select-reg").value;
+  const comName = document.getElementById("select-commune").value;
   const userColor = document.getElementById("color-picker")?.value || "#7BA05B";
   const author = document.getElementById("author-name")?.value || "Sutura Maps";
-  const mapType = selectedMapType;
-
-  const level = commune ? "commune" : dept ? "dept" : "region";
-  selectedLevel = level;
-  const zoneName = commune || dept || reg;
-  await ensureCommunesLoaded();
-
-  track("generation", comName);
+  const dept = document.getElementById("select-dept").value;
+  const reg = document.getElementById("select-reg").value;
 
   goToStep("loading");
-  document.getElementById("loading-commune").innerText = zoneName.toUpperCase();
+  document.getElementById("loading-commune").innerText = comName.toUpperCase();
 
   const steps = ["ls1", "ls2", "ls3"];
   steps.forEach((id, i) => {
@@ -1107,6 +1099,19 @@ async function generateFinalMap() {
   });
 
   await new Promise((r) => setTimeout(r, 3000));
+
+  // ← CHARGER communes.geojson ici si pas encore chargé
+  if (!geoData.communes) {
+    try {
+      const res = await fetch("data/communes.geojson");
+      geoData.communes = await res.json();
+    } catch (e) {
+      showError("Impossible de charger les données géographiques.");
+      goToStep(2);
+      return;
+    }
+  }
+
   goToStep(3);
 
   setTimeout(async () => {
@@ -1116,42 +1121,25 @@ async function generateFinalMap() {
     if (mapControls.scale) map.removeControl(mapControls.scale);
     if (mapControls.north) map.removeControl(mapControls.north);
 
-    let targetFeature = null;
-    if (level === "commune") {
-      targetFeature = geoData.communes.features.find(
-        (f) =>
-          f.properties.CCRCA === commune &&
-          f.properties.DEPT === dept &&
-          f.properties.REG === reg,
-      );
-    } else {
-      targetFeature = await buildMergedFeature(level, dept, reg);
-    }
+    const targetFeature = geoData.communes.features.find(
+      (f) =>
+        f.properties.CCRCA === comName &&
+        f.properties.DEPT === dept &&
+        f.properties.REG === reg,
+    );
 
     if (!targetFeature) {
-      showError("Zone introuvable. Veuillez réessayer.");
+      showError("Commune introuvable. Veuillez réessayer.");
       goToStep(2);
       return;
     }
 
-    map.fitBounds(L.geoJSON(targetFeature).getBounds(), { animate: false });
+    track("generation", comName);
 
-    if (mapType === "localisation") {
-      await generateLocalisationMap(
-        targetFeature,
-        userColor,
-        commune,
-        author,
-        "DTGC",
-      );
-    } else {
-      await generateOccupationMap(
-        targetFeature,
-        zoneName,
-        author,
-        "ANAT / CSE / ANSD (2020)",
-        level,
-      );
+    if (selectedMapType === "localisation") {
+      await generateLocalisationMap(targetFeature, userColor, comName, author);
+    } else if (selectedMapType === "occupation") {
+      await generateOccupationMap(targetFeature, userColor, comName, author);
     }
   }, 600);
 }
