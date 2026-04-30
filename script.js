@@ -145,6 +145,7 @@ window.onload = async () => {
     metaData = await res.json();
     initFilters();
     track("visit");
+
     document.querySelectorAll(".color-swatch").forEach((swatch) => {
       swatch.onclick = () => {
         document
@@ -154,6 +155,14 @@ window.onload = async () => {
         document.getElementById("color-picker").value = swatch.dataset.color;
       };
     });
+
+    // Détection token de téléchargement dans l'URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const dlToken = urlParams.get("token");
+
+    if (dlToken) {
+      handleDownloadToken(dlToken);
+    }
   } catch (e) {
     console.error(
       "Erreur : Fichiers GeoJSON introuvables dans le dossier /data",
@@ -1511,14 +1520,14 @@ function showCodeModal(code, commune) {
       </p>
 
       <!-- Le code -->
-      <div onclick="copyCode('${code}')" style="cursor:pointer;
-           background:#0e0c0a;color:#c9a84c;
-           font-family:'Cormorant Garamond',serif;
-           font-size:2.2rem;font-weight:700;
-           padding:1.2rem;border-radius:2px;
-           margin-bottom:0.5rem;letter-spacing:4px;">
-        ${code}
-      </div>
+      <div id="display-code" onclick="copyCode('${code}')" style="cursor:pointer;
+     background:#0e0c0a;color:#c9a84c;
+     font-family:'Cormorant Garamond',serif;
+     font-size:2.2rem;font-weight:700;
+     padding:1.2rem;border-radius:2px;
+     margin-bottom:0.5rem;letter-spacing:4px;">
+  ${code}
+</div>
       <p style="font-size:0.68rem;color:#7a7068;margin-bottom:1.5rem;">
         (cliquez pour copier)
       </p>
@@ -1569,11 +1578,18 @@ function showCodeModal(code, commune) {
 
 function copyCode(code) {
   navigator.clipboard.writeText(code);
-  // Feedback visuel rapide
-  event.target.closest ? (event.target.innerText = "✓ Copié !") : null;
-  setTimeout(() => location.reload(), 1000);
+  // Feedback visuel sans recharger la page
+  const codeDiv = document.getElementById("display-code");
+  if (codeDiv) {
+    const original = codeDiv.innerText;
+    codeDiv.innerText = "✓ Copié !";
+    codeDiv.style.color = "#28c840";
+    setTimeout(() => {
+      codeDiv.innerText = original;
+      codeDiv.style.color = "";
+    }, 2000);
+  }
 }
-
 async function checkAndDownload() {
   const token = sessionStorage.getItem("sutura_token");
   if (!token) return;
@@ -1667,6 +1683,106 @@ function closePaymentModal() {
 function confirmPayment() {
   closePaymentModal();
   doExport(false);
+}
+
+async function handleDownloadToken(token) {
+  // Afficher un écran d'attente propre
+  document
+    .querySelectorAll(".step")
+    .forEach((s) => s.classList.remove("active"));
+
+  const main = document.querySelector("main");
+  const waitDiv = document.createElement("div");
+  waitDiv.style.cssText = `
+    display:flex;flex-direction:column;align-items:center;
+    justify-content:center;min-height:60vh;gap:1.5rem;text-align:center;
+    padding:2rem;
+  `;
+  waitDiv.innerHTML = `
+    <div style="font-size:3rem">🗺️</div>
+    <p style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:600;color:var(--ink);">
+      Vérification du paiement…
+    </p>
+    <p style="font-size:0.82rem;color:var(--muted);">Préparation de votre carte en cours.</p>
+    <div id="dl-status" style="font-size:0.78rem;color:var(--terra);font-weight:500;letter-spacing:1px;"></div>
+  `;
+  main.appendChild(waitDiv);
+
+  // Vérifier le token
+  try {
+    const res = await fetch(`/.netlify/functions/check-token?token=${token}`);
+    const { paid, commune, error } = await res.json();
+
+    if (!paid) {
+      waitDiv.innerHTML = `
+        <div style="font-size:3rem">❌</div>
+        <p style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:600;color:var(--terra);">
+          ${error || "Lien invalide ou expiré"}
+        </p>
+        <a href="map.html" style="
+          display:inline-block;margin-top:1rem;
+          background:var(--terra);color:white;padding:12px 28px;
+          font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;
+          text-decoration:none;border-radius:1px;">
+          Retour à l'accueil
+        </a>
+      `;
+      return;
+    }
+
+    // Paiement confirmé — charger les données et générer
+    document.getElementById("dl-status").innerText =
+      "Paiement confirmé — chargement de la carte…";
+
+    // Charger communes.geojson si besoin
+    if (!geoData.communes) {
+      const r = await fetch("data/communes.geojson");
+      geoData.communes = await r.json();
+    }
+
+    // Trouver la feature de la commune
+    const targetFeature = geoData.communes.features.find(
+      (f) => f.properties.CCRCA === commune,
+    );
+
+    if (!targetFeature) {
+      waitDiv.innerHTML = `
+        <div style="font-size:3rem">⚠️</div>
+        <p style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;color:var(--terra);">
+          Commune introuvable : ${commune}
+        </p>
+        <p style="font-size:0.78rem;color:var(--muted);">
+          Contactez-nous sur WhatsApp avec votre code de paiement.
+        </p>
+      `;
+      return;
+    }
+
+    main.removeChild(waitDiv);
+
+    // Générer la carte directement en step 3
+    goToStep(3);
+    await new Promise((r) => setTimeout(r, 300));
+    map.invalidateSize();
+    map.eachLayer((layer) => map.removeLayer(layer));
+
+    await generateLocalisationMap(
+      targetFeature,
+      "#7BA05B", // couleur par défaut
+      commune,
+      "Sutura Maps", // auteur par défaut
+    );
+
+    // Lancer l'export automatiquement
+    await new Promise((r) => setTimeout(r, 1500));
+    doExport(false); // sans filigrane
+  } catch (e) {
+    console.error("handleDownloadToken error:", e);
+    waitDiv.innerHTML = `
+      <div style="font-size:3rem">❌</div>
+      <p style="font-size:0.9rem;color:var(--terra);">Erreur réseau. Réessayez.</p>
+    `;
+  }
 }
 
 function doExport(withWatermark = true) {
