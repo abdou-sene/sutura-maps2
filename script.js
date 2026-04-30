@@ -1491,7 +1491,7 @@ async function exportToPNG() {
   const res = await fetch("/.netlify/functions/generate-code", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ commune, dept, reg, email }),
+    body: JSON.stringify({ commune, dept, reg, email, color, author }), // ← color + author
   });
 
   const { code, token } = await res.json();
@@ -1686,6 +1686,7 @@ function confirmPayment() {
 }
 
 async function handleDownloadToken(token) {
+  const { paid, commune, error, color, author } = await res.json();
   // Afficher un écran d'attente propre
   document
     .querySelectorAll(".step")
@@ -1768,9 +1769,9 @@ async function handleDownloadToken(token) {
 
     await generateLocalisationMap(
       targetFeature,
-      "#7BA05B", // couleur par défaut
+      color || "#7BA05B", // ← couleur choisie
       commune,
-      "Sutura Maps", // auteur par défaut
+      author || "Sutura Maps", // ← auteur choisi
     );
 
     // Lancer l'export automatiquement

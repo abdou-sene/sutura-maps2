@@ -25,7 +25,9 @@ exports.handler = async (event) => {
   if (event.httpMethod !== "POST")
     return { statusCode: 405, body: "Method Not Allowed" };
 
-  const { commune, dept, reg, email } = JSON.parse(event.body || "{}");
+  const { commune, dept, reg, email, color, author } = JSON.parse(
+    event.body || "{}",
+  );
 
   // Générer un code unique (retry si collision)
   let code,
@@ -51,6 +53,8 @@ exports.handler = async (event) => {
     dept,
     reg,
     user_email: email || null,
+    user_color: color || "#7BA05B",
+    user_author: author || "Sutura Maps",
     paid: false,
     expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
   });

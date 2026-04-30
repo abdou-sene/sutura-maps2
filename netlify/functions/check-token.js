@@ -14,7 +14,7 @@ exports.handler = async (event) => {
 
   const { data, error } = await supabase
     .from("exports")
-    .select("paid, commune, expires_at, used_at")
+    .select("paid, commune, expires_at, used_at, user_color, user_author")
     .eq("token", token)
     .maybeSingle();
 
@@ -46,6 +46,11 @@ exports.handler = async (event) => {
   return {
     statusCode: 200,
     headers: { "Access-Control-Allow-Origin": "*" },
-    body: JSON.stringify({ paid: data.paid, commune: data.commune }),
+    body: JSON.stringify({
+      paid: data.paid,
+      commune: data.commune,
+      color: data.user_color || "#7BA05B",
+      author: data.user_author || "Sutura Maps",
+    }),
   };
 };
