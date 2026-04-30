@@ -1481,26 +1481,33 @@ async function exportToPNG() {
   const commune = document.getElementById("select-commune").value;
   const dept = document.getElementById("select-dept").value;
   const reg = document.getElementById("select-reg").value;
+  // ← Lire color et author ICI avant le prompt
+  const color = document.getElementById("color-picker")?.value || "#7BA05B";
+  const author = document.getElementById("author-name")?.value || "Sutura Maps";
 
-  // Demander l'email (optionnel)
-  const email = prompt(
-    "Votre email (optionnel — pour recevoir le lien de téléchargement) :",
-  );
+  const email =
+    prompt("Votre email (optionnel — pour recevoir le lien) :") || "";
 
-  // Générer le code unique
-  const res = await fetch("/.netlify/functions/generate-code", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ commune, dept, reg, email, color, author }), // ← color + author
-  });
+  try {
+    const res = await fetch("/.netlify/functions/generate-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commune, dept, reg, email, color, author }),
+    });
 
-  const { code, token } = await res.json();
+    const data = await res.json();
 
-  // Stocker token localement pour vérification
-  sessionStorage.setItem("sutura_token", token);
+    if (!data.code) {
+      showError("Erreur lors de la génération du code. Réessayez.");
+      return;
+    }
 
-  // Afficher le modal avec le code
-  showCodeModal(code, commune);
+    sessionStorage.setItem("sutura_token", data.token);
+    showCodeModal(data.code, commune);
+  } catch (e) {
+    console.error("exportToPNG error:", e);
+    showError("Erreur réseau. Réessayez.");
+  }
 }
 
 function showCodeModal(code, commune) {
@@ -1686,18 +1693,18 @@ function confirmPayment() {
 }
 
 async function handleDownloadToken(token) {
-  const { paid, commune, error, color, author } = await res.json();
-  // Afficher un écran d'attente propre
+  // Masquer les steps
   document
     .querySelectorAll(".step")
     .forEach((s) => s.classList.remove("active"));
 
+  // Afficher écran d'attente
   const main = document.querySelector("main");
   const waitDiv = document.createElement("div");
+  waitDiv.id = "dl-wait";
   waitDiv.style.cssText = `
     display:flex;flex-direction:column;align-items:center;
-    justify-content:center;min-height:60vh;gap:1.5rem;text-align:center;
-    padding:2rem;
+    justify-content:center;min-height:60vh;gap:1.5rem;text-align:center;padding:2rem;
   `;
   waitDiv.innerHTML = `
     <div style="font-size:3rem">🗺️</div>
@@ -1709,29 +1716,28 @@ async function handleDownloadToken(token) {
   `;
   main.appendChild(waitDiv);
 
-  // Vérifier le token
   try {
+    // ← res est défini ICI
     const res = await fetch(`/.netlify/functions/check-token?token=${token}`);
-    const { paid, commune, error } = await res.json();
+    const { paid, commune, error, color, author } = await res.json();
 
     if (!paid) {
       waitDiv.innerHTML = `
         <div style="font-size:3rem">❌</div>
-        <p style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:600;color:var(--terra);">
+        <p style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;
+                  font-weight:600;color:var(--terra);">
           ${error || "Lien invalide ou expiré"}
         </p>
-        <a href="map.html" style="
-          display:inline-block;margin-top:1rem;
-          background:var(--terra);color:white;padding:12px 28px;
-          font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;
-          text-decoration:none;border-radius:1px;">
+        <a href="map.html" style="display:inline-block;margin-top:1rem;
+           background:var(--terra);color:white;padding:12px 28px;
+           font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;
+           text-decoration:none;border-radius:1px;">
           Retour à l'accueil
         </a>
       `;
       return;
     }
 
-    // Paiement confirmé — charger les données et générer
     document.getElementById("dl-status").innerText =
       "Paiement confirmé — chargement de la carte…";
 
@@ -1741,7 +1747,6 @@ async function handleDownloadToken(token) {
       geoData.communes = await r.json();
     }
 
-    // Trouver la feature de la commune
     const targetFeature = geoData.communes.features.find(
       (f) => f.properties.CCRCA === commune,
     );
@@ -1759,29 +1764,40 @@ async function handleDownloadToken(token) {
       return;
     }
 
+    // Supprimer l'écran d'attente
     main.removeChild(waitDiv);
 
-    // Générer la carte directement en step 3
+    // Générer la carte en step 3
     goToStep(3);
     await new Promise((r) => setTimeout(r, 300));
     map.invalidateSize();
     map.eachLayer((layer) => map.removeLayer(layer));
+    if (mapControls.scale) map.removeControl(mapControls.scale);
+    if (mapControls.north) map.removeControl(mapControls.north);
 
     await generateLocalisationMap(
       targetFeature,
-      color || "#7BA05B", // ← couleur choisie
+      color || "#7BA05B",
       commune,
-      author || "Sutura Maps", // ← auteur choisi
+      author || "Sutura Maps",
     );
 
-    // Lancer l'export automatiquement
+    // Export automatique après rendu
     await new Promise((r) => setTimeout(r, 1500));
-    doExport(false); // sans filigrane
+    doExport(false);
   } catch (e) {
     console.error("handleDownloadToken error:", e);
-    waitDiv.innerHTML = `
+    const wait = document.getElementById("dl-wait");
+    if (wait)
+      wait.innerHTML = `
       <div style="font-size:3rem">❌</div>
       <p style="font-size:0.9rem;color:var(--terra);">Erreur réseau. Réessayez.</p>
+      <a href="map.html" style="display:inline-block;margin-top:1rem;
+         background:var(--terra);color:white;padding:12px 28px;
+         font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;
+         text-decoration:none;border-radius:1px;">
+        Retour
+      </a>
     `;
   }
 }
