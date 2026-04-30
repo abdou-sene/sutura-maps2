@@ -1465,8 +1465,112 @@ function startPaymentTimer() {
   }, 35000);
 }
 
-function exportToPNG() {
-  document.getElementById("payment-modal").style.display = "flex";
+// Dans script.js — remplace exportToPNG()
+async function exportToPNG() {
+  const commune = document.getElementById("select-commune").value;
+  const dept = document.getElementById("select-dept").value;
+  const reg = document.getElementById("select-reg").value;
+
+  // 1. Créer la session de paiement côté serveur
+  const btn = document.querySelector(".btn-export");
+  btn.disabled = true;
+  btn.innerText = "⏳ Initialisation...";
+
+  try {
+    const res = await fetch("/.netlify/functions/create-payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commune, dept, reg }),
+    });
+
+    const { token, payment_url, error } = await res.json();
+
+    if (error || !payment_url) {
+      throw new Error(error || "Erreur initialisation paiement");
+    }
+
+    // 2. Stocker le token localement
+    sessionStorage.setItem("sutura_token", token);
+
+    // 3. Ouvrir PayDunya dans un nouvel onglet
+    window.open(payment_url, "_blank");
+
+    // 4. Afficher modal d'attente
+    showWaitingModal(token);
+  } catch (e) {
+    showError("Erreur : " + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerText = "PAYEZ ET TÉLÉCHARGEZ";
+  }
+}
+
+function showWaitingModal(token) {
+  const modal = document.getElementById("payment-modal");
+  modal.style.display = "flex";
+  modal.innerHTML = `
+    <div style="background:#f7f3ec;padding:2.5rem;max-width:420px;width:90%;border-radius:2px;text-align:center;">
+      <p style="font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:600;margin-bottom:1rem;">
+        Paiement en cours…
+      </p>
+      <p style="font-size:0.78rem;color:#7a7068;margin-bottom:1.5rem;line-height:1.6;">
+        Complétez le paiement dans l'onglet PayDunya.<br>
+        Revenez ici après confirmation.
+      </p>
+      <div style="background:#0e0c0a;color:#c9a84c;font-family:'Cormorant Garamond',serif;
+                  font-size:1.8rem;font-weight:700;padding:1rem;border-radius:2px;margin-bottom:1.5rem;">
+        2 000 FCFA
+      </div>
+      <button id="check-payment-btn" onclick="checkAndDownload('${token}')"
+        style="width:100%;background:#0e0c0a;color:white;padding:14px;
+               font-family:'DM Sans',sans-serif;font-size:0.82rem;letter-spacing:1.5px;
+               text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;margin-bottom:1rem;">
+        ✅ J'ai payé — Télécharger ma carte
+      </button>
+      <button onclick="closePaymentModal()"
+        style="background:transparent;border:none;color:#7a7068;font-size:0.75rem;
+               cursor:pointer;text-decoration:underline;">
+        Annuler
+      </button>
+    </div>
+  `;
+}
+
+async function checkAndDownload(token) {
+  const btn = document.getElementById("check-payment-btn");
+  btn.disabled = true;
+  btn.innerText = "⏳ Vérification en cours…";
+
+  // Polling 3 fois max (10s entre chaque)
+  for (let i = 0; i < 3; i++) {
+    try {
+      const res = await fetch(`/.netlify/functions/check-token?token=${token}`);
+      const { paid, error } = await res.json();
+
+      if (paid) {
+        closePaymentModal();
+        doExport(false); // false = sans filigrane
+        return;
+      }
+
+      if (error) {
+        btn.disabled = false;
+        btn.innerText = `❌ ${error}`;
+        return;
+      }
+
+      // Pas encore confirmé — attendre 10s
+      btn.innerText = `⏳ En attente… (${i + 1}/3)`;
+      await new Promise((r) => setTimeout(r, 10000));
+    } catch (e) {
+      btn.disabled = false;
+      btn.innerText = "❌ Erreur réseau — Réessayer";
+      return;
+    }
+  }
+
+  btn.disabled = false;
+  btn.innerText = "❌ Non confirmé — Contactez-nous";
 }
 function closePaymentModal() {
   document.getElementById("payment-modal").style.display = "none";

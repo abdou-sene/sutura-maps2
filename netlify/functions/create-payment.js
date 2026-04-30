@@ -1,57 +1,108 @@
-// netlify/functions/create-payment.js
 const { createClient } = require("@supabase/supabase-js");
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
+  process.env.SUPABASE_SERVICE_KEY,
 );
 
 exports.handler = async (event) => {
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+      },
+      body: "",
+    };
+  }
+
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
 
-  const { commune } = JSON.parse(event.body);
+  const { commune, dept, reg } = JSON.parse(event.body);
 
-  // Générer un token unique
-  const token = "SUT" + Math.random().toString(36).substring(2, 10).toUpperCase();
+  // 1. Générer un token unique côté serveur
+  const token =
+    "SUT" +
+    Math.random().toString(36).substring(2, 10).toUpperCase() +
+    Date.now().toString(36).toUpperCase();
 
-  // Sauvegarder dans Supabase
-  const { error } = await supabase
-    .from("exports")
-    .insert({ token, commune, paid: false });
-
-  if (error) {
-    return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
-  }
-
-  // Créer le lien Wave Checkout
-  const waveResponse = await fetch("https://api.wave.com/v1/checkout/sessions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.WAVE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      amount: "2000",
-      currency: "XOF",
-      error_url: `${process.env.APP_URL}?token=${token}&status=error`,
-      success_url: `${process.env.APP_URL}?token=${token}&status=success`,
-      client_reference: token,
-    }),
+  // 2. Sauvegarder en base AVANT le paiement
+  const { error: dbError } = await supabase.from("exports").insert({
+    token,
+    commune,
+    dept,
+    reg,
+    paid: false,
+    expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2h
+    created_at: new Date().toISOString(),
   });
 
-  const waveData = await waveResponse.json();
+  if (dbError) {
+    console.error("Supabase insert error:", dbError);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Erreur création token" }),
+    };
+  }
 
-  if (!waveData.wave_launch_url) {
-    return { statusCode: 500, body: JSON.stringify({ error: "Wave error", detail: waveData }) };
+  // 3. Créer la session PayDunya
+  const paydunyaPayload = {
+    invoice: {
+      total_amount: 2000,
+      description: `Carte Sutura Maps — Commune de ${commune}`,
+    },
+    store: {
+      name: "Sutura Maps",
+      tagline: "Cartographiez avec dignité",
+    },
+    actions: {
+      cancel_url: `${process.env.APP_URL}/map.html?token=${token}&status=cancel`,
+      return_url: `${process.env.APP_URL}/map.html?token=${token}&status=success`,
+      callback_url: `${process.env.APP_URL}/.netlify/functions/paydunya-webhook`,
+    },
+    custom_data: {
+      token,
+      commune,
+    },
+  };
+
+  const pdRes = await fetch(
+    "https://app.paydunya.com/api/v1/checkout-invoice/create",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "PAYDUNYA-MASTER-KEY": process.env.PAYDUNYA_MASTER_KEY,
+        "PAYDUNYA-PRIVATE-KEY": process.env.PAYDUNYA_PRIVATE_KEY,
+        "PAYDUNYA-TOKEN": process.env.PAYDUNYA_TOKEN,
+      },
+      body: JSON.stringify(paydunyaPayload),
+    },
+  );
+
+  const pdData = await pdRes.json();
+
+  if (pdData.response_code !== "00") {
+    console.error("PayDunya error:", pdData);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        error: "Erreur PayDunya",
+        detail: pdData.response_text,
+      }),
+    };
   }
 
   return {
     statusCode: 200,
+    headers: { "Access-Control-Allow-Origin": "*" },
     body: JSON.stringify({
       token,
-      payment_url: waveData.wave_launch_url,
+      payment_url: pdData.response_text, // URL checkout PayDunya
     }),
   };
 };
