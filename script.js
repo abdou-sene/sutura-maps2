@@ -10,6 +10,17 @@ let selectedLevel = "commune"; // "commune" | "dept" | "region"
 let occupationClipped = null;
 let occupationPalette = {};
 
+// Tracking
+async function track(event, commune = null, token = null) {
+  try {
+    await fetch("/.netlify/functions/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event, commune, token }),
+    });
+  } catch (e) {}
+}
+
 const PALETTE_DEFAULT = {
   "Carrière Mine Infrastructure": "#8B7355",
   "Cours d'eau": "#4A90B8",
@@ -134,6 +145,7 @@ window.onload = async () => {
     const res = await fetch("data/meta.json");
     metaData = await res.json();
     initFilters();
+    track("visit");
     document.querySelectorAll(".color-swatch").forEach((swatch) => {
       swatch.onclick = () => {
         document
@@ -1079,6 +1091,8 @@ async function generateFinalMap() {
   const zoneName = commune || dept || reg;
   await ensureCommunesLoaded();
 
+  track("generation", comName);
+
   goToStep("loading");
   document.getElementById("loading-commune").innerText = zoneName.toUpperCase();
 
@@ -1471,37 +1485,124 @@ async function exportToPNG() {
   const dept = document.getElementById("select-dept").value;
   const reg = document.getElementById("select-reg").value;
 
-  // 1. Créer la session de paiement côté serveur
-  const btn = document.querySelector(".btn-export");
+  // Demander l'email (optionnel)
+  const email = prompt(
+    "Votre email (optionnel — pour recevoir le lien de téléchargement) :",
+  );
+
+  // Générer le code unique
+  const res = await fetch("/.netlify/functions/generate-code", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ commune, dept, reg, email }),
+  });
+
+  const { code, token } = await res.json();
+
+  // Stocker token localement pour vérification
+  sessionStorage.setItem("sutura_token", token);
+
+  // Afficher le modal avec le code
+  showCodeModal(code, commune);
+}
+
+function showCodeModal(code, commune) {
+  const modal = document.getElementById("payment-modal");
+  modal.style.display = "flex";
+  modal.innerHTML = `
+    <div style="background:#f7f3ec;padding:2.5rem;max-width:440px;
+                width:90%;border-radius:2px;text-align:center;border:1px solid rgba(14,12,10,0.1);">
+      
+      <p style="font-family:'Cormorant Garamond',serif;font-size:1.5rem;
+                font-weight:600;margin-bottom:0.5rem;">
+        Votre code de paiement
+      </p>
+      <p style="font-size:0.78rem;color:#7a7068;margin-bottom:1.5rem;line-height:1.6;">
+        Envoyez ce code avec votre paiement Wave.<br>
+        Votre carte sera débloquée dans les minutes qui suivent.
+      </p>
+
+      <!-- Le code -->
+      <div onclick="copyCode('${code}')" style="cursor:pointer;
+           background:#0e0c0a;color:#c9a84c;
+           font-family:'Cormorant Garamond',serif;
+           font-size:2.2rem;font-weight:700;
+           padding:1.2rem;border-radius:2px;
+           margin-bottom:0.5rem;letter-spacing:4px;">
+        ${code}
+      </div>
+      <p style="font-size:0.68rem;color:#7a7068;margin-bottom:1.5rem;">
+        (cliquez pour copier)
+      </p>
+
+      <!-- Prix -->
+      <div style="background:#f0ebe3;padding:0.8rem;border-radius:2px;
+                  margin-bottom:1.5rem;font-size:0.82rem;color:#0e0c0a;">
+        <strong>2 000 FCFA</strong> · Commune de ${commune}
+      </div>
+
+      <!-- Bouton Wave -->
+      <a href="https://pay.wave.com/m/M_sn_d2M6Pe0j1DGg?amount=2000"
+         target="_blank"
+         style="display:block;background:#1dc7b0;color:white;padding:13px;
+                font-size:0.82rem;letter-spacing:1.5px;text-transform:uppercase;
+                text-decoration:none;border-radius:2px;margin-bottom:0.8rem;
+                font-family:'DM Sans',sans-serif;">
+        Payer 2 000 FCFA avec Wave →
+      </a>
+
+      <!-- Instruction WhatsApp -->
+      <a href="https://wa.me/221781751168?text=Bonjour%2C+j%27ai+pay%C3%A9+pour+la+commune+de+${encodeURIComponent(commune)}+%E2%80%94+mon+code+est+%3A+${code}"
+         target="_blank"
+         style="display:block;background:#25D366;color:white;padding:13px;
+                font-size:0.82rem;letter-spacing:1.5px;text-transform:uppercase;
+                text-decoration:none;border-radius:2px;margin-bottom:1rem;
+                font-family:'DM Sans',sans-serif;">
+        Envoyer le code par WhatsApp →
+      </a>
+
+      <!-- Vérification si déjà payé -->
+      <button onclick="checkAndDownload()"
+        style="width:100%;background:transparent;color:#7a7068;padding:10px;
+               font-family:'DM Sans',sans-serif;font-size:0.75rem;
+               border:1px solid rgba(14,12,10,0.15);border-radius:2px;
+               cursor:pointer;margin-bottom:0.8rem;">
+        J'ai déjà payé — Vérifier mon accès
+      </button>
+
+      <button onclick="closePaymentModal()"
+        style="background:transparent;border:none;color:#7a7068;
+               font-size:0.72rem;cursor:pointer;text-decoration:underline;">
+        Annuler
+      </button>
+    </div>
+  `;
+}
+
+function copyCode(code) {
+  navigator.clipboard.writeText(code);
+  // Feedback visuel rapide
+  event.target.closest ? (event.target.innerText = "✓ Copié !") : null;
+  setTimeout(() => location.reload(), 1000);
+}
+
+async function checkAndDownload() {
+  const token = sessionStorage.getItem("sutura_token");
+  if (!token) return;
+
+  const btn = event.target;
   btn.disabled = true;
-  btn.innerText = "⏳ Initialisation...";
+  btn.innerText = "⏳ Vérification...";
 
-  try {
-    const res = await fetch("/.netlify/functions/create-payment", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ commune, dept, reg }),
-    });
+  const res = await fetch(`/.netlify/functions/check-token?token=${token}`);
+  const { paid, error } = await res.json();
 
-    const { token, payment_url, error } = await res.json();
-
-    if (error || !payment_url) {
-      throw new Error(error || "Erreur initialisation paiement");
-    }
-
-    // 2. Stocker le token localement
-    sessionStorage.setItem("sutura_token", token);
-
-    // 3. Ouvrir PayDunya dans un nouvel onglet
-    window.open(payment_url, "_blank");
-
-    // 4. Afficher modal d'attente
-    showWaitingModal(token);
-  } catch (e) {
-    showError("Erreur : " + e.message);
-  } finally {
+  if (paid) {
+    closePaymentModal();
+    doExport(false);
+  } else {
     btn.disabled = false;
-    btn.innerText = "PAYEZ ET TÉLÉCHARGEZ";
+    btn.innerText = error || "Paiement non encore confirmé";
   }
 }
 

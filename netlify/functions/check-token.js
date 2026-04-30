@@ -1,5 +1,4 @@
 const { createClient } = require("@supabase/supabase-js");
-
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY,
@@ -7,44 +6,36 @@ const supabase = createClient(
 
 exports.handler = async (event) => {
   const token = event.queryStringParameters?.token;
-
-  if (!token || !token.startsWith("SUT")) {
+  if (!token)
     return {
       statusCode: 400,
-      body: JSON.stringify({ paid: false, error: "Token invalide" }),
+      body: JSON.stringify({ paid: false, error: "Token manquant" }),
     };
-  }
 
   const { data, error } = await supabase
     .from("exports")
     .select("paid, commune, expires_at, used_at")
     .eq("token", token)
-    .single();
+    .maybeSingle();
 
-  if (error || !data) {
+  if (error || !data)
     return {
       statusCode: 404,
       body: JSON.stringify({ paid: false, error: "Token introuvable" }),
     };
-  }
 
-  // Expiré ?
-  if (new Date(data.expires_at) < new Date()) {
+  if (new Date(data.expires_at) < new Date())
     return {
       statusCode: 200,
-      body: JSON.stringify({ paid: false, error: "Token expiré (2h)" }),
+      body: JSON.stringify({ paid: false, error: "Lien expiré" }),
     };
-  }
 
-  // Déjà utilisé ? (protection one-shot)
-  if (data.used_at) {
+  if (data.used_at)
     return {
       statusCode: 200,
-      body: JSON.stringify({ paid: false, error: "Token déjà utilisé" }),
+      body: JSON.stringify({ paid: false, error: "Déjà téléchargé" }),
     };
-  }
 
-  // Marquer comme utilisé si paid=true (one-shot download)
   if (data.paid) {
     await supabase
       .from("exports")
