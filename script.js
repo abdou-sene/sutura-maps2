@@ -1481,32 +1481,40 @@ async function exportToPNG() {
   const commune = document.getElementById("select-commune").value;
   const dept = document.getElementById("select-dept").value;
   const reg = document.getElementById("select-reg").value;
-  // ← Lire color et author ICI avant le prompt
   const color = document.getElementById("color-picker")?.value || "#7BA05B";
   const author = document.getElementById("author-name")?.value || "Sutura Maps";
+  const email = prompt("Votre email (pour recevoir le lien de téléchargement) :") || "";
 
-  const email =
-    prompt("Votre email (optionnel — pour recevoir le lien) :") || "";
+  const btn = document.querySelector(".btn-export");
+  btn.disabled = true;
+  btn.innerText = "⏳ Initialisation...";
 
   try {
-    const res = await fetch("/.netlify/functions/generate-code", {
+    const res = await fetch("/.netlify/functions/create-payment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ commune, dept, reg, email, color, author }),
+      body: JSON.stringify({ commune, dept, reg, color, author, email }),
     });
 
     const data = await res.json();
 
-    if (!data.code) {
-      showError("Erreur lors de la génération du code. Réessayez.");
+    if (!data.payment_url) {
+      showError(data.error || "Erreur initialisation paiement");
       return;
     }
 
+    // Stocker le token pour vérification au retour
     sessionStorage.setItem("sutura_token", data.token);
-    showCodeModal(data.code, commune);
+
+    // Rediriger vers Bictorys
+    window.location.href = data.payment_url;
+
   } catch (e) {
     console.error("exportToPNG error:", e);
     showError("Erreur réseau. Réessayez.");
+  } finally {
+    btn.disabled = false;
+    btn.innerText = "PAYEZ ET TÉLÉCHARGEZ";
   }
 }
 

@@ -1,3 +1,4 @@
+// netlify/functions/create-payment.js
 const { createClient } = require("@supabase/supabase-js");
 
 const supabase = createClient(
@@ -6,103 +7,107 @@ const supabase = createClient(
 );
 
 exports.handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-      },
-      body: "",
-    };
-  }
+  const headers = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
 
-  if (event.httpMethod !== "POST") {
+  if (event.httpMethod === "OPTIONS")
+    return { statusCode: 200, headers, body: "" };
+  if (event.httpMethod !== "POST")
     return { statusCode: 405, body: "Method Not Allowed" };
-  }
 
-  const { commune, dept, reg } = JSON.parse(event.body);
+  const { commune, dept, reg, color, author, email } = JSON.parse(
+    event.body || "{}",
+  );
 
-  // 1. Générer un token unique côté serveur
+  // 1. Générer token interne
   const token =
-    "SUT" +
-    Math.random().toString(36).substring(2, 10).toUpperCase() +
-    Date.now().toString(36).toUpperCase();
+    "DL-" + Math.random().toString(36).substring(2, 14).toUpperCase();
+  const code =
+    "SUT-" +
+    Math.random().toString(36).substring(2, 6).toUpperCase() +
+    "-" +
+    Math.random().toString(36).substring(2, 6).toUpperCase();
 
-  // 2. Sauvegarder en base AVANT le paiement
+  // 2. Sauvegarder en base
   const { error: dbError } = await supabase.from("exports").insert({
     token,
+    code,
     commune,
     dept,
     reg,
+    user_email: email || null,
+    user_color: color || "#7BA05B",
+    user_author: author || "Sutura Maps",
     paid: false,
-    expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2h
-    created_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
   });
 
   if (dbError) {
-    console.error("Supabase insert error:", dbError);
+    console.error("Supabase error:", dbError);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Erreur création token" }),
+      headers,
+      body: JSON.stringify({ error: dbError.message }),
     };
   }
 
-  // 3. Créer la session PayDunya
-  const paydunyaPayload = {
-    invoice: {
-      total_amount: 2000,
-      description: `Carte Sutura Maps — Commune de ${commune}`,
+  // 3. Créer session Bictorys Checkout
+  const bictorysRes = await fetch("https://api.bictorys.com/pay/v1/charges", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Api-Key": process.env.BICTORYS_API_KEY,
     },
-    store: {
-      name: "Sutura Maps",
-      tagline: "Cartographiez avec dignité",
-    },
-    actions: {
-      cancel_url: `${process.env.APP_URL}/map.html?token=${token}&status=cancel`,
-      return_url: `${process.env.APP_URL}/map.html?token=${token}&status=success`,
-      callback_url: `${process.env.APP_URL}/.netlify/functions/paydunya-webhook`,
-    },
-    custom_data: {
-      token,
-      commune,
-    },
-  };
-
-  const pdRes = await fetch(
-    "https://app.paydunya.com/api/v1/checkout-invoice/create",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "PAYDUNYA-MASTER-KEY": process.env.PAYDUNYA_MASTER_KEY,
-        "PAYDUNYA-PRIVATE-KEY": process.env.PAYDUNYA_PRIVATE_KEY,
-        "PAYDUNYA-TOKEN": process.env.PAYDUNYA_TOKEN,
+    body: JSON.stringify({
+      amount: 2000,
+      currency: "XOF",
+      country: "SN",
+      merchantReference: token, // ton token = référence unique
+      successRedirectUrl: `${process.env.APP_URL}/map.html?token=${token}&status=success`,
+      ErrorRedirectUrl: `${process.env.APP_URL}/map.html?token=${token}&status=error`,
+      customer: {
+        name: author || "Client Sutura Maps",
+        email: email || "client@suturamaps.com",
+        city: "Dakar",
+        country: "SN",
+        locale: "fr-FR",
       },
-      body: JSON.stringify(paydunyaPayload),
-    },
-  );
+      orderDetails: [
+        {
+          name: `Carte commune de ${commune}`,
+          price: 2000,
+          quantity: 1,
+          taxRate: 0,
+        },
+      ],
+    }),
+  });
 
-  const pdData = await pdRes.json();
+  const bictorysData = await bictorysRes.json();
+  console.log("Bictorys response:", JSON.stringify(bictorysData));
 
-  if (pdData.response_code !== "00") {
-    console.error("PayDunya error:", pdData);
+  // Bictorys retourne un redirectUrl ou paymentUrl
+  const paymentUrl =
+    bictorysData.redirectUrl ||
+    bictorysData.paymentUrl ||
+    bictorysData.checkoutUrl;
+
+  if (!paymentUrl) {
     return {
       statusCode: 500,
+      headers,
       body: JSON.stringify({
-        error: "Erreur PayDunya",
-        detail: pdData.response_text,
+        error: "Bictorys n'a pas retourné d'URL",
+        detail: bictorysData,
       }),
     };
   }
 
   return {
     statusCode: 200,
-    headers: { "Access-Control-Allow-Origin": "*" },
-    body: JSON.stringify({
-      token,
-      payment_url: pdData.response_text, // URL checkout PayDunya
-    }),
+    headers,
+    body: JSON.stringify({ token, code, payment_url: paymentUrl }),
   };
 };
