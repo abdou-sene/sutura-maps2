@@ -111,3 +111,24 @@ exports.handler = async (event) => {
     body: JSON.stringify({ token, code, payment_url: paymentUrl }),
   };
 };
+
+const bictorysData = await bictorysRes.json();
+
+// LOG COMPLET — à supprimer après debug
+console.log("Status HTTP:", bictorysRes.status);
+console.log("Bictorys FULL response:", JSON.stringify(bictorysData, null, 2));
+
+// Chercher l'URL dans tous les champs possibles
+const paymentUrl =
+  bictorysData.redirectUrl ||
+  bictorysData.paymentUrl ||
+  bictorysData.checkoutUrl ||
+  bictorysData.url ||
+  bictorysData.payment_url ||
+  bictorysData.checkout_url ||
+  bictorysData.data?.redirectUrl ||
+  bictorysData.data?.paymentUrl ||
+  bictorysData.data?.url ||
+  bictorysData.data?.checkoutUrl;
+
+console.log("URL trouvée:", paymentUrl);
