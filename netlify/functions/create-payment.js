@@ -116,4 +116,4 @@ exports.handler = async (event) => {
     headers,
     body: JSON.stringify({ token, code, payment_url: paymentUrl }),
   };
-}; // ← FIN du fichier
+};
