@@ -1,4 +1,3 @@
-// netlify/functions/create-payment.js
 const { createClient } = require("@supabase/supabase-js");
 
 const supabase = createClient(
@@ -21,7 +20,6 @@ exports.handler = async (event) => {
     event.body || "{}",
   );
 
-  // 1. Générer token interne
   const token =
     "DL-" + Math.random().toString(36).substring(2, 14).toUpperCase();
   const code =
@@ -30,7 +28,6 @@ exports.handler = async (event) => {
     "-" +
     Math.random().toString(36).substring(2, 6).toUpperCase();
 
-  // 2. Sauvegarder en base
   const { error: dbError } = await supabase.from("exports").insert({
     token,
     code,
@@ -53,7 +50,6 @@ exports.handler = async (event) => {
     };
   }
 
-  // 3. Créer session Bictorys Checkout
   const bictorysRes = await fetch("https://api.bictorys.com/pay/v1/charges", {
     method: "POST",
     headers: {
@@ -64,7 +60,7 @@ exports.handler = async (event) => {
       amount: 2000,
       currency: "XOF",
       country: "SN",
-      merchantReference: token, // ton token = référence unique
+      merchantReference: token,
       successRedirectUrl: `${process.env.APP_URL}/map.html?token=${token}&status=success`,
       ErrorRedirectUrl: `${process.env.APP_URL}/map.html?token=${token}&status=error`,
       customer: {
@@ -85,14 +81,24 @@ exports.handler = async (event) => {
     }),
   });
 
+  // ← LOGS ICI, bien à l'intérieur du handler
   const bictorysData = await bictorysRes.json();
-  console.log("Bictorys response:", JSON.stringify(bictorysData));
+  console.log("Status HTTP:", bictorysRes.status);
+  console.log("Bictorys FULL response:", JSON.stringify(bictorysData, null, 2));
 
-  // Bictorys retourne un redirectUrl ou paymentUrl
   const paymentUrl =
     bictorysData.redirectUrl ||
     bictorysData.paymentUrl ||
-    bictorysData.checkoutUrl;
+    bictorysData.checkoutUrl ||
+    bictorysData.url ||
+    bictorysData.payment_url ||
+    bictorysData.checkout_url ||
+    bictorysData.data?.redirectUrl ||
+    bictorysData.data?.paymentUrl ||
+    bictorysData.data?.url ||
+    bictorysData.data?.checkoutUrl;
+
+  console.log("URL trouvée:", paymentUrl);
 
   if (!paymentUrl) {
     return {
@@ -110,25 +116,4 @@ exports.handler = async (event) => {
     headers,
     body: JSON.stringify({ token, code, payment_url: paymentUrl }),
   };
-};
-
-const bictorysData = await bictorysRes.json();
-
-// LOG COMPLET — à supprimer après debug
-console.log("Status HTTP:", bictorysRes.status);
-console.log("Bictorys FULL response:", JSON.stringify(bictorysData, null, 2));
-
-// Chercher l'URL dans tous les champs possibles
-const paymentUrl =
-  bictorysData.redirectUrl ||
-  bictorysData.paymentUrl ||
-  bictorysData.checkoutUrl ||
-  bictorysData.url ||
-  bictorysData.payment_url ||
-  bictorysData.checkout_url ||
-  bictorysData.data?.redirectUrl ||
-  bictorysData.data?.paymentUrl ||
-  bictorysData.data?.url ||
-  bictorysData.data?.checkoutUrl;
-
-console.log("URL trouvée:", paymentUrl);
+}; // ← FIN du fichier
