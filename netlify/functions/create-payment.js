@@ -6,15 +6,11 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY,
 );
 
-const ALLOWED_ORIGIN = process.env.APP_URL || "https://sutura-maps.netlify.app";
-
-function randomId(prefix, len) {
-  return prefix + crypto.randomBytes(len).toString("hex").toUpperCase();
-}
+const APP_URL = process.env.APP_URL || "https://sutura-maps.netlify.app";
 
 exports.handler = async (event) => {
   const headers = {
-    "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+    "Access-Control-Allow-Origin": APP_URL,
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
@@ -31,7 +27,7 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "JSON invalide" }) };
   }
 
-  const { commune, dept, reg, color, author, email } = body;
+  const { commune, dept, reg, color } = body;
 
   if (!commune || typeof commune !== "string" || commune.trim().length === 0) {
     return {
@@ -41,8 +37,9 @@ exports.handler = async (event) => {
     };
   }
 
-  const token = randomId("DL-", 8);
-  const code = `SUT-${randomId("", 3)}-${randomId("", 3)}`;
+  const token = "DL-" + crypto.randomBytes(8).toString("hex").toUpperCase();
+  const code = "SUT-" + crypto.randomBytes(3).toString("hex").toUpperCase()
+             + "-" + crypto.randomBytes(3).toString("hex").toUpperCase();
 
   const { error: dbError } = await supabase.from("exports").insert({
     token,
@@ -50,9 +47,7 @@ exports.handler = async (event) => {
     commune: commune.trim(),
     dept: dept || null,
     reg: reg || null,
-    user_email: email || null,
     user_color: color || "#7BA05B",
-    user_author: author || "Sutura Maps",
     paid: false,
     expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
   });
@@ -78,24 +73,9 @@ exports.handler = async (event) => {
         amount: 2000,
         currency: "XOF",
         country: "SN",
-        merchantReference: token,
-        successRedirectUrl: `${ALLOWED_ORIGIN}/map.html?token=${token}&status=success`,
-        errorRedirectUrl: `${ALLOWED_ORIGIN}/map.html?token=${token}&status=error`,
-        customer: {
-          name: author || "Client Sutura Maps",
-          email: email || "client@suturamaps.com",
-          city: "Dakar",
-          country: "SN",
-          locale: "fr-FR",
-        },
-        orderDetails: [
-          {
-            name: `Carte commune de ${commune.trim()}`,
-            price: 2000,
-            quantity: 1,
-            taxRate: 0,
-          },
-        ],
+        paymentReference: token,
+        successRedirectUrl: `${APP_URL}/map.html?token=${token}&status=success`,
+        ErrorRedirectUrl: `${APP_URL}/map.html?token=${token}&status=error`,
       }),
     });
     bictorysData = await bictorysRes.json();
@@ -110,29 +90,19 @@ exports.handler = async (event) => {
   }
 
   if (!bictorysRes.ok) {
-    console.error("Bictorys API error:", bictorysRes.status, bictorysData?.message);
+    console.error("Bictorys API error:", bictorysRes.status, JSON.stringify(bictorysData));
     await supabase.from("exports").delete().eq("token", token);
     return {
       statusCode: 502,
       headers,
-      body: JSON.stringify({ error: "Erreur service de paiement" }),
+      body: JSON.stringify({ error: "Erreur service de paiement", detail: bictorysData }),
     };
   }
 
-  const paymentUrl =
-    bictorysData.redirectUrl ||
-    bictorysData.paymentUrl ||
-    bictorysData.checkoutUrl ||
-    bictorysData.url ||
-    bictorysData.payment_url ||
-    bictorysData.checkout_url ||
-    bictorysData.data?.redirectUrl ||
-    bictorysData.data?.paymentUrl ||
-    bictorysData.data?.url ||
-    bictorysData.data?.checkoutUrl;
+  const paymentUrl = bictorysData.redirectUrl || bictorysData.link;
 
   if (!paymentUrl) {
-    console.error("Bictorys: aucune URL de paiement dans la réponse");
+    console.error("Bictorys: aucune URL dans la réponse:", JSON.stringify(bictorysData));
     await supabase.from("exports").delete().eq("token", token);
     return {
       statusCode: 502,
