@@ -11,21 +11,29 @@ exports.handler = async (event) => {
     return { statusCode: 405, body: "Method Not Allowed" };
 
   // Vérification signature Bictorys
+  if (!process.env.BICTORYS_WEBHOOK_SECRET) {
+    console.error("BICTORYS_WEBHOOK_SECRET non configuré — webhook refusé");
+    return { statusCode: 500, body: "Webhook non configuré" };
+  }
+
   const signature =
     event.headers["x-bictorys-signature"] ||
     event.headers["x-webhook-signature"] ||
     event.headers["bictorys-signature"];
 
-  if (signature && process.env.BICTORYS_WEBHOOK_SECRET) {
-    const expected = crypto
-      .createHmac("sha256", process.env.BICTORYS_WEBHOOK_SECRET)
-      .update(event.body)
-      .digest("hex");
+  if (!signature) {
+    console.warn("Signature absente — requête rejetée");
+    return { statusCode: 401, body: "Signature manquante" };
+  }
 
-    if (signature !== expected) {
-      console.warn("Signature invalide — requête rejetée");
-      return { statusCode: 401, body: "Invalid signature" };
-    }
+  const expected = crypto
+    .createHmac("sha256", process.env.BICTORYS_WEBHOOK_SECRET)
+    .update(event.body)
+    .digest("hex");
+
+  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+    console.warn("Signature invalide — requête rejetée");
+    return { statusCode: 401, body: "Invalid signature" };
   }
 
   let payload;
@@ -35,29 +43,35 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: "Invalid JSON" };
   }
 
-  console.log("Bictorys webhook reçu:", JSON.stringify(payload));
-
   const token = payload.merchantReference || payload.data?.merchantReference;
   const status = payload.status || payload.data?.status;
 
   if (!token) return { statusCode: 400, body: "Missing merchantReference" };
 
-  const isSuccess = ["SUCCESS", "COMPLETED", "success", "completed"].includes(
-    status,
-  );
+  const isSuccess = ["SUCCESS", "COMPLETED", "success", "completed"].includes(status);
 
   if (isSuccess) {
+    const { data: existing } = await supabase
+      .from("exports")
+      .select("paid")
+      .eq("token", token)
+      .maybeSingle();
+
+    if (existing?.paid) {
+      return { statusCode: 200, body: "Already processed" };
+    }
+
     const { error } = await supabase
       .from("exports")
       .update({ paid: true, paid_at: new Date().toISOString() })
       .eq("token", token);
 
     if (error) {
-      console.error("Supabase update error:", error);
-      return { statusCode: 500, body: error.message };
+      console.error("Supabase update error:", error.message);
+      return { statusCode: 500, body: "DB error" };
     }
 
-    console.log(`✅ Paiement validé — token: ${token}`);
+    console.log(`Paiement validé — token: ${token}`);
   }
 
   return { statusCode: 200, body: "OK" };
