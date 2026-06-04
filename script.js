@@ -1725,21 +1725,47 @@ async function handleDownloadToken(token) {
   main.appendChild(waitDiv);
 
   try {
-    // ← res est défini ICI
-    const res = await fetch(`/.netlify/functions/check-token?token=${token}`);
-    const { paid, commune, error, color, author } = await res.json();
+    // Polling : le webhook Bictorys peut arriver quelques secondes après la redirection
+    const MAX_TRIES = 12;
+    const INTERVAL_MS = 2500;
+    let paid = false, commune, error, color, author;
+
+    for (let i = 0; i < MAX_TRIES; i++) {
+      const res = await fetch(`/.netlify/functions/check-token?token=${token}`);
+      const data = await res.json();
+      paid = data.paid;
+      commune = data.commune;
+      error = data.error;
+      color = data.color;
+      author = data.author;
+
+      if (paid) break;
+
+      // Erreur définitive (expiré, déjà utilisé, introuvable) → pas la peine de réessayer
+      if (error) break;
+
+      // Paiement en attente de confirmation webhook → on attend
+      const dlStatus = document.getElementById("dl-status");
+      if (dlStatus) dlStatus.innerText = `Confirmation en cours… (${i + 1}/${MAX_TRIES})`;
+      await new Promise((r) => setTimeout(r, INTERVAL_MS));
+    }
 
     if (!paid) {
       waitDiv.innerHTML = `
         <div style="font-size:3rem">❌</div>
         <p style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;
                   font-weight:600;color:var(--terra);">
-          ${error || "Lien invalide ou expiré"}
+          ${error || "Paiement non encore confirmé — réessayez dans quelques instants"}
         </p>
-        <a href="map.html" style="display:inline-block;margin-top:1rem;
+        <a href="map.html?token=${token}" style="display:inline-block;margin-top:1rem;
            background:var(--terra);color:white;padding:12px 28px;
            font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;
            text-decoration:none;border-radius:1px;">
+          Réessayer
+        </a>
+        <a href="map.html" style="display:inline-block;margin-top:0.5rem;
+           font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;
+           color:var(--muted);text-decoration:underline;">
           Retour à l'accueil
         </a>
       `;
