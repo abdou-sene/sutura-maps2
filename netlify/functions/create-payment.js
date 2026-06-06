@@ -27,7 +27,7 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "JSON invalide" }) };
   }
 
-  const { commune, dept, reg, color, client } = body;
+  const { commune, dept, reg, color, author, client } = body;
 
   // Sur ordinateur, le paiement s'ouvre dans un nouvel onglet ; on marque le
   // retour avec tab=1 pour que cet onglet n'enclenche pas un second
@@ -53,6 +53,7 @@ exports.handler = async (event) => {
     dept: dept || null,
     reg: reg || null,
     user_color: color || "#7BA05B",
+    user_author: author || "Sutura Maps",
     paid: false,
     expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
   });

@@ -302,24 +302,24 @@ function buildStep2Occupation(classes) {
 
   setTimeout(() => {
     card.innerHTML = `
-      <h2>2. Couleurs des classes</h2>
+      <h2>2. Couleurs & signature</h2>
       <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.3rem;font-weight:300;">
         Zone : <strong style="color:var(--ink)">${zoneLevel} de ${zoneName}</strong>
         &nbsp;·&nbsp;
         <span style="color:var(--terra)">${classes.length} classe${classes.length > 1 ? "s" : ""}</span>
       </p>
       <p style="font-size:0.72rem;color:var(--muted);margin-bottom:1rem;font-weight:300;">
-        Cliquez sur une couleur pour la modifier.
+        Cliquez sur un carré pour changer la couleur d'une classe.
       </p>
       <div id="occupation-colors" style="
         display:flex;flex-direction:column;gap:2px;
-        max-height:340px;overflow-y:auto;padding-right:4px;
+        max-height:300px;overflow-y:auto;padding-right:4px;
       ">
         ${classes
           .map(
             (nom, i) => `
           <div style="
-            display:flex;align-items:center;gap:10px;
+            display:flex;align-items:center;gap:12px;
             padding:7px 6px;border-bottom:1px solid var(--line);
             opacity:0;animation:fadeUp 0.3s ease ${i * 35}ms forwards;
             border-radius:1px;transition:background 0.15s;
@@ -328,21 +328,19 @@ function buildStep2Occupation(classes) {
           onmouseout="this.style.background='transparent'">
             <input type="color" value="${occupationPalette[nom]}"
               data-class="${nom}"
-              data-index="${i}"
-              onchange="occupationPalette[this.dataset.class]=this.value; document.getElementById('preview-${i}').style.background=this.value"
-              style="width:32px;height:28px;padding:2px;cursor:pointer;flex-shrink:0;border-radius:1px;border:1px solid var(--line);">
-            <span style="font-size:0.78rem;color:var(--ink);font-weight:300;flex:1;">${nom}</span>
-            <span id="preview-${i}" style="
-              width:18px;height:18px;border-radius:2px;flex-shrink:0;
-              background:${occupationPalette[nom]};
-              border:1px solid rgba(0,0,0,0.12);
-            "></span>
+              onchange="occupationPalette[this.dataset.class]=this.value"
+              style="width:36px;height:30px;padding:2px;cursor:pointer;flex-shrink:0;border-radius:1px;border:1px solid var(--line);">
+            <span style="font-size:0.8rem;color:var(--ink);font-weight:300;flex:1;">${nom}</span>
           </div>
         `,
           )
           .join("")}
       </div>
-      <div class="btn-group" style="margin-top:1.5rem;">
+      <div class="form-group" style="margin-top:1.2rem;">
+        <label>Nom de l'auteur</label>
+        <input type="text" id="author-name" placeholder="Votre nom et prénom (sinon Sutura Maps)" />
+      </div>
+      <div class="btn-group" style="margin-top:1rem;">
         <button class="btn-back" onclick="goToStep(1)">Retour</button>
         <button class="btn-next" onclick="generateFinalMap()">Générer la carte</button>
       </div>
@@ -1156,7 +1154,7 @@ async function generateFinalMap() {
         targetFeature,
         comName,
         author,
-        "DTGC",
+        "ANAT, CSE, ANSD (2020)",
         "commune",
       );
     }
@@ -1541,7 +1539,13 @@ async function exportToPNG() {
     }
     localStorage.setItem(
       "sutura_pending",
-      JSON.stringify({ token: data.token, commune }),
+      JSON.stringify({
+        token: data.token,
+        commune,
+        maptype: selectedMapType,
+        palette:
+          selectedMapType === "occupation" ? occupationPalette || {} : undefined,
+      }),
     );
 
     if (mobile) {
@@ -2031,7 +2035,18 @@ async function handleDownloadToken(token) {
     if (mapControls.north) map.removeControl(mapControls.north);
 
     // Reproduire le type de carte choisi avant le paiement.
-    const mapType = sessionStorage.getItem("sutura_maptype") || "localisation";
+    // sessionStorage en priorité ; repli sur localStorage (pending) si la
+    // session a été perdue pendant la redirection de paiement.
+    let pending = {};
+    try {
+      pending = JSON.parse(localStorage.getItem("sutura_pending") || "{}");
+    } catch (e) {
+      pending = {};
+    }
+    const mapType =
+      sessionStorage.getItem("sutura_maptype") ||
+      pending.maptype ||
+      "localisation";
 
     if (mapType === "occupation") {
       const dept = targetFeature.properties.DEPT;
@@ -2051,17 +2066,19 @@ async function handleDownloadToken(token) {
 
       try {
         occupationPalette = JSON.parse(
-          sessionStorage.getItem("sutura_palette") || "{}",
-        );
+          sessionStorage.getItem("sutura_palette") || "null",
+        ) ||
+          pending.palette ||
+          {};
       } catch (e) {
-        occupationPalette = {};
+        occupationPalette = pending.palette || {};
       }
 
       await generateOccupationMap(
         targetFeature,
         commune,
         author || "Sutura Maps",
-        "DTGC",
+        "ANAT, CSE, ANSD (2020)",
         "commune",
       );
     } else {
