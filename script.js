@@ -155,9 +155,16 @@ window.onload = async () => {
     // Détection token de téléchargement dans l'URL
     const urlParams = new URLSearchParams(window.location.search);
     const dlToken = urlParams.get("token");
+    const fromTab = urlParams.get("tab") === "1";
 
-    if (dlToken) {
+    if (dlToken && fromTab) {
+      // Onglet de paiement (ordinateur) : l'onglet d'origine télécharge.
+      showPaymentDoneInTab();
+    } else if (dlToken) {
       handleDownloadToken(dlToken);
+    } else {
+      // Pas de token dans l'URL : reprise éventuelle d'un achat déjà payé.
+      resumePendingDownload();
     }
   } catch (e) {
     console.error(
@@ -1479,16 +1486,25 @@ function startPaymentTimer() {
   }, 35000);
 }
 
-// Dans script.js — remplace exportToPNG()
+function isMobileDevice() {
+  return /Mobi|Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(
+    navigator.userAgent,
+  );
+}
+
 async function exportToPNG() {
   const commune = document.getElementById("select-commune").value;
   const dept = document.getElementById("select-dept").value;
   const reg = document.getElementById("select-reg").value;
   const color = document.getElementById("color-picker")?.value || "#7BA05B";
   const author = document.getElementById("author-name")?.value || "Sutura Maps";
-  const email = prompt("Votre email (pour recevoir le lien de téléchargement) :") || "";
+  const mobile = isMobileDevice();
 
   const btn = document.querySelector(".btn-export");
+  const resetBtn = () => {
+    btn.disabled = false;
+    btn.innerText = "PAYEZ ET TÉLÉCHARGEZ";
+  };
   btn.disabled = true;
   btn.innerText = "⏳ Initialisation...";
 
@@ -1496,21 +1512,26 @@ async function exportToPNG() {
     const res = await fetch("/.netlify/functions/create-payment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ commune, dept, reg, color, author, email }),
+      body: JSON.stringify({
+        commune,
+        dept,
+        reg,
+        color,
+        author,
+        client: mobile ? "mobile" : "desktop",
+      }),
     });
 
     const data = await res.json();
 
     if (!data.payment_url) {
       showError(data.error || "Erreur initialisation paiement");
+      resetBtn();
       return;
     }
 
-    // Stocker le token pour vérification au retour
+    // Contexte pour la reprise et la régénération éventuelle après paiement.
     sessionStorage.setItem("sutura_token", data.token);
-
-    // Persister le type de carte (et la palette d'occupation) pour pouvoir
-    // régénérer la bonne carte après la redirection de paiement.
     sessionStorage.setItem("sutura_maptype", selectedMapType);
     if (selectedMapType === "occupation") {
       sessionStorage.setItem(
@@ -1518,16 +1539,203 @@ async function exportToPNG() {
         JSON.stringify(occupationPalette || {}),
       );
     }
+    localStorage.setItem(
+      "sutura_pending",
+      JSON.stringify({ token: data.token, commune }),
+    );
 
-    // Rediriger vers Bictorys
-    window.location.href = data.payment_url;
+    if (mobile) {
+      // Mobile : redirection plein écran. Le retour est géré par
+      // handleDownloadToken via ?token= dans l'URL.
+      window.location.href = data.payment_url;
+      return;
+    }
 
+    // Ordinateur : on garde la page, on ouvre Bictorys dans un nouvel onglet,
+    // et on surveille le paiement pour lancer le téléchargement ici.
+    window.open(data.payment_url, "_blank", "noopener");
+    resetBtn();
+    startDesktopPaymentWatch(data.token, commune);
   } catch (e) {
     console.error("exportToPNG error:", e);
     showError("Erreur réseau. Réessayez.");
-  } finally {
-    btn.disabled = false;
-    btn.innerText = "PAYEZ ET TÉLÉCHARGEZ";
+    resetBtn();
+  }
+}
+
+/* ════════════════════════════════
+   ATTENTE DE PAIEMENT — ORDINATEUR
+════════════════════════════════ */
+
+let paymentWatchTimer = null;
+
+function buildPaymentOverlay(commune) {
+  const existing = document.getElementById("pay-overlay");
+  if (existing) existing.remove();
+
+  const ov = document.createElement("div");
+  ov.id = "pay-overlay";
+  ov.style.cssText =
+    "position:fixed;inset:0;z-index:99999;background:rgba(14,12,10,.82);" +
+    "display:flex;align-items:center;justify-content:center;padding:20px;";
+  ov.innerHTML = `
+    <div style="width:460px;max-width:94vw;background:#f7f3ec;border-radius:3px;
+                padding:42px 38px 30px;text-align:center;
+                box-shadow:0 40px 100px rgba(0,0,0,.55);font-family:'DM Sans',sans-serif;">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:0.82rem;font-weight:700;
+                  letter-spacing:5px;text-transform:uppercase;color:#b85c2c;margin-bottom:20px;">
+        Paiement en cours
+      </div>
+      <div style="width:60px;height:60px;margin:0 auto 22px;border-radius:50%;
+                  border:3px solid #e4ddd1;border-top-color:#b85c2c;border-right-color:#b85c2c;
+                  animation:spinRing 0.9s linear infinite;"></div>
+      <h2 style="font-family:'Cormorant Garamond',serif;font-size:1.9rem;font-weight:700;
+                 color:#0e0c0a;margin-bottom:12px;">Payez sur votre téléphone</h2>
+      <p style="font-size:0.9rem;font-weight:300;line-height:1.6;color:#7a7068;margin-bottom:18px;">
+        Réglez avec <strong style="color:#0e0c0a;font-weight:500;">Wave, Orange ou MaxIt</strong>
+        dans l'onglet ouvert. Le téléchargement se lancera
+        <strong style="color:#0e0c0a;font-weight:500;">ici, sur cet ordinateur</strong>,
+        dès la confirmation.
+      </p>
+      <div id="pay-status" style="font-size:0.74rem;letter-spacing:1.5px;text-transform:uppercase;
+                  color:#b85c2c;font-weight:500;margin-bottom:18px;">Vérification automatique…</div>
+      <div style="display:inline-block;background:#0e0c0a;color:#c9a84c;
+                  font-family:'Cormorant Garamond',serif;font-size:1.05rem;font-weight:600;
+                  letter-spacing:2px;padding:9px 20px;border-radius:2px;margin-bottom:24px;">
+        Commune de ${(commune || "").toUpperCase()}
+      </div>
+      <button id="pay-check-now" style="display:block;width:100%;background:#b85c2c;color:#fff;
+                  font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:500;
+                  letter-spacing:1.4px;text-transform:uppercase;padding:14px;border:none;
+                  border-radius:1px;cursor:pointer;margin-bottom:14px;">
+        J'ai payé — vérifier maintenant
+      </button>
+      <a id="pay-wa" href="#" style="font-size:0.78rem;color:#7a7068;text-decoration:none;cursor:pointer;">
+        Un souci ? <u style="color:#b85c2c;">Écrivez-nous sur WhatsApp</u>
+      </a>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(14,12,10,.1);
+                  font-size:0.72rem;color:#9a9088;line-height:1.5;">
+        Votre carte reste téléchargeable pendant 1&nbsp;heure, même si vous fermez cette page.
+      </div>
+      <div style="margin-top:14px;">
+        <span id="pay-cancel" style="font-size:0.72rem;color:#9a9088;
+                    text-decoration:underline;cursor:pointer;">Fermer</span>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+
+  document.getElementById("pay-wa").onclick = (e) => {
+    e.preventDefault();
+    window.open(
+      "https://wa.me/" + ["221", "781", "751", "168"].join(""),
+      "_blank",
+      "noopener",
+    );
+  };
+  document.getElementById("pay-cancel").onclick = () => {
+    clearInterval(paymentWatchTimer);
+    ov.remove();
+  };
+  return ov;
+}
+
+async function startDesktopPaymentWatch(token, commune) {
+  buildPaymentOverlay(commune);
+  const statusEl = () => document.getElementById("pay-status");
+  const MAX = 90; // ~6 min à 4 s
+  let tries = 0;
+
+  async function checkOnce() {
+    try {
+      const res = await fetch(`/.netlify/functions/check-token?token=${token}`);
+      const d = await res.json();
+      if (d.paid) {
+        finishDesktopDownload();
+        return true;
+      }
+      if (d.error && statusEl()) statusEl().innerText = d.error;
+    } catch (e) {
+      /* on réessaiera au prochain tick */
+    }
+    return false;
+  }
+
+  const checkBtn = document.getElementById("pay-check-now");
+  if (checkBtn)
+    checkBtn.onclick = async () => {
+      checkBtn.disabled = true;
+      checkBtn.innerText = "Vérification…";
+      const ok = await checkOnce();
+      if (!ok) {
+        checkBtn.disabled = false;
+        checkBtn.innerText = "J'ai payé — vérifier maintenant";
+      }
+    };
+
+  clearInterval(paymentWatchTimer);
+  paymentWatchTimer = setInterval(async () => {
+    tries++;
+    if (statusEl())
+      statusEl().innerText = `Vérification automatique… (${tries}/${MAX})`;
+    const ok = await checkOnce();
+    if (ok || tries >= MAX) {
+      clearInterval(paymentWatchTimer);
+      if (!ok && statusEl())
+        statusEl().innerText =
+          "Paiement non encore confirmé. Cliquez sur « vérifier ».";
+    }
+  }, 4000);
+}
+
+function finishDesktopDownload() {
+  clearInterval(paymentWatchTimer);
+  const ov = document.getElementById("pay-overlay");
+  if (ov) ov.remove();
+  localStorage.removeItem("sutura_pending");
+  // La carte (aperçu) est déjà rendue : on exporte sans filigrane.
+  doExport(false);
+}
+
+/* Onglet Bictorys de retour (ordinateur) : ne pas re-télécharger ici. */
+function showPaymentDoneInTab() {
+  document.body.innerHTML = `
+    <div style="min-height:100vh;display:flex;flex-direction:column;
+                align-items:center;justify-content:center;gap:1.2rem;
+                text-align:center;padding:2rem;font-family:'DM Sans',sans-serif;
+                background:#f7f3ec;color:#0e0c0a;">
+      <div style="font-size:3rem">✅</div>
+      <p style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:700;">
+        Paiement confirmé
+      </p>
+      <p style="font-size:0.9rem;color:#7a7068;max-width:360px;line-height:1.6;">
+        Retournez à l'onglet Sutura Maps : votre téléchargement s'y lance
+        automatiquement. Vous pouvez fermer cette page.
+      </p>
+    </div>`;
+}
+
+/* Reprise d'un téléchargement payé (page rechargée, 1 h de validité). */
+async function resumePendingDownload() {
+  const pending = localStorage.getItem("sutura_pending");
+  if (!pending) return;
+  let token;
+  try {
+    token = JSON.parse(pending).token;
+  } catch (e) {
+    return;
+  }
+  if (!token) return;
+
+  try {
+    const res = await fetch(`/.netlify/functions/check-token?token=${token}`);
+    const d = await res.json();
+    if (d.paid) {
+      handleDownloadToken(token);
+    } else if (d.error) {
+      localStorage.removeItem("sutura_pending");
+    }
+  } catch (e) {
+    /* silencieux */
   }
 }
 
@@ -1867,6 +2075,7 @@ async function handleDownloadToken(token) {
 
     // Export automatique après rendu
     await new Promise((r) => setTimeout(r, 1500));
+    localStorage.removeItem("sutura_pending");
     doExport(false);
   } catch (e) {
     console.error("handleDownloadToken error:", e);

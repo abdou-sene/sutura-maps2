@@ -27,7 +27,12 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "JSON invalide" }) };
   }
 
-  const { commune, dept, reg, color } = body;
+  const { commune, dept, reg, color, client } = body;
+
+  // Sur ordinateur, le paiement s'ouvre dans un nouvel onglet ; on marque le
+  // retour avec tab=1 pour que cet onglet n'enclenche pas un second
+  // téléchargement (l'onglet d'origine s'en charge déjà).
+  const tabMarker = client === "desktop" ? "&tab=1" : "";
 
   if (!commune || typeof commune !== "string" || commune.trim().length === 0) {
     return {
@@ -74,7 +79,7 @@ exports.handler = async (event) => {
         currency: "XOF",
         country: "SN",
         paymentReference: token,
-        successRedirectUrl: `${APP_URL}/map.html?token=${token}&status=success`,
+        successRedirectUrl: `${APP_URL}/map.html?token=${token}&status=success${tabMarker}`,
         ErrorRedirectUrl: `${APP_URL}/map.html?token=${token}&status=error`,
       }),
     });
