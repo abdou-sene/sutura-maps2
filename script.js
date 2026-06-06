@@ -82,13 +82,9 @@ function checkNextBtn() {
     return;
   }
 
-  if (selectedMapType === "localisation") {
-    // Localisation : toujours besoin de la commune
-    btn.disabled = !commune;
-  } else {
-    // Occupation : activé dès qu'on a au moins la région
-    btn.disabled = false;
-  }
+  // Localisation comme occupation : la commune est toujours requise.
+  // (Les niveaux région/département en occupation cassaient l'app, on les retire.)
+  btn.disabled = !commune;
 }
 
 /* ════════════════════════════════
@@ -399,9 +395,16 @@ async function preloadOccupation() {
   const commune = document.getElementById("select-commune").value;
   const dept = document.getElementById("select-dept").value;
   const reg = document.getElementById("select-reg").value;
-  const level = commune ? "commune" : dept ? "dept" : "region";
+
+  // Occupation uniquement au niveau commune.
+  const level = "commune";
   selectedLevel = level;
-  console.log("preloadOccupation envoi →", { commune, dept, reg, level });
+
+  if (!commune) {
+    showError("Veuillez sélectionner une commune pour l'occupation du sol.");
+    goToStep(1);
+    return;
+  }
 
   try {
     const res = await fetch("/.netlify/functions/get-occupation", {
@@ -409,14 +412,8 @@ async function preloadOccupation() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ commune, dept, reg, level }),
     });
-    const text = await res.text();
-    console.log("réponse brute serveur →", text); // je check l'erreur Supabase ici
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    console.log("réponse status →", res.status);
     const geojson = await res.json();
-    console.log("geojson brut reçu →", geojson);
-    console.log("type →", typeof geojson);
-    console.log("features →", geojson?.features);
     occupationClipped = geojson.features || [];
 
     if (occupationClipped.length === 0) {
@@ -1148,7 +1145,13 @@ async function generateFinalMap() {
     if (selectedMapType === "localisation") {
       await generateLocalisationMap(targetFeature, userColor, comName, author);
     } else if (selectedMapType === "occupation") {
-      await generateOccupationMap(targetFeature, userColor, comName, author);
+      await generateOccupationMap(
+        targetFeature,
+        comName,
+        author,
+        "DTGC",
+        "commune",
+      );
     }
   }, 600);
 }
@@ -1506,6 +1509,16 @@ async function exportToPNG() {
     // Stocker le token pour vérification au retour
     sessionStorage.setItem("sutura_token", data.token);
 
+    // Persister le type de carte (et la palette d'occupation) pour pouvoir
+    // régénérer la bonne carte après la redirection de paiement.
+    sessionStorage.setItem("sutura_maptype", selectedMapType);
+    if (selectedMapType === "occupation") {
+      sessionStorage.setItem(
+        "sutura_palette",
+        JSON.stringify(occupationPalette || {}),
+      );
+    }
+
     // Rediriger vers Bictorys
     window.location.href = data.payment_url;
 
@@ -1809,12 +1822,48 @@ async function handleDownloadToken(token) {
     if (mapControls.scale) map.removeControl(mapControls.scale);
     if (mapControls.north) map.removeControl(mapControls.north);
 
-    await generateLocalisationMap(
-      targetFeature,
-      color || "#7BA05B",
-      commune,
-      author || "Sutura Maps",
-    );
+    // Reproduire le type de carte choisi avant le paiement.
+    const mapType = sessionStorage.getItem("sutura_maptype") || "localisation";
+
+    if (mapType === "occupation") {
+      const dept = targetFeature.properties.DEPT;
+      const reg = targetFeature.properties.REG;
+      try {
+        const ocRes = await fetch("/.netlify/functions/get-occupation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ commune, dept, reg, level: "commune" }),
+        });
+        if (!ocRes.ok) throw new Error(`HTTP ${ocRes.status}`);
+        const ocJson = await ocRes.json();
+        occupationClipped = ocJson.features || [];
+      } catch (e) {
+        occupationClipped = [];
+      }
+
+      try {
+        occupationPalette = JSON.parse(
+          sessionStorage.getItem("sutura_palette") || "{}",
+        );
+      } catch (e) {
+        occupationPalette = {};
+      }
+
+      await generateOccupationMap(
+        targetFeature,
+        commune,
+        author || "Sutura Maps",
+        "DTGC",
+        "commune",
+      );
+    } else {
+      await generateLocalisationMap(
+        targetFeature,
+        color || "#7BA05B",
+        commune,
+        author || "Sutura Maps",
+      );
+    }
 
     // Export automatique après rendu
     await new Promise((r) => setTimeout(r, 1500));
