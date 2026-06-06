@@ -1847,10 +1847,9 @@
             Les 557 communes du Sénégal sont couvertes. Si quelque chose manque
             ou semble incorrect,
             <a
-              href="https://wa.me/qr/ZMRTI74EM64WO1"
-              target="_blank"
-              rel="noopener"
-              style="color: var(--terra); text-decoration: underline"
+              href="#"
+              class="wa-link"
+              style="color: var(--terra); text-decoration: underline; cursor: pointer"
               >écrivez-nous sur WhatsApp</a
             >
             avec le nom de votre commune, on regarde avec vous.
@@ -1872,11 +1871,7 @@
       </p>
       <div class="cta-btns reveal d2">
         <a href="map.html" class="btn btn--primary">Créer ma première carte</a>
-        <a
-          href="https://wa.me/qr/ZMRTI74EM64WO1"
-          target="_blank"
-          rel="noopener"
-          class="btn btn--ghost-white"
+        <a href="#" class="btn btn--ghost-white wa-link"
           >Nous écrire sur WhatsApp</a
         >
         <a
@@ -1916,6 +1911,17 @@
       document
         .querySelectorAll(".reveal")
         .forEach((el) => observer.observe(el));
+
+      // Lien WhatsApp construit au clic (numéro non visible dans la page)
+      (function () {
+        const n = ["221", "781", "751", "168"].join("");
+        document.querySelectorAll(".wa-link").forEach((el) => {
+          el.addEventListener("click", (e) => {
+            e.preventDefault();
+            window.open("https://wa.me/" + n, "_blank", "noopener");
+          });
+        });
+      })();
 
       // Mobile menu
       function toggleMenu() {
