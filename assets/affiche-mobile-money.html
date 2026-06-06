@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Affiche — Sutura Maps Mobile Money</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Barlow+Condensed:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #e8e2d8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem;
+    font-family: "DM Sans", sans-serif;
+  }
+
+  .poster {
+    width: 680px;
+    background: #f7f3ec;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Bande supérieure */
+  .top-band {
+    background: #0e0c0a;
+    padding: 14px 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .brand {
+    font-family: "Cormorant Garamond", serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #f7f3ec;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .tag {
+    font-family: "Barlow Condensed", sans-serif;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: #b85c2c;
+  }
+
+  /* Corps principal */
+  .body {
+    padding: 52px 48px 40px;
+  }
+
+  .eyebrow {
+    font-family: "Barlow Condensed", sans-serif;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #b85c2c;
+    margin-bottom: 18px;
+  }
+
+  .headline {
+    font-family: "Cormorant Garamond", serif;
+    font-size: 3.6rem;
+    font-weight: 700;
+    line-height: 1.05;
+    color: #0e0c0a;
+    margin-bottom: 10px;
+  }
+
+  .headline em {
+    font-style: italic;
+    font-weight: 300;
+    color: #b85c2c;
+  }
+
+  .subline {
+    font-family: "Cormorant Garamond", serif;
+    font-size: 1.35rem;
+    font-weight: 400;
+    color: #7a7068;
+    margin-bottom: 42px;
+    line-height: 1.4;
+  }
+
+  /* Séparateur */
+  .divider {
+    width: 48px;
+    height: 2px;
+    background: #b85c2c;
+    margin-bottom: 36px;
+  }
+
+  /* Étapes */
+  .steps {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 44px;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .step-num {
+    font-family: "Barlow Condensed", sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #e8e2d8;
+    line-height: 1;
+  }
+
+  .step-text {
+    font-size: 0.73rem;
+    font-weight: 400;
+    color: #0e0c0a;
+    line-height: 1.45;
+    letter-spacing: 0.3px;
+  }
+
+  .step-text strong {
+    display: block;
+    font-weight: 500;
+    font-size: 0.78rem;
+    color: #0e0c0a;
+    margin-bottom: 2px;
+  }
+
+  /* Bloc paiement */
+  .payment-block {
+    background: #0e0c0a;
+    padding: 24px 28px;
+    margin-bottom: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .payment-left .price {
+    font-family: "Cormorant Garamond", serif;
+    font-size: 2.6rem;
+    font-weight: 700;
+    color: #f7f3ec;
+    line-height: 1;
+  }
+
+  .payment-left .currency {
+    font-family: "DM Sans", sans-serif;
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: #7a7068;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .payment-right {
+    text-align: right;
+  }
+
+  .operators {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+  }
+
+  .op {
+    font-family: "Barlow Condensed", sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 5px 10px;
+    border: 1px solid #3a3530;
+    color: #f7f3ec;
+  }
+
+  .op.wave { border-color: #1a73e8; color: #6aadff; }
+  .op.orange { border-color: #ff6d00; color: #ffab66; }
+  .op.mtn { border-color: #cc0000; color: #ff8080; }
+
+  .payment-note {
+    font-size: 0.65rem;
+    color: #7a7068;
+    letter-spacing: 0.5px;
+  }
+
+  /* CTA */
+  .cta-block {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .cta-url {
+    font-family: "Barlow Condensed", sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #0e0c0a;
+    border-bottom: 2px solid #b85c2c;
+    padding-bottom: 2px;
+  }
+a {
+  color: #0e0c0a;
+}
+  .cta-time {
+    font-family: "Cormorant Garamond", serif;
+    font-size: 0.95rem;
+    font-weight: 400;
+    font-style: italic;
+    color: #7a7068;
+    text-align: right;
+  }
+
+  /* Bande basse */
+  .bottom-band {
+    background: #b85c2c;
+    padding: 10px 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .bottom-text {
+    font-family: "DM Sans", sans-serif;
+    font-size: 0.62rem;
+    font-weight: 400;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #f7f3ec;
+    opacity: 0.85;
+  }
+
+  .bictorys-credit {
+    font-family: "DM Sans", sans-serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.5px;
+    color: #f7f3ec;
+    opacity: 0.7;
+  }
+
+  /* Décoration géométrique */
+  .deco {
+    position: absolute;
+    top: 60px;
+    right: -30px;
+    width: 160px;
+    height: 160px;
+    border: 1px solid #e0d9cf;
+    transform: rotate(15deg);
+    pointer-events: none;
+  }
+
+  .deco2 {
+    position: absolute;
+    top: 80px;
+    right: -15px;
+    width: 120px;
+    height: 120px;
+    border: 1px solid #d4784a;
+    opacity: 0.3;
+    transform: rotate(15deg);
+    pointer-events: none;
+  }
+
+  @media print {
+    body { background: white; padding: 0; }
+    .poster { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="poster">
+
+  <div class="deco"></div>
+  <div class="deco2"></div>
+
+  <div class="top-band">
+    <span class="brand">Sutura Maps</span>
+    <span class="tag">Cartes des communes du Sénégal</span>
+  </div>
+
+  <div class="body">
+
+    <p class="eyebrow">Nouveau</p>
+
+    <h1 class="headline">
+      Ta commune.<br>
+      <em>En 5 minutes.</em>
+    </h1>
+
+    <p class="subline">
+      Ta carte de localisation, personnalisée,<br>prête à imprimer ou partager.
+    </p>
+
+    <div class="divider"></div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <div class="step-text">
+          <strong>Choisis</strong>
+          Ta commune parmi les 557 du Sénégal
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <div class="step-text">
+          <strong>Personnalise</strong>
+          Couleur, nom, style de la carte
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <div class="step-text">
+          <strong>Paie</strong>
+          Mobile money en quelques secondes
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">04</div>
+        <div class="step-text">
+          <strong>Télécharge</strong>
+          Fichier haute résolution, immédiatement
+        </div>
+      </div>
+    </div>
+
+    <div class="payment-block">
+      <div class="payment-left">
+        <div class="price">2 000</div>
+        <div class="currency">FCFA par carte</div>
+      </div>
+      <div class="payment-right">
+        <div class="operators">
+          <span class="op wave">Wave</span>
+          <span class="op orange">Orange</span>
+          <span class="op mtn">Mtn</span>
+        </div>
+        <div class="payment-note">et autres opérateurs mobile money</div>
+      </div>
+    </div>
+
+    <div class="cta-block">
+      <span class="cta-url"><a href="https://sutura-maps.com/map">sutura-maps.com/map</span>
+      <span class="cta-time">Moins de 5 minutes, chrono.</span>
+    </div>
+
+  </div>
+
+  <div class="bottom-band">
+    <span class="bottom-text">Cartes vectorielles des communes du Sénégal</span>
+    <span class="bictorys-credit">Paiement via Bictorys</span>
+  </div>
+
+</div>
+</body>
+</html>
