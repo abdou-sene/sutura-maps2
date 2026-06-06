@@ -1,6 +1,8 @@
 .env
 environment.env
 node_modules/
+.obsidian/
+pub/
 # data/communes.geojson
 # data/localites.geojson
 # data/cours_eau.geojson
