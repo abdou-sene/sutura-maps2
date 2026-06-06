@@ -906,6 +906,81 @@
       }
 
       /* ═══════════════════════════════════════════
+         SECTION — GALLERY
+      ═══════════════════════════════════════════ */
+      #gallery {
+        padding: var(--pad-y) var(--pad-x);
+        background: var(--cream);
+      }
+      .gallery-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+        margin-top: 3.5rem;
+      }
+      .gallery-item {
+        background: var(--white);
+        border: 1px solid var(--line);
+        border-radius: 2px;
+        overflow: hidden;
+        box-shadow: 0 14px 40px rgba(14, 12, 10, 0.08);
+      }
+      .gallery-item img {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      .gallery-cap {
+        font-size: 0.72rem;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--muted);
+        padding: 0.9rem 1.1rem;
+        border-top: 1px solid var(--line);
+      }
+      @media (max-width: 600px) {
+        .gallery-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* ═══════════════════════════════════════════
+         SECTION — FAQ
+      ═══════════════════════════════════════════ */
+      #faq {
+        padding: var(--pad-y) var(--pad-x);
+        background: var(--sand);
+      }
+      .faq-list {
+        margin-top: 3rem;
+        max-width: 760px;
+      }
+      .faq-item {
+        padding: 1.6rem 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .faq-item:last-child {
+        border-bottom: none;
+      }
+      .faq-q {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--ink);
+        margin-bottom: 0.5rem;
+      }
+      .faq-a {
+        font-size: 0.86rem;
+        line-height: 1.75;
+        color: var(--muted);
+        font-weight: 300;
+      }
+      .faq-a strong {
+        color: var(--ink);
+        font-weight: 500;
+      }
+
+      /* ═══════════════════════════════════════════
          SECTION — PRICING
       ═══════════════════════════════════════════ */
       #pricing {
@@ -1014,7 +1089,7 @@
 
       .testi-grid {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(2, 1fr);
         gap: 1.5px;
         background: rgba(14, 12, 10, 0.08);
         margin-top: 3.5rem;
@@ -1314,7 +1389,9 @@
         <li><a href="#sutura">Philosophie</a></li>
         <li><a href="#features">Fonctionnalités</a></li>
         <li><a href="#how">Comment</a></li>
+        <li><a href="#gallery">Exemples</a></li>
         <li><a href="#pricing">Tarif</a></li>
+        <li><a href="#faq">FAQ</a></li>
         <li>
           <a
             href="map.html"
@@ -1335,7 +1412,9 @@
       <a href="#sutura" onclick="toggleMenu()">Philosophie</a>
       <a href="#features" onclick="toggleMenu()">Fonctionnalités</a>
       <a href="#how" onclick="toggleMenu()">Comment ça marche</a>
+      <a href="#gallery" onclick="toggleMenu()">Exemples</a>
       <a href="#pricing" onclick="toggleMenu()">Tarif</a>
+      <a href="#faq" onclick="toggleMenu()">FAQ</a>
       <a
         href="map.html"
         class="btn btn--primary btn--block"
@@ -1352,21 +1431,32 @@
           <span class="hero-tag-def">Discrétion · Dignité · Autonomie</span>
         </div>
         <h1 class="hero-title">
-          Cartographiez
-          <strong>avec dignité.</strong>
-          <em>En silence.</em>
+          La carte de localisation
+          <strong>de votre commune.</strong>
+          <em>En quelques minutes.</em>
         </h1>
         <p class="hero-sub">
-          La première plateforme de cartographie automatique des communes
-          sénégalaises.
+          Pour votre mémoire, votre rapport de stage ou votre présentation.
           <strong
-            >Trois clics. Trente secondes. Une carte professionnelle.</strong
+            >Choisissez votre commune, personnalisez, téléchargez.</strong
           >
+          Sans QGIS, sans installation.
         </p>
         <div class="hero-ctas">
           <a href="map.html" class="btn btn--primary">Créer ma carte</a>
           <a href="#how" class="btn btn--ghost">Comment ça marche</a>
         </div>
+        <p
+          style="
+            margin-top: 1.4rem;
+            font-size: 0.8rem;
+            color: var(--muted);
+            line-height: 1.6;
+          "
+        >
+          Générez et voyez votre carte gratuitement.<br />
+          Vous payez seulement pour télécharger la version HD, sans filigrane.
+        </p>
       </div>
 
       <div class="hero-right">
@@ -1375,7 +1465,7 @@
           <span class="quote-mark">"</span>
           <p class="quote-text">
             Votre carte de localisation,
-            <em>générée automatiquement</em>, en trente secondes.
+            <em>générée automatiquement</em>, sans logiciel à installer.
           </p>
         </div>
         <div class="hero-badge">
@@ -1549,36 +1639,56 @@
             <div class="m-dot"></div>
             <div class="m-dot"></div>
           </div>
-          <div class="mockup-body">
-            <div class="mockup-map">
-              <div class="m-commune"></div>
-              <div class="m-localite" style="top: 36%; left: 44%"></div>
-              <div class="m-localite" style="top: 52%; left: 57%"></div>
-              <div class="m-localite" style="top: 44%; left: 38%"></div>
-              <div class="m-localite" style="top: 58%; left: 51%"></div>
-              <div
-                class="m-localite"
-                style="
-                  top: 33%;
-                  left: 63%;
-                  background: #e74c3c;
-                  width: 7px;
-                  height: 7px;
-                  border-radius: 50%;
-                "
-              ></div>
-            </div>
-            <div class="mockup-panel">
-              <div class="m-panel">
-                <div class="m-line accent"></div>
-                <div class="m-line short"></div>
-                <div class="m-line"></div>
-                <div class="m-line short"></div>
-              </div>
-              <div class="m-panel" style="flex: 0.7"></div>
-              <div class="m-panel" style="flex: 0.7"></div>
-            </div>
-          </div>
+          <img
+            src="assets/gallery/map-dankh-sene.png"
+            alt="Carte de localisation de la commune de Dankh Sene générée avec Sutura Maps"
+            style="display: block; width: 100%; height: auto"
+            loading="lazy"
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- GALLERY -->
+    <section id="gallery">
+      <div class="reveal">
+        <div class="label">Des cartes déjà générées</div>
+        <h2 class="h2">
+          De vraies communes.<br /><em>De vraies cartes.</em>
+        </h2>
+      </div>
+      <div class="gallery-grid reveal d1">
+        <div class="gallery-item">
+          <img
+            src="assets/gallery/Baba_garage.png"
+            alt="Carte de localisation de la commune de Baba Garage"
+            loading="lazy"
+          />
+          <div class="gallery-cap">Baba Garage · Bambey · Diourbel</div>
+        </div>
+        <div class="gallery-item">
+          <img
+            src="assets/gallery/Bani_israel.png"
+            alt="Carte de localisation de la commune de Bani Israel"
+            loading="lazy"
+          />
+          <div class="gallery-cap">Bani Israel · Goudiry · Tambacounda</div>
+        </div>
+        <div class="gallery-item">
+          <img
+            src="assets/gallery/Darou_nahim.png"
+            alt="Carte de localisation de la commune de Darou Nahim"
+            loading="lazy"
+          />
+          <div class="gallery-cap">Darou Nahim · Mbacké · Diourbel</div>
+        </div>
+        <div class="gallery-item">
+          <img
+            src="assets/gallery/map-dankh-sene.png"
+            alt="Carte de localisation de la commune de Dankh Sene"
+            loading="lazy"
+          />
+          <div class="gallery-cap">Dankh Sene · Diourbel</div>
         </div>
       </div>
     </section>
@@ -1614,7 +1724,7 @@
             <li>Toutes les 557 communes du Sénégal</li>
             <li>Légende dynamique complète</li>
             <li>Localisation département & région incluse</li>
-            <li>Paiement Wave Mobile Money</li>
+            <li>Paiement mobile money : Wave, Orange, MaxIt</li>
           </ul>
           <a
             href="map.html"
@@ -1641,52 +1751,102 @@
         <div class="testi">
           <span class="testi-quote">"</span>
           <p class="testi-text">
-            Franchement, si quelqu'un me demande comment j'ai fait cette carte,
-            je dis juste que j'ai mes sources. Sutura Maps, c'est mon petit
-            secret professionnel.
+            L'application va arranger beaucoup de gens. Parfois quand tu es
+            pressé pour avoir une carte, et ceux qui ne peuvent pas en faire ou
+            n'ont pas suivi la formation, surtout les nouveaux masters. Je vais
+            la partager dans nos groupes.
+          </p>
+          <div class="testi-author">
+            <div class="testi-av">B</div>
+            <div>
+              <div class="testi-name">Binta D.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testi">
+          <span class="testi-quote">"</span>
+          <p class="testi-text">
+            C'est vraiment adorable. En naviguant on sent la pertinence. C'est
+            une innovation très intéressante. Moi personnellement ça
+            m'intéresse vraiment. Merci beaucoup Grand Abdou pour ces
+            réalisations.
+          </p>
+          <div class="testi-author">
+            <div class="testi-av">S</div>
+            <div>
+              <div class="testi-name">Souleymane G.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testi">
+          <span class="testi-quote">"</span>
+          <p class="testi-text">Trop fort. C'est excellent.</p>
+          <div class="testi-author">
+            <div class="testi-av">M</div>
+            <div>
+              <div class="testi-name">Mamadou K.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testi">
+          <span class="testi-quote">"</span>
+          <p class="testi-text">
+            Waaaw, c'est extraordinaire. Et facile à faire. Un vrai gain de
+            temps.
           </p>
           <div class="testi-author">
             <div class="testi-av">M</div>
             <div>
-              <div class="testi-name">M. X.</div>
-              <div class="testi-role">
-                Consultant en développement local · Dakar
-              </div>
+              <div class="testi-name">Modou T.</div>
             </div>
           </div>
         </div>
+      </div>
+    </section>
 
-        <div class="testi">
-          <span class="testi-quote">"</span>
-          <p class="testi-text">
-            Mon chef a cru que j'avais passé la nuit dessus. J'ai juste souri
-            poliment. On n'est pas obligés de tout dire.
-          </p>
-          <div class="testi-author">
-            <div class="testi-av">F</div>
-            <div>
-              <div class="testi-name">Mme Y.</div>
-              <div class="testi-role">
-                Chargée de suivi-évaluation · ONG terrain
-              </div>
-            </div>
+    <!-- FAQ -->
+    <section id="faq">
+      <div class="reveal">
+        <div class="label">Questions fréquentes</div>
+        <h2 class="h2">Ce que vous vous demandez<br /><em>avant de payer.</em></h2>
+      </div>
+      <div class="faq-list reveal d1">
+        <div class="faq-item">
+          <div class="faq-q">Comment se passe le paiement ?</div>
+          <div class="faq-a">
+            Par mobile money : <strong>Wave, Orange Money ou MaxIt</strong>. Le
+            paiement est sécurisé et traité via Bictorys. Aucun compte à créer,
+            aucune carte bancaire nécessaire.
           </div>
         </div>
-
-        <div class="testi">
-          <span class="testi-quote">"</span>
-          <p class="testi-text">
-            Ces témoignages sont vrais, je le jure. Enfin... ils pourraient
-            l'être. Et le vôtre aussi. Essayez Sutura Maps et racontez-nous.
-          </p>
-          <div class="testi-author">
-            <div class="testi-av">Z</div>
-            <div>
-              <div class="testi-name">Mlle Z.</div>
-              <div class="testi-role">
-                Étudiante en géographie · Peut-être vous ?
-              </div>
-            </div>
+        <div class="faq-item">
+          <div class="faq-q">Qu'est-ce que je reçois exactement ?</div>
+          <div class="faq-a">
+            Un fichier <strong>PNG haute définition, sans filigrane</strong>,
+            prêt à insérer dans un mémoire, un rapport, une présentation, ou à
+            imprimer. La carte inclut la légende, l'échelle et la localisation
+            dans le département et la région.
+          </div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">Et si je ne suis pas sûr du résultat ?</div>
+          <div class="faq-a">
+            Vous <strong>générez et voyez votre carte gratuitement</strong>.
+            Vous ne payez que si elle vous convient, au moment de télécharger la
+            version HD. Aucun risque.
+          </div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">
+            Ma commune n'apparaît pas, ou il manque un détail ?
+          </div>
+          <div class="faq-a">
+            Les 557 communes du Sénégal sont couvertes. Si quelque chose manque
+            ou semble incorrect, écrivez-nous sur WhatsApp avec le nom de votre
+            commune, on regarde avec vous.
           </div>
         </div>
       </div>
@@ -1705,8 +1865,13 @@
       </p>
       <div class="cta-btns reveal d2">
         <a href="map.html" class="btn btn--primary">Créer ma première carte</a>
-        <a href="mailto:contact@suturamaps.sn" class="btn btn--ghost-white"
-          >Nous écrire</a
+        <!-- REMPLACE 221XXXXXXXXX par ton numéro WhatsApp (format international, sans +) -->
+        <a
+          href="https://wa.me/221XXXXXXXXX"
+          target="_blank"
+          rel="noopener"
+          class="btn btn--ghost-white"
+          >Nous écrire sur WhatsApp</a
         >
         <a
           href="commande.html"
