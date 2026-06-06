@@ -56,7 +56,7 @@ const slides = [
     type: "cta",
     price: "2 000",
     currency: "FCFA par carte",
-    url: "sutura-maps.netlify.app",
+    url: "sutura-maps.com",
     note: "Moins de 5 minutes, chrono.",
   },
 ];
