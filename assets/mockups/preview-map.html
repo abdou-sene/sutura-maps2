@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  html, body { margin:0; padding:0; }
+  #map { width: 900px; height: 660px; background:#eef2f4; }
+  .titlebar {
+    width:900px; text-align:center; font-family:"Arial Narrow",sans-serif;
+    font-weight:700; letter-spacing:3px; font-size:18px; color:#222;
+    padding:10px 0; background:#fff;
+  }
+  .leaflet-tooltip-localite {
+    background:transparent; border:none; box-shadow:none;
+    font-family:"Arial Narrow",sans-serif; font-size:12.5px; font-weight:bold;
+    color:#363636; -webkit-text-stroke:2px #e8f4f8; paint-order:stroke fill;
+    white-space:nowrap; padding:0;
+  }
+  .leaflet-tooltip-localite::before { display:none !important; }
+  .leaflet-tooltip-localite.chef-lieu {
+    font-size:14px; font-weight:700; color:#c0392b; -webkit-text-stroke:6px #e8f4f8;
+  }
+  .leaflet-tooltip-localite.twoline {
+    white-space:normal; max-width:120px; text-align:center; line-height:1.05;
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="titlebar" id="titlebar"></div>
+
+<script>
+const CHEF_LIEUX = ["Capital of commune","Capital of CA","Admin3 capital","Admin2 capital","Admin1 capital","National capital"];
+const params = new URLSearchParams(location.search);
+const COMMUNE = (params.get("c") || "BABA GARAGE").toUpperCase();
+
+const map = L.map("map", { zoomControl:false, attributionControl:false, preferCanvas:true });
+
+function eachCoordPoly(geom, cb) {
+  const polys = geom.type === "Polygon" ? [geom.coordinates] : geom.coordinates;
+  polys.forEach(p => cb(p));
+}
+function featureBbox(f) {
+  let minX=180,minY=90,maxX=-180,maxY=-90;
+  eachCoordPoly(f.geometry, rings => rings.forEach(r => r.forEach(([x,y])=>{
+    if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y;
+  })));
+  return [minX,minY,maxX,maxY];
+}
+function ringContains([x,y], ring){
+  let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
+    if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function pointInFeature([x,y], f){
+  const polys = f.geometry.type==="Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
+  for(const rings of polys){
+    if(ringContains([x,y], rings[0])){
+      let hole=false;
+      for(let i=1;i<rings.length;i++){ if(ringContains([x,y],rings[i])){hole=true;break;} }
+      if(!hole) return true;
+    }
+  }
+  return false;
+}
+function bboxOverlap(a,b){ return !(a[2]<b[0]||a[0]>b[2]||a[3]<b[1]||a[1]>b[3]); }
+
+function wrapName(name){
+  if(name.length<=16) return {html:name,two:false};
+  const mid=name.length/2; let best=-1,bd=Infinity;
+  for(let i=0;i<name.length;i++){ if(name[i]===" "){const d=Math.abs(i-mid); if(d<bd){bd=d;best=i;}} }
+  if(best<0) return {html:name,two:false};
+  return {html:name.slice(0,best)+"<br>"+name.slice(best+1), two:true};
+}
+
+function placeLabels(items){
+  const meas=document.createElement("div");
+  meas.style.cssText="position:absolute;visibility:hidden;left:-9999px;top:-9999px;";
+  document.body.appendChild(meas);
+  const sized=items.map(l=>{
+    const w=wrapName(l.__label.name);
+    meas.className="leaflet-tooltip-localite"+(l.__label.chef?" chef-lieu":"")+(w.two?" twoline":"");
+    meas.style.whiteSpace=w.two?"normal":"nowrap";
+    meas.style.maxWidth=w.two?"120px":"none";
+    meas.innerHTML=w.html;
+    const r=meas.getBoundingClientRect();
+    return {layer:l,name:l.__label.name,chef:l.__label.chef,html:w.html,two:w.two,w:r.width,h:r.height};
+  });
+  document.body.removeChild(meas);
+  sized.sort((a,b)=> b.chef-a.chef || a.name.length-b.name.length);
+
+  const mapSize=map.getSize(), g=2, placed=[];
+  const PRESETS=["R","L","T","B","TR","BR","TL","BL"];
+  function boxFor(p,ax,ay,w,h){
+    switch(p){
+      case "R": return [ax+g, ay-h/2,"right",[g,0]];
+      case "L": return [ax-g-w, ay-h/2,"left",[-g,0]];
+      case "T": return [ax-w/2, ay-g-h,"top",[0,-g]];
+      case "B": return [ax-w/2, ay+g,"bottom",[0,g]];
+      case "TR":return [ax+g, ay-h,"right",[g,-h/2]];
+      case "BR":return [ax+g, ay,"right",[g,h/2]];
+      case "TL":return [ax-g-w, ay-h,"left",[-g,-h/2]];
+      case "BL":return [ax-g-w, ay,"left",[-g,h/2]];
+    }
+  }
+  const hit=(a,b)=>!(a.r<b.l||a.l>b.r||a.b<b.t||a.t>b.b);
+  const inB=(l,t,w,h)=>l>=0&&t>=0&&l+w<=mapSize.x&&t+h<=mapSize.y;
+  const PAD=4;
+  const inflate=b=>({l:b.l-PAD,t:b.t-PAD,r:b.r+PAD,b:b.b+PAD});
+
+  sized.forEach(s=>{
+    const pt=map.latLngToContainerPoint(s.layer.getLatLng());
+    let chosen=null,cbox=null,fb=null,fbs=Infinity;
+    for(const p of PRESETS){
+      const [bx,by,dir,off]=boxFor(p,pt.x,pt.y,s.w,s.h);
+      const box={l:bx,t:by,r:bx+s.w,b:by+s.h};
+      const within=inB(bx,by,s.w,s.h), col=placed.some(pb=>hit(box,pb));
+      if(within&&!col){ chosen={dir,off}; cbox=box; break; }
+      if(s.chef){
+        let area=0; placed.forEach(pb=>{const ox=Math.max(0,Math.min(box.r,pb.r)-Math.max(box.l,pb.l));const oy=Math.max(0,Math.min(box.b,pb.b)-Math.max(box.t,pb.t));area+=ox*oy;});
+        const sc=area+(within?0:1e6); if(sc<fbs){fbs=sc;fb={dir,off,box};}
+      }
+    }
+    if(!chosen&&s.chef&&fb){chosen={dir:fb.dir,off:fb.off};cbox=fb.box;}
+    if(!chosen) return;
+    s.layer.bindTooltip(s.html,{permanent:true,direction:chosen.dir,offset:chosen.off,
+      className:"leaflet-tooltip-localite"+(s.chef?" chef-lieu":"")+(s.two?" twoline":"")}).openTooltip();
+    placed.push(inflate(cbox));
+  });
+}
+
+Promise.all([
+  fetch("/data/communes.geojson").then(r=>r.json()),
+  fetch("/data/localites.geojson").then(r=>r.json()),
+]).then(([communes, localites])=>{
+  const target = communes.features.find(f => (f.properties.CCRCA||"").toUpperCase()===COMMUNE);
+  if(!target){ document.getElementById("titlebar").innerText="COMMUNE INTROUVABLE : "+COMMUNE; return; }
+  const bb = featureBbox(target);
+  const pad = 0.02;
+  const bigBox=[bb[0]-pad,bb[1]-pad,bb[2]+pad,bb[3]+pad];
+
+  // Limitrophes (contour gris)
+  const neighbors = communes.features.filter(f => f!==target && bboxOverlap(featureBbox(f), bigBox));
+  L.geoJSON({type:"FeatureCollection",features:neighbors},
+    {style:{color:"#b9b9b9",weight:1,fill:true,fillColor:"#f4f1ea",fillOpacity:1}}).addTo(map);
+
+  // Commune cible (vert)
+  L.geoJSON(target,{style:{color:"#5a7d3c",weight:2.5,fill:true,fillColor:"#9bbf7a",fillOpacity:0.55}}).addTo(map);
+
+  map.fitBounds([[bb[1],bb[0]],[bb[3],bb[2]]],{padding:[30,30]});
+
+  // Points dans la commune
+  const items=[];
+  localites.features.forEach(f=>{
+    if(!f.geometry || f.geometry.type!=="Point" || !f.properties) return;
+    const t=(f.properties.popPlace_1||"").trim();
+    const nm=f.properties.nom;
+    if(!nm || /H[1-9]/.test(nm)) return;
+    if(t==="Hameau"||t==="Chef lieu de quartier") return;
+    const c=f.geometry.coordinates;
+    if(!c || c.length<2) return;
+    if(c[0]<bb[0]||c[0]>bb[2]||c[1]<bb[1]||c[1]>bb[3]) return;
+    if(!pointInFeature(c, target)) return;
+    const chef=CHEF_LIEUX.some(x=>t.includes(x));
+    const quartier=t==="Quartier";
+    const m=L.circleMarker([c[1],c[0]],{
+      radius: chef?6:4,
+      fillColor: chef?"#e74c3c":quartier?"#ae22eb":"#555555",
+      color:"#fff", weight:1.5, fillOpacity:1,
+    }).addTo(map);
+    m.__label={name:nm, chef};
+    items.push(m);
+  });
+
+  document.getElementById("titlebar").innerText="COMMUNE DE "+COMMUNE+"  ·  "+items.length+" points";
+  setTimeout(()=>placeLabels(items), 120);
+  window.__ready=true;
+});
+</script>
+</body>
+</html>

@@ -709,11 +709,14 @@ function placeLocaliteLabels(group) {
   sized.sort((a, b) => b.chef - a.chef || a.name.length - b.name.length);
 
   const mapSize = map.getSize();
-  const g = 6; // marge entre le point et le label
-  const PRESETS = ["R", "TR", "BR", "L", "TL", "BL", "T", "B"];
+  const g = 2; // marge entre le point et le label (resserrée)
+  // Côtés d'abord (labels collés au point), diagonales en dernier recours.
+  const PRESETS = ["R", "L", "T", "B", "TR", "BR", "TL", "BL"];
   const placed = [];
 
   // Géométrie d'une boîte selon la direction, alignée sur la logique Leaflet.
+  // En diagonale, le coin du label touche le point (pas de décalage vertical
+  // supplémentaire) pour qu'il reste visuellement rattaché à son point.
   function boxFor(p, ax, ay, w, h) {
     switch (p) {
       case "R":
@@ -725,19 +728,27 @@ function placeLocaliteLabels(group) {
       case "B":
         return [ax - w / 2, ay + g, "bottom", [0, g]];
       case "TR":
-        return [ax + g, ay - g - h, "right", [g, -(h / 2 + g)]];
+        return [ax + g, ay - h, "right", [g, -h / 2]];
       case "BR":
-        return [ax + g, ay + g, "right", [g, h / 2 + g]];
+        return [ax + g, ay, "right", [g, h / 2]];
       case "TL":
-        return [ax - g - w, ay - g - h, "left", [-g, -(h / 2 + g)]];
+        return [ax - g - w, ay - h, "left", [-g, -h / 2]];
       case "BL":
-        return [ax - g - w, ay + g, "left", [-g, h / 2 + g]];
+        return [ax - g - w, ay, "left", [-g, h / 2]];
     }
   }
   const hit = (a, b) =>
     !(a.r < b.l || a.l > b.r || a.b < b.t || a.t > b.b);
   const inBounds = (l, t, w, h) =>
     l >= 0 && t >= 0 && l + w <= mapSize.x && t + h <= mapSize.y;
+  // Marge de sécurité anti-chevauchement (absorbe le contour blanc des textes).
+  const PAD = 4;
+  const inflate = (b) => ({
+    l: b.l - PAD,
+    t: b.t - PAD,
+    r: b.r + PAD,
+    b: b.b + PAD,
+  });
 
   sized.forEach((s) => {
     const pt = map.latLngToContainerPoint(s.layer.getLatLng());
@@ -790,7 +801,7 @@ function placeLocaliteLabels(group) {
           (s.two ? " twoline" : ""),
       })
       .openTooltip();
-    placed.push(chosenBox);
+    placed.push(inflate(chosenBox));
   });
 }
 
