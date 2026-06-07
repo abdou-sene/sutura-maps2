@@ -82,13 +82,9 @@ function checkNextBtn() {
     return;
   }
 
-  // Occupation du sol : commune obligatoire (les niveaux dept/région la cassaient).
-  // Localisation : on autorise commune, département ou région.
-  if (selectedMapType === "occupation") {
-    btn.disabled = !commune;
-  } else {
-    btn.disabled = !reg;
-  }
+  // Localisation et occupation : on autorise commune, département ou région
+  // (au moins la région doit être choisie).
+  btn.disabled = !reg;
 }
 
 /* ════════════════════════════════
@@ -405,12 +401,15 @@ async function preloadOccupation() {
   const dept = document.getElementById("select-dept").value;
   const reg = document.getElementById("select-reg").value;
 
-  // Occupation uniquement au niveau commune.
-  const level = "commune";
-  selectedLevel = level;
+  // Niveau selon la sélection (commune, département ou région).
+  const level = selectedLevel;
 
-  if (!commune) {
-    showError("Veuillez sélectionner une commune pour l'occupation du sol.");
+  const missing =
+    (level === "commune" && !commune) ||
+    (level === "dept" && !dept) ||
+    !reg;
+  if (missing) {
+    showError("Sélection incomplète pour l'occupation du sol.");
     goToStep(1);
     return;
   }
@@ -1337,8 +1336,8 @@ async function generateFinalMap() {
   const dept = document.getElementById("select-dept").value;
   const reg = document.getElementById("select-reg").value;
 
-  // Occupation : toujours commune. Localisation : niveau choisi (commune/dept/région).
-  const level = selectedMapType === "occupation" ? "commune" : selectedLevel;
+  // Niveau choisi (commune, département ou région) pour les deux types de carte.
+  const level = selectedLevel;
   const zoneName =
     level === "region" ? reg : level === "dept" ? dept : comName;
 
@@ -1413,10 +1412,10 @@ async function generateFinalMap() {
     } else {
       await generateOccupationMap(
         targetFeature,
-        comName,
+        zoneName,
         author,
         "ANAT, CSE, ANSD (2020)",
-        "commune",
+        level,
       );
     }
   }, 600);
@@ -2534,13 +2533,13 @@ async function handleDownloadToken(token) {
     if (mapControls.north) map.removeControl(mapControls.north);
 
     if (mapType === "occupation") {
-      const dept = targetFeature.properties.DEPT;
-      const reg = targetFeature.properties.REG;
+      const dept = pending.dept || targetFeature.properties.DEPT;
+      const reg = pending.reg || targetFeature.properties.REG;
       try {
         const ocRes = await fetch("/.netlify/functions/get-occupation", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ commune, dept, reg, level: "commune" }),
+          body: JSON.stringify({ commune, dept, reg, level }),
         });
         if (!ocRes.ok) throw new Error(`HTTP ${ocRes.status}`);
         const ocJson = await ocRes.json();
@@ -2564,7 +2563,7 @@ async function handleDownloadToken(token) {
         commune,
         author || "Sutura Maps",
         "ANAT, CSE, ANSD (2020)",
-        "commune",
+        level,
       );
     } else {
       await generateLocalisationMap(

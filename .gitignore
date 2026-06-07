@@ -10,3 +10,5 @@ pub/
 # data/departements.geojson
 # data/regions.geojson
 data/occupation_du_sol.geojson
+# Local Netlify folder
+.netlify
