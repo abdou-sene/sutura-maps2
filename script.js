@@ -1458,6 +1458,13 @@ async function generateFinalMap() {
         level,
       );
     }
+
+    // Le bouton affiche le prix réel du niveau/type choisi.
+    const exportBtn = document.querySelector(".btn-export");
+    if (exportBtn) {
+      const p = fmtPrice(priceForClient(selectedMapType, level));
+      exportBtn.innerText = `PAYEZ ${p} ET TÉLÉCHARGEZ`;
+    }
   }, 600);
 }
 
@@ -2004,8 +2011,8 @@ async function exportToPNG() {
   const author = document.getElementById("author-name")?.value || "Sutura Maps";
   const mobile = isMobileDevice();
 
-  // Niveau et nom de la zone (commune par défaut, dept ou région en localisation).
-  const level = selectedMapType === "occupation" ? "commune" : selectedLevel;
+  // Niveau et nom de la zone (commune, département ou région), pour les deux types.
+  const level = selectedLevel;
   const zoneName =
     level === "region" ? reg : level === "dept" ? dept : commune;
 
@@ -2028,6 +2035,7 @@ async function exportToPNG() {
         color,
         author,
         level,
+        maptype: selectedMapType,
         client: mobile ? "mobile" : "desktop",
       }),
     });
@@ -2089,7 +2097,28 @@ async function exportToPNG() {
 
 let paymentWatchTimer = null;
 
+// Prix affiché (le serveur reste la source de vérité). Occupation : paliers.
+function priceForClient(maptype, level) {
+  if (maptype === "occupation" && level === "dept") return 5000;
+  if (maptype === "occupation" && level === "region") return 10000;
+  return 2000;
+}
+function fmtPrice(n) {
+  return n.toLocaleString("fr-FR") + " FCFA";
+}
+function zoneLabelFor(level, name) {
+  const prefix =
+    level === "region"
+      ? "Région de "
+      : level === "dept"
+        ? "Département de "
+        : "Commune de ";
+  return prefix + (name || "").toUpperCase();
+}
+
 function buildPaymentOverlay(commune) {
+  const zoneLabel = zoneLabelFor(selectedLevel, commune);
+  const priceText = fmtPrice(priceForClient(selectedMapType, selectedLevel));
   const existing = document.getElementById("pay-overlay");
   if (existing) existing.remove();
 
@@ -2122,7 +2151,7 @@ function buildPaymentOverlay(commune) {
       <div style="display:inline-block;background:#0e0c0a;color:#c9a84c;
                   font-family:'Cormorant Garamond',serif;font-size:1.05rem;font-weight:600;
                   letter-spacing:2px;padding:9px 20px;border-radius:2px;margin-bottom:24px;">
-        Commune de ${(commune || "").toUpperCase()}
+        ${zoneLabel} · ${priceText}
       </div>
       <button id="pay-check-now" style="display:block;width:100%;background:#b85c2c;color:#fff;
                   font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:500;
@@ -2470,6 +2499,7 @@ async function handleDownloadToken(token) {
     const MAX_TRIES = 12;
     const INTERVAL_MS = 2500;
     let paid = false, commune, error, color, author;
+    let tokMaptype, tokLevel, tokDept, tokReg;
 
     for (let i = 0; i < MAX_TRIES; i++) {
       const res = await fetch(`/.netlify/functions/check-token?token=${token}`);
@@ -2479,6 +2509,10 @@ async function handleDownloadToken(token) {
       error = data.error;
       color = data.color;
       author = data.author;
+      tokMaptype = data.maptype;
+      tokLevel = data.level;
+      tokDept = data.dept;
+      tokReg = data.reg;
 
       if (paid) break;
 
@@ -2531,12 +2565,20 @@ async function handleDownloadToken(token) {
     } catch (e) {
       pending = {};
     }
+    // Priorité aux valeurs enregistrées dans la commande (ce qui a été payé),
+    // repli sur la session/local seulement si absentes.
     const mapType =
+      tokMaptype ||
       sessionStorage.getItem("sutura_maptype") ||
       pending.maptype ||
       "localisation";
     const level =
-      sessionStorage.getItem("sutura_level") || pending.level || "commune";
+      tokLevel ||
+      sessionStorage.getItem("sutura_level") ||
+      pending.level ||
+      "commune";
+    const zDept = tokDept || pending.dept;
+    const zReg = tokReg || pending.reg;
 
     // Construction de la zone selon le niveau.
     let targetFeature;
@@ -2545,7 +2587,7 @@ async function handleDownloadToken(token) {
         (f) => f.properties.CCRCA === commune,
       );
     } else {
-      targetFeature = await buildMergedFeature(level, pending.dept, pending.reg);
+      targetFeature = await buildMergedFeature(level, zDept, zReg);
     }
 
     if (!targetFeature) {
@@ -2573,8 +2615,8 @@ async function handleDownloadToken(token) {
     if (mapControls.north) map.removeControl(mapControls.north);
 
     if (mapType === "occupation") {
-      const dept = pending.dept || targetFeature.properties.DEPT;
-      const reg = pending.reg || targetFeature.properties.REG;
+      const dept = zDept || targetFeature.properties.DEPT;
+      const reg = zReg || targetFeature.properties.REG;
       try {
         const ocRes = await fetch("/.netlify/functions/get-occupation", {
           method: "POST",

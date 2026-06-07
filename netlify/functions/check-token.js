@@ -20,7 +20,7 @@ exports.handler = async (event) => {
 
   const { data, error } = await supabase
     .from("exports")
-    .select("paid, paid_at, commune, expires_at, user_color, user_author")
+    .select("paid, paid_at, commune, dept, reg, level, maptype, expires_at, user_color, user_author")
     .eq("token", token)
     .maybeSingle();
 
@@ -69,6 +69,10 @@ exports.handler = async (event) => {
     body: JSON.stringify({
       paid: true,
       commune: data.commune,
+      dept: data.dept || null,
+      reg: data.reg || null,
+      level: data.level || "commune",
+      maptype: data.maptype || "localisation",
       color: data.user_color || "#7BA05B",
       author: data.user_author || "Sutura Maps",
     }),

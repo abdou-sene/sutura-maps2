@@ -27,7 +27,18 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "JSON invalide" }) };
   }
 
-  const { commune, dept, reg, color, author, client } = body;
+  const { commune, dept, reg, color, author, client, maptype, level } = body;
+
+  // Prix calculé CÔTÉ SERVEUR (jamais reçu du navigateur) selon le type de
+  // carte et le niveau. Occupation : paliers dept/région. Le reste : 2000.
+  const mt = maptype === "occupation" ? "occupation" : "localisation";
+  const lvl = level === "region" ? "region" : level === "dept" ? "dept" : "commune";
+  function priceFor(t, l) {
+    if (t === "occupation" && l === "dept") return 5000;
+    if (t === "occupation" && l === "region") return 10000;
+    return 2000;
+  }
+  const amount = priceFor(mt, lvl);
 
   // Sur ordinateur, le paiement s'ouvre dans un nouvel onglet ; on marque le
   // retour avec tab=1 pour que cet onglet n'enclenche pas un second
@@ -54,6 +65,9 @@ exports.handler = async (event) => {
     reg: reg || null,
     user_color: color || "#7BA05B",
     user_author: author || "Sutura Maps",
+    maptype: mt,
+    level: lvl,
+    amount,
     paid: false,
     expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
   });
@@ -76,7 +90,7 @@ exports.handler = async (event) => {
         "X-Api-Key": process.env.BICTORYS_API_KEY,
       },
       body: JSON.stringify({
-        amount: 2000,
+        amount,
         currency: "XOF",
         country: "SN",
         paymentReference: token,
