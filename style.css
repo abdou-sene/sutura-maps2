@@ -540,6 +540,12 @@ button {
   color: #c0392b;
   -webkit-text-stroke: 6px #e8f4f8;
 }
+.leaflet-tooltip-localite.twoline {
+  white-space: normal;
+  max-width: 120px;
+  text-align: center;
+  line-height: 1.05;
+}
 
 .leaflet-tooltip-commune {
   background: transparent;

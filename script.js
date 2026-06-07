@@ -600,7 +600,7 @@ async function addPoints(url, communeFeature) {
 
     features.sort((a, b) => a.properties.nom.length - b.properties.nom.length);
 
-    L.geoJSON(
+    const localiteLayer = L.geoJSON(
       { ...data, features },
       {
         pointToLayer: (feature, latlng) => {
@@ -620,46 +620,178 @@ async function addPoints(url, communeFeature) {
           });
         },
         onEachFeature: (feature, layer) => {
-          if (feature.properties?.nom) {
-            const type = (feature.properties.popPlace_1 || "").trim();
-            const isChefLieu = CHEF_LIEUX.some((c) => type.includes(c));
-            if (!/H[1-9]/.test(feature.properties.nom)) {
-              layer.bindTooltip(feature.properties.nom, {
-                permanent: true,
-                direction: "right",
-                offset: [1, 0],
-                className: `leaflet-tooltip-localite${isChefLieu ? " chef-lieu" : ""}`,
-              });
-            }
-          }
+          const nm = feature.properties?.nom;
+          if (!nm || /H[1-9]/.test(nm)) return;
+          const type = (feature.properties.popPlace_1 || "").trim();
+          layer.__label = {
+            name: nm,
+            chef: CHEF_LIEUX.some((c) => type.includes(c)),
+          };
         },
       },
-    ).addTo(map);
+    );
+    localiteLayer.addTo(map);
 
-    setTimeout(() => {
-      const tooltips = document.querySelectorAll(".leaflet-tooltip-localite");
-      const boxes = [];
-      tooltips.forEach((el) => {
-        const r = el.getBoundingClientRect();
-        const overlaps = boxes.some(
-          (b) =>
-            !(
-              r.right < b.left ||
-              r.left > b.right ||
-              r.bottom < b.top ||
-              r.top > b.bottom
-            ),
-        );
-        if (overlaps) el.style.display = "none";
-        else boxes.push(r);
-      });
-    }, 800);
+    // Placement intelligent : le chef-lieu d'abord et toujours visible, puis
+    // on teste les 8 directions autour de chaque point et on masque ce qui ne
+    // rentre nulle part (priorité aux noms courts).
+    setTimeout(() => placeLocaliteLabels(localiteLayer), 80);
 
     const counter = document.getElementById("localite-count");
     if (counter) counter.innerText = features.length;
   } catch (e) {
     console.error("addPoints error:", e);
   }
+}
+
+/* ════════════════════════════════
+   PLACEMENT DES LABELS DE LOCALITÉS
+════════════════════════════════ */
+
+// Coupe les noms longs sur deux lignes, au plus près du milieu.
+function wrapName(name) {
+  if (name.length <= 16) return { html: name, two: false };
+  const mid = name.length / 2;
+  let best = -1,
+    bestDist = Infinity;
+  for (let i = 0; i < name.length; i++) {
+    if (name[i] === " ") {
+      const d = Math.abs(i - mid);
+      if (d < bestDist) {
+        bestDist = d;
+        best = i;
+      }
+    }
+  }
+  if (best < 0) return { html: name, two: false };
+  return {
+    html: name.slice(0, best) + "<br>" + name.slice(best + 1),
+    two: true,
+  };
+}
+
+function placeLocaliteLabels(group) {
+  const items = [];
+  group.eachLayer((l) => {
+    if (l.__label && l.getLatLng) items.push(l);
+  });
+  if (!items.length) return;
+
+  // Mesure hors écran de la taille réelle de chaque label.
+  const meas = document.createElement("div");
+  meas.style.cssText =
+    "position:absolute;visibility:hidden;left:-9999px;top:-9999px;";
+  document.body.appendChild(meas);
+
+  const sized = items.map((l) => {
+    const w = wrapName(l.__label.name);
+    meas.className =
+      "leaflet-tooltip-localite" +
+      (l.__label.chef ? " chef-lieu" : "") +
+      (w.two ? " twoline" : "");
+    meas.style.whiteSpace = w.two ? "normal" : "nowrap";
+    meas.style.maxWidth = w.two ? "120px" : "none";
+    meas.innerHTML = w.html;
+    const r = meas.getBoundingClientRect();
+    return {
+      layer: l,
+      name: l.__label.name,
+      chef: l.__label.chef,
+      html: w.html,
+      two: w.two,
+      w: r.width,
+      h: r.height,
+    };
+  });
+  document.body.removeChild(meas);
+
+  // Chef-lieu d'abord, puis noms les plus courts.
+  sized.sort((a, b) => b.chef - a.chef || a.name.length - b.name.length);
+
+  const mapSize = map.getSize();
+  const g = 6; // marge entre le point et le label
+  const PRESETS = ["R", "TR", "BR", "L", "TL", "BL", "T", "B"];
+  const placed = [];
+
+  // Géométrie d'une boîte selon la direction, alignée sur la logique Leaflet.
+  function boxFor(p, ax, ay, w, h) {
+    switch (p) {
+      case "R":
+        return [ax + g, ay - h / 2, "right", [g, 0]];
+      case "L":
+        return [ax - g - w, ay - h / 2, "left", [-g, 0]];
+      case "T":
+        return [ax - w / 2, ay - g - h, "top", [0, -g]];
+      case "B":
+        return [ax - w / 2, ay + g, "bottom", [0, g]];
+      case "TR":
+        return [ax + g, ay - g - h, "right", [g, -(h / 2 + g)]];
+      case "BR":
+        return [ax + g, ay + g, "right", [g, h / 2 + g]];
+      case "TL":
+        return [ax - g - w, ay - g - h, "left", [-g, -(h / 2 + g)]];
+      case "BL":
+        return [ax - g - w, ay + g, "left", [-g, h / 2 + g]];
+    }
+  }
+  const hit = (a, b) =>
+    !(a.r < b.l || a.l > b.r || a.b < b.t || a.t > b.b);
+  const inBounds = (l, t, w, h) =>
+    l >= 0 && t >= 0 && l + w <= mapSize.x && t + h <= mapSize.y;
+
+  sized.forEach((s) => {
+    const pt = map.latLngToContainerPoint(s.layer.getLatLng());
+    let chosen = null,
+      chosenBox = null,
+      fallback = null,
+      fallbackScore = Infinity;
+
+    for (const p of PRESETS) {
+      const [bx, by, dir, off] = boxFor(p, pt.x, pt.y, s.w, s.h);
+      const box = { l: bx, t: by, r: bx + s.w, b: by + s.h };
+      const within = inBounds(bx, by, s.w, s.h);
+      const collides = placed.some((pb) => hit(box, pb));
+
+      if (within && !collides) {
+        chosen = { dir, off };
+        chosenBox = box;
+        break;
+      }
+      // Pour le chef-lieu : on retient la position la moins chevauchante.
+      if (s.chef) {
+        let area = 0;
+        placed.forEach((pb) => {
+          const ox = Math.max(0, Math.min(box.r, pb.r) - Math.max(box.l, pb.l));
+          const oy = Math.max(0, Math.min(box.b, pb.b) - Math.max(box.t, pb.t));
+          area += ox * oy;
+        });
+        const score = area + (within ? 0 : 1e6);
+        if (score < fallbackScore) {
+          fallbackScore = score;
+          fallback = { dir, off, box };
+        }
+      }
+    }
+
+    if (!chosen && s.chef && fallback) {
+      chosen = { dir: fallback.dir, off: fallback.off };
+      chosenBox = fallback.box;
+    }
+    if (!chosen) return; // village/quartier sans place : masqué
+
+    s.layer
+      .bindTooltip(s.html, {
+        permanent: true,
+        direction: chosen.dir,
+        offset: chosen.off,
+        className:
+          "leaflet-tooltip-localite" +
+          (s.chef ? " chef-lieu" : "") +
+          (s.two ? " twoline" : ""),
+      })
+      .openTooltip();
+    placed.push(chosenBox);
+  });
 }
 
 /* ════════════════════════════════
