@@ -1,37 +1,43 @@
 -- ============================================================
 --  Occupation du sol par DÉPARTEMENT et par RÉGION
---  À coller dans Supabase (SQL Editor), une fois.
+--  À coller dans Supabase (SQL Editor). Remplace les versions précédentes.
 --
---  Principe anti-surcharge : on dissout l'occupation PAR CLASSE
---  (un seul polygone multipart par classe), puis on simplifie et
---  on réduit la précision. Sans ça, une région renvoie des milliers
---  de polygones et dépasse la limite de réponse des fonctions Netlify.
+--  La zone vient directement des tables departements / regions
+--  (plus de reconstruction par union des communes).
 --
---  La zone est l'union des communes (table communes, fiable car elle
---  porte DEPT et REG). Pense à avoir un index spatial sur communes :
---    create index if not exists idx_communes_geom
---      on public.communes using gist (geom);
+--  Dissolution par CLASSE (un polygone par classe) pour alléger.
+--  Union robuste via ST_UnaryUnion(..., gridSize) pour éviter les
+--  erreurs GEOS de topologie.
+--
+--  À VÉRIFIER si erreur "column ... does not exist" :
+--   - le nom de la colonne géométrie (ici "geom") ;
+--   - que la table departements a bien les colonnes "DEPT" et "REG" ;
+--   - que la table regions a bien la colonne "REG".
+--  Adapte les noms ci-dessous si besoin.
 -- ============================================================
 
--- ---------- DÉPARTEMENT ----------
+-- ---------- DÉPARTEMENT ----------  (grille ~ 0.0004° ≈ 45 m)
 create or replace function public.get_occupation_par_dept(
   p_dept text, p_reg text
 ) returns jsonb language sql stable as $$
   with zone as (
-    select st_makevalid(st_union(geom)) as geom
-    from public.communes
+    select st_makevalid(geom) as geom
+    from public.departements
     where "DEPT" = p_dept and "REG" = p_reg
+    limit 1
   ),
   clipped as (
     select o."NOM" as nom,
-           st_collectionextract(
-             st_intersection(st_makevalid(o.geom), z.geom), 3
+           st_makevalid(
+             st_collectionextract(
+               st_intersection(st_makevalid(o.geom), z.geom), 3
+             )
            ) as geom
     from public.occupation_du_sol o, zone z
     where st_intersects(o.geom, z.geom)
   ),
   dissolved as (
-    select nom, st_union(geom) as geom
+    select nom, st_unaryunion(st_collect(geom), 0.0004) as geom
     from clipped
     where geom is not null and not st_isempty(geom)
     group by nom
@@ -42,35 +48,35 @@ create or replace function public.get_occupation_par_dept(
       jsonb_build_object(
         'type', 'Feature',
         'properties', jsonb_build_object('NOM', nom),
-        'geometry', st_asgeojson(
-          st_simplifypreservetopology(geom, 0.0006), 5
-        )::jsonb
+        'geometry', st_asgeojson(geom, 5)::jsonb
       )
-    ), '[]'::jsonb)
+    ) filter (where geom is not null and not st_isempty(geom)), '[]'::jsonb)
   )
   from dissolved;
 $$;
 
--- ---------- RÉGION ----------
--- Tolérance de simplification plus élevée (zone plus large).
+-- ---------- RÉGION ----------  (grille ~ 0.0009° ≈ 100 m)
 create or replace function public.get_occupation_par_region(
   p_reg text
 ) returns jsonb language sql stable as $$
   with zone as (
-    select st_makevalid(st_union(geom)) as geom
-    from public.communes
+    select st_makevalid(geom) as geom
+    from public.regions
     where "REG" = p_reg
+    limit 1
   ),
   clipped as (
     select o."NOM" as nom,
-           st_collectionextract(
-             st_intersection(st_makevalid(o.geom), z.geom), 3
+           st_makevalid(
+             st_collectionextract(
+               st_intersection(st_makevalid(o.geom), z.geom), 3
+             )
            ) as geom
     from public.occupation_du_sol o, zone z
     where st_intersects(o.geom, z.geom)
   ),
   dissolved as (
-    select nom, st_union(geom) as geom
+    select nom, st_unaryunion(st_collect(geom), 0.0009) as geom
     from clipped
     where geom is not null and not st_isempty(geom)
     group by nom
@@ -81,18 +87,16 @@ create or replace function public.get_occupation_par_region(
       jsonb_build_object(
         'type', 'Feature',
         'properties', jsonb_build_object('NOM', nom),
-        'geometry', st_asgeojson(
-          st_simplifypreservetopology(geom, 0.0015), 5
-        )::jsonb
+        'geometry', st_asgeojson(geom, 5)::jsonb
       )
-    ), '[]'::jsonb)
+    ) filter (where geom is not null and not st_isempty(geom)), '[]'::jsonb)
   )
   from dissolved;
 $$;
 
 -- ============================================================
---  Tests de poids (doit rester sous ~5 Mo pour Netlify) :
---    select pg_size_pretty(length(get_occupation_par_dept('BAMBEY','DIOURBEL')::text)::bigint);
---    select pg_size_pretty(length(get_occupation_par_region('DIOURBEL')::text)::bigint);
---  Si trop lourd ou trop lent : augmente la tolérance (0.0015 -> 0.003 ...).
+--  Test :
+--    select pg_size_pretty(length(get_occupation_par_region('THIES')::text)::bigint);
+--    select pg_size_pretty(length(get_occupation_par_dept('MBOUR','THIES')::text)::bigint);
+--  Si > ~8 s : monte la grille (0.0009 -> 0.0015 -> 0.002).
 -- ============================================================
