@@ -44,6 +44,46 @@ const PALETTE_DEFAULT = {
   Vasière: "#8FA8A8",
 };
 
+// Ordre thématique de la légende d'occupation (anthropique, végétation par
+// densité décroissante, cultures, eau et zones humides, sols nus).
+const OCCUPATION_ORDER = [
+  "Localité",
+  "Carrière Mine Infrastructure",
+  "Forêt",
+  "Forêt galerie",
+  "Plantation forestière",
+  "Mangrove",
+  "Savane",
+  "Savane arbustive",
+  "Steppe",
+  "Culture irriguée",
+  "Culture maraîchère",
+  "Culture pluviale",
+  "Cours d'eau",
+  "Lac",
+  "Mare",
+  "Plaine inondable",
+  "Prairie aquatique",
+  "Vasière",
+  "Tanne",
+  "Sol nu",
+  "Dune",
+];
+
+// Libellé affiché : "Localité" devient "Bâti".
+function occLabel(nom) {
+  return nom === "Localité" ? "Bâti" : nom;
+}
+
+// Trie les classes selon l'ordre thématique (inconnues à la fin).
+function sortOccClasses(classes) {
+  return [...classes].sort((a, b) => {
+    const ia = OCCUPATION_ORDER.indexOf(a);
+    const ib = OCCUPATION_ORDER.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+}
+
 /* ════════════════════════════════
    TYPE DE CARTE
 ════════════════════════════════ */
@@ -330,7 +370,7 @@ function buildStep2Occupation(classes) {
               data-class="${nom}"
               onchange="occupationPalette[this.dataset.class]=this.value"
               style="width:36px;height:30px;padding:2px;cursor:pointer;flex-shrink:0;border-radius:1px;border:1px solid var(--line);">
-            <span style="font-size:0.8rem;color:var(--ink);font-weight:300;flex:1;">${nom}</span>
+            <span style="font-size:0.8rem;color:var(--ink);font-weight:300;flex:1;">${occLabel(nom)}</span>
           </div>
         `,
           )
@@ -513,13 +553,13 @@ function buildOccupationLegend(classes, palette) {
   `;
   body.appendChild(subtitle);
 
-  classes.forEach((nom) => {
+  sortOccClasses(classes).forEach((nom) => {
     const color = palette[nom] || "#cccccc";
     const item = document.createElement("div");
     item.className = "legend-item";
     item.innerHTML = `
       <span class="legend-swatch" style="background:${color};border-color:rgba(0,0,0,0.15);opacity:1"></span>
-      <span>${nom}</span>
+      <span>${occLabel(nom)}</span>
     `;
     body.appendChild(item);
   });
