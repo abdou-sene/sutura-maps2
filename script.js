@@ -82,9 +82,13 @@ function checkNextBtn() {
     return;
   }
 
-  // Localisation comme occupation : la commune est toujours requise.
-  // (Les niveaux région/département en occupation cassaient l'app, on les retire.)
-  btn.disabled = !commune;
+  // Occupation du sol : commune obligatoire (les niveaux dept/région la cassaient).
+  // Localisation : on autorise commune, département ou région.
+  if (selectedMapType === "occupation") {
+    btn.disabled = !commune;
+  } else {
+    btn.disabled = !reg;
+  }
 }
 
 /* ════════════════════════════════
@@ -471,13 +475,18 @@ function restoreLocalisationLegend() {
     <span class="legend-line water-line"></span>
     <span class="legend-label">Cours d'eau</span>
   </div>
+  <div class="legend-item" id="legend-internal" style="display:none">
+    <span class="legend-swatch" id="legend-internal-swatch"
+          style="background:transparent;border:1.5px dashed #000000"></span>
+    <span class="legend-label" id="legend-internal-label">Limites internes</span>
+  </div>
   <div class="legend-item">
     <span class="legend-swatch commune-swatch" id="legend-commune-swatch"></span>
     <span class="legend-label" id="legend-commune-label">Zone d'étude</span>
   </div>
   <div class="legend-item">
     <span class="legend-swatch neighbor-swatch"></span>
-    <span class="legend-label">Communes limitrophes</span>
+    <span class="legend-label" id="legend-limitrophe-label">Communes limitrophes</span>
   </div>
   <div class="legend-item" id="legend-ocean" style="display:none">
     <span class="legend-swatch" style="background:#c8dfe8;border-color:#a8c8d8;opacity:1"></span>
@@ -525,8 +534,13 @@ async function addLayer(url, style, communeFeature) {
   try {
     const res = await fetch(url);
     const data = await res.json();
+    const tb = turf.bbox(communeFeature);
     const filtered = data.features.filter((f) => {
       try {
+        // Pré-filtre rapide par boîte englobante avant le test coûteux.
+        const fb = turf.bbox(f);
+        if (fb[2] < tb[0] || fb[0] > tb[2] || fb[3] < tb[1] || fb[1] > tb[3])
+          return false;
         return turf.booleanIntersects(f, communeFeature);
       } catch (e) {
         return false;
@@ -546,7 +560,7 @@ async function addLayer(url, style, communeFeature) {
   }
 }
 
-async function addPoints(url, communeFeature) {
+async function addPoints(url, communeFeature, level = "commune", pointNames = null) {
   try {
     const res = await fetch(url);
     const data = await res.json();
@@ -562,10 +576,24 @@ async function addPoints(url, communeFeature) {
       "National capital",
     ];
 
-    const features = data.features.filter((f) => {
+    // Types de points conservés selon le niveau de la carte.
+    const DEPT_CAPS = ["Admin2 capital", "Admin1 capital", "National capital"];
+    const passLevel = (type, nom) => {
+      if (level === "commune") return true;
+      if (level === "dept") return CHEF_LIEUX.some((c) => type.includes(c));
+      if (level === "region") {
+        // Chef-lieu par attribut, sinon par nom de département (override inclus).
+        if (pointNames && pointNames.has(normNom(nom))) return true;
+        return DEPT_CAPS.some((c) => type.includes(c));
+      }
+      return true;
+    };
+
+    let features = data.features.filter((f) => {
       try {
         const type = (f.properties.popPlace_1 || "").trim();
         if (type === "Hameau" || type === "Chef lieu de quartier") return false;
+        if (!passLevel(type, f.properties.nom)) return false;
         const [x, y] = f.geometry.coordinates;
         if (x < bbox[0] || x > bbox[2] || y < bbox[1] || y > bbox[3])
           return false;
@@ -575,9 +603,33 @@ async function addPoints(url, communeFeature) {
       }
     });
 
-    const hasChefLieu = features.some((f) =>
-      CHEF_LIEUX.some((c) => (f.properties.popPlace_1 || "").includes(c)),
-    );
+    // Région : un seul point par nom, en privilégiant le type le plus officiel
+    // (ex. deux "Keur Massar" → on garde le Capital of CA).
+    if (level === "region") {
+      const rank = (t) => {
+        const i = CHEF_LIEUX.indexOf((t || "").trim());
+        return i === -1 ? 99 : i;
+      };
+      const byName = new Map();
+      features.forEach((f) => {
+        const key = normNom(f.properties.nom);
+        const cur = byName.get(key);
+        if (
+          !cur ||
+          rank(f.properties.popPlace_1) <
+            rank(cur.properties.popPlace_1)
+        ) {
+          byName.set(key, f);
+        }
+      });
+      features = [...byName.values()];
+    }
+
+    const hasChefLieu =
+      level === "region" ||
+      features.some((f) =>
+        CHEF_LIEUX.some((c) => (f.properties.popPlace_1 || "").includes(c)),
+      );
     const hasQuartier = features.some((f) => {
       const t = (f.properties.popPlace_1 || "").trim();
       return t === "Quartier" || t === "Chef lieu de quartier";
@@ -605,7 +657,9 @@ async function addPoints(url, communeFeature) {
       {
         pointToLayer: (feature, latlng) => {
           const type = (feature.properties.popPlace_1 || "").trim();
-          const isChefLieu = CHEF_LIEUX.some((c) => type.includes(c));
+          // En région, tous les points retenus sont des chefs-lieux de dept.
+          const isChefLieu =
+            level === "region" || CHEF_LIEUX.some((c) => type.includes(c));
           const isQuartier = type === "Quartier";
           return L.circleMarker(latlng, {
             radius: isChefLieu ? 6 : 4,
@@ -625,7 +679,7 @@ async function addPoints(url, communeFeature) {
           const type = (feature.properties.popPlace_1 || "").trim();
           layer.__label = {
             name: nm,
-            chef: CHEF_LIEUX.some((c) => type.includes(c)),
+            chef: level === "region" || CHEF_LIEUX.some((c) => type.includes(c)),
           };
         },
       },
@@ -1029,8 +1083,12 @@ async function addOceanLayer(url, targetFeature) {
     const res = await fetch(url);
     const data = await res.json();
     if (!data.features?.length) return false;
+    const tb = turf.bbox(targetFeature);
     const filtered = data.features.filter((f) => {
       try {
+        const fb = turf.bbox(f);
+        if (fb[2] < tb[0] || fb[0] > tb[2] || fb[3] < tb[1] || fb[1] > tb[3])
+          return false;
         return turf.booleanIntersects(f, targetFeature);
       } catch (e) {
         return false;
@@ -1060,7 +1118,7 @@ async function addOceanLayer(url, targetFeature) {
    CARTES DE LOCALISATION (PANNEAU)
 ════════════════════════════════ */
 
-function buildLocatorMap(targetFeature, userColor) {
+function buildLocatorMap(targetFeature, userColor, level = "commune") {
   if (locatorMap) {
     locatorMap.remove();
     locatorMap = null;
@@ -1075,9 +1133,49 @@ function buildLocatorMap(targetFeature, userColor) {
     keyboard: false,
   });
   const dept = targetFeature.properties.DEPT;
+  const reg = targetFeature.properties.REG;
+
   fetch("data/departements.geojson")
     .then((r) => r.json())
     .then((data) => {
+      if (level === "dept") {
+        // Département situé dans sa région : on montre les départements de la
+        // région, le département cible en couleur, cadré sur la région.
+        const deptSet = new Set(deptsOfRegion(reg));
+        const regionDepts = data.features.filter((f) =>
+          deptSet.has(f.properties.DEPT),
+        );
+        const others = regionDepts.filter((f) => f.properties.DEPT !== dept);
+        L.geoJSON(
+          { type: "FeatureCollection", features: others },
+          {
+            style: {
+              color: "#bdc3c7",
+              fillColor: "#bdc3c7",
+              fillOpacity: 0.5,
+              weight: 0.4,
+            },
+            interactive: false,
+          },
+        ).addTo(locatorMap);
+        L.geoJSON(targetFeature, {
+          style: {
+            color: "transparent",
+            fillColor: userColor,
+            fillOpacity: 0.95,
+            weight: 0,
+          },
+          interactive: false,
+        }).addTo(locatorMap);
+        const ctx = regionDepts.length ? regionDepts : data.features;
+        locatorMap.fitBounds(
+          L.geoJSON({ type: "FeatureCollection", features: ctx }).getBounds(),
+          { padding: [0, 0], animate: false },
+        );
+        return;
+      }
+
+      // Niveau commune : commune située dans son département.
       const targetDept = data.features.find((f) => f.properties.DEPT === dept);
       const otherDepts = data.features.filter(
         (f) => f.properties.DEPT !== dept,
@@ -1239,8 +1337,15 @@ async function generateFinalMap() {
   const dept = document.getElementById("select-dept").value;
   const reg = document.getElementById("select-reg").value;
 
+  // Occupation : toujours commune. Localisation : niveau choisi (commune/dept/région).
+  const level = selectedMapType === "occupation" ? "commune" : selectedLevel;
+  const zoneName =
+    level === "region" ? reg : level === "dept" ? dept : comName;
+
   goToStep("loading");
-  document.getElementById("loading-commune").innerText = comName.toUpperCase();
+  document.getElementById("loading-commune").innerText = (
+    zoneName || ""
+  ).toUpperCase();
 
   const steps = ["ls1", "ls2", "ls3"];
   steps.forEach((id, i) => {
@@ -1275,24 +1380,37 @@ async function generateFinalMap() {
     if (mapControls.scale) map.removeControl(mapControls.scale);
     if (mapControls.north) map.removeControl(mapControls.north);
 
-    const targetFeature = geoData.communes.features.find(
-      (f) =>
-        f.properties.CCRCA === comName &&
-        f.properties.DEPT === dept &&
-        f.properties.REG === reg,
-    );
+    // Construction de la zone selon le niveau.
+    let targetFeature;
+    if (level === "commune") {
+      targetFeature = geoData.communes.features.find(
+        (f) =>
+          f.properties.CCRCA === comName &&
+          f.properties.DEPT === dept &&
+          f.properties.REG === reg,
+      );
+    } else {
+      targetFeature = await buildMergedFeature(level, dept, reg);
+    }
 
     if (!targetFeature) {
-      showError("Commune introuvable. Veuillez réessayer.");
+      showError("Zone introuvable. Veuillez réessayer.");
       goToStep(2);
       return;
     }
 
-    track("generation", comName);
+    track("generation", zoneName);
 
     if (selectedMapType === "localisation") {
-      await generateLocalisationMap(targetFeature, userColor, comName, author);
-    } else if (selectedMapType === "occupation") {
+      await generateLocalisationMap(
+        targetFeature,
+        userColor,
+        zoneName,
+        author,
+        "DTGC",
+        level,
+      );
+    } else {
       await generateOccupationMap(
         targetFeature,
         comName,
@@ -1368,25 +1486,181 @@ function mergeFeatures(features, props) {
    CARTE DE LOCALISATION
 ════════════════════════════════ */
 
+// ── Helpers niveau (dept / région) ───────────────────────────────
+async function fetchJSON(url) {
+  try {
+    const r = await fetch(url);
+    return await r.json();
+  } catch (e) {
+    return null;
+  }
+}
+
+// Polygone simplifié, utilisé seulement pour les tests de filtrage (pas pour
+// l'affichage). Indispensable aux niveaux dept/région : sans ça, tester routes
+// et cours d'eau contre un polygone très détaillé gèle la page.
+function simplifyForFilter(feature) {
+  try {
+    return turf.simplify(feature, {
+      tolerance: 0.003,
+      highQuality: false,
+      mutate: false,
+    });
+  } catch (e) {
+    return feature;
+  }
+}
+
+// Départements d'une région, déduits des communes (mapping fiable).
+function deptsOfRegion(reg) {
+  if (!geoData.communes) return [];
+  return [
+    ...new Set(
+      geoData.communes.features
+        .filter((f) => f.properties.REG === reg)
+        .map((f) => f.properties.DEPT),
+    ),
+  ];
+}
+
+// Cas où le chef-lieu de département ne porte pas le nom du département.
+const DEPT_CHEF_OVERRIDES = {
+  // La localité chef-lieu s'appelle "Dakar Plateau" (Capital of CA).
+  DAKAR: "Dakar Plateau",
+  // Deux "Keur Massar" : on garde le Capital of CA (géré par le dédoublonnage).
+  "KEUR MASSAR": "Keur Massar",
+  // Le département s'écrit MALEM HODDAR, la localité "Maleme Hoddar".
+  "MALEM HODDAR": "Maleme Hoddar",
+};
+
+// Normalisation pour comparer des noms (sans accents, sans ponctuation).
+function normNom(s) {
+  return (s || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ")
+    .trim();
+}
+
+// Noms (normalisés) des chefs-lieux de département d'une région : le nom du
+// département, ou un nom dédié pour les cas particuliers.
+function regionChefLieuNames(reg) {
+  const set = new Set();
+  deptsOfRegion(reg).forEach((d) => {
+    set.add(normNom(DEPT_CHEF_OVERRIDES[d] || d));
+  });
+  return set;
+}
+
+// Trace les subdivisions internes (traits fins, sans remplissage).
+function drawInternalBoundaries(features) {
+  if (!features || !features.length) return;
+  L.geoJSON(
+    { type: "FeatureCollection", features },
+    {
+      style: {
+        color: "#000000",
+        weight: 1,
+        opacity: 1,
+        dashArray: "4 3",
+        fill: false,
+      },
+      interactive: false,
+    },
+  ).addTo(map);
+}
+
+function setLimitropheLabel(text) {
+  const el = document.getElementById("legend-limitrophe-label");
+  if (el) el.innerText = text;
+}
+
+function showInternalLegend(text) {
+  const item = document.getElementById("legend-internal");
+  const label = document.getElementById("legend-internal-label");
+  if (item) item.style.display = "flex";
+  if (label) label.innerText = text;
+}
+
 async function generateLocalisationMap(
   targetFeature,
   userColor,
-  comName,
+  zoneName,
   author,
-  source,
+  source = "DTGC",
+  level = "commune",
 ) {
   restoreLocalisationLegend();
 
-  const neighbors = geoData.communes.features.filter((f) => {
-    if (f.properties.CCRCA === comName) return false;
-    return turf.booleanIntersects(targetFeature, f);
-  });
-  addNeighborLabels(neighbors, targetFeature);
+  // La pastille « Zone d'étude » prend la couleur choisie par l'utilisateur.
+  const cs = document.getElementById("legend-commune-swatch");
+  if (cs) {
+    cs.style.background = userColor;
+    cs.style.borderColor = userColor;
+  }
 
-  const hasOcean = await addOceanLayer("data/ocean.geojson", targetFeature);
+  const reg = targetFeature.properties.REG;
+  const dept = targetFeature.properties.DEPT;
+
+  // Polygone allégé pour tous les tests de filtrage (routes, eau, points,
+  // voisins). En commune on garde le détail ; en dept/région on simplifie pour
+  // éviter le gel de la page.
+  const filterFeature =
+    level === "commune" ? targetFeature : simplifyForFilter(targetFeature);
+
+  // ── Voisins (limitrophes) selon le niveau ──
+  let neighbors = [];
+  if (level === "commune") {
+    neighbors = geoData.communes.features.filter((f) => {
+      if (f.properties.CCRCA === zoneName) return false;
+      try {
+        return turf.booleanIntersects(targetFeature, f);
+      } catch (e) {
+        return false;
+      }
+    });
+    setLimitropheLabel("Communes limitrophes");
+  } else if (level === "dept") {
+    const data = await fetchJSON("data/departements.geojson");
+    neighbors = (data?.features || [])
+      .filter((f) => f.properties.DEPT !== dept)
+      .filter((f) => {
+        try {
+          return turf.booleanIntersects(filterFeature, f);
+        } catch (e) {
+          return false;
+        }
+      })
+      .map((f) => ({
+        ...f,
+        properties: { ...f.properties, CCRCA: f.properties.DEPT },
+      }));
+    setLimitropheLabel("Départements limitrophes");
+  } else if (level === "region") {
+    const data = await fetchJSON("data/regions.geojson");
+    neighbors = (data?.features || [])
+      .filter((f) => f.properties.REG !== reg)
+      .filter((f) => {
+        try {
+          return turf.booleanIntersects(filterFeature, f);
+        } catch (e) {
+          return false;
+        }
+      })
+      .map((f) => ({
+        ...f,
+        properties: { ...f.properties, CCRCA: f.properties.REG },
+      }));
+    setLimitropheLabel("Régions limitrophes");
+  }
+  if (neighbors.length) addNeighborLabels(neighbors, filterFeature);
+
+  const hasOcean = await addOceanLayer("data/ocean.geojson", filterFeature);
   const elOC = document.getElementById("legend-ocean");
   if (elOC) elOC.style.display = hasOcean ? "flex" : "none";
 
+  // ── Zone d'étude ──
   const studyAreaLayer = L.geoJSON(targetFeature, {
     style: {
       color: userColor,
@@ -1396,23 +1670,44 @@ async function generateLocalisationMap(
     },
   }).addTo(map);
 
+  // ── Limites internes (subdivisions) ──
+  if (level === "dept") {
+    drawInternalBoundaries(
+      geoData.communes.features.filter(
+        (f) => f.properties.DEPT === dept && f.properties.REG === reg,
+      ),
+    );
+    showInternalLegend("Limites des communes");
+  } else if (level === "region") {
+    const data = await fetchJSON("data/departements.geojson");
+    const deptSet = new Set(deptsOfRegion(reg));
+    drawInternalBoundaries(
+      (data?.features || []).filter((f) => deptSet.has(f.properties.DEPT)),
+    );
+    showInternalLegend("Limites des départements");
+  }
+
+  // ── Hydrographie + routes ──
   const hasCours = await addLayer(
     "data/cours_eau.geojson",
     { color: "#3498db", weight: 2, opacity: 0.6 },
-    targetFeature,
+    filterFeature,
   );
   const hasRoutes = await addLayer(
     "data/routes.geojson",
     { color: "#e74c3c", weight: 1.5, opacity: 0.8 },
-    targetFeature,
+    filterFeature,
   );
-
   const elCE = document.getElementById("legend-cours-eau");
   const elRO = document.getElementById("legend-routes");
   if (elCE) elCE.style.display = hasCours ? "flex" : "none";
   if (elRO) elRO.style.display = hasRoutes ? "flex" : "none";
 
-  await addPoints("data/localites.geojson", targetFeature);
+  // ── Points selon le niveau ──
+  // Polygone complet (pas le simplifié) : la simplification pouvait raboter des
+  // pointes (ex. Dakar Plateau) et écarter un point pourtant à l'intérieur.
+  const pointNames = level === "region" ? regionChefLieuNames(reg) : null;
+  await addPoints("data/localites.geojson", targetFeature, level, pointNames);
 
   map.fitBounds(studyAreaLayer.getBounds(), {
     padding: [10, 35, 60, 35],
@@ -1421,11 +1716,40 @@ async function generateLocalisationMap(
   addGraticule(map);
   addMapControls();
 
-  updateSidePanel(comName, userColor, author, "DTGC");
-  document.getElementById("locator-card").style.display = "flex";
-  document.getElementById("region-card").style.display = "flex";
-  buildLocatorMap(targetFeature, userColor);
-  buildRegionMap(targetFeature, userColor);
+  // ── Titre, auteur, source ──
+  document.getElementById("display-author").innerText = author;
+  document.getElementById("display-date").innerText = new Date().toLocaleDateString(
+    "fr-FR",
+  );
+  const dsEl = document.getElementById("data-source");
+  if (dsEl) dsEl.innerText = source;
+
+  const locatorCard = document.getElementById("locator-card");
+  const regionCard = document.getElementById("region-card");
+
+  if (level === "commune") {
+    document.getElementById("display-commune").innerText = `COMMUNE DE ${zoneName.toUpperCase()}`;
+    document.querySelector("#locator-card .panel-card-header").innerText = `DÉPARTEMENT ${dept || ""}`;
+    document.getElementById("region-card-header").innerText = `RÉGION ${reg || ""} — SÉNÉGAL`;
+    locatorCard.style.display = "flex";
+    regionCard.style.display = "flex";
+    buildLocatorMap(targetFeature, userColor, "commune");
+    buildRegionMap(targetFeature, userColor);
+  } else if (level === "dept") {
+    document.getElementById("display-commune").innerText = `DÉPARTEMENT DE ${zoneName.toUpperCase()}`;
+    document.querySelector("#locator-card .panel-card-header").innerText = `RÉGION ${reg || ""}`;
+    document.getElementById("region-card-header").innerText = `RÉGION ${reg || ""} — SÉNÉGAL`;
+    locatorCard.style.display = "flex";
+    regionCard.style.display = "flex";
+    buildLocatorMap(targetFeature, userColor, "dept");
+    buildRegionMap(targetFeature, userColor);
+  } else {
+    document.getElementById("display-commune").innerText = `RÉGION DE ${zoneName.toUpperCase()}`;
+    locatorCard.style.display = "none";
+    regionCard.style.display = "flex";
+    document.getElementById("region-card-header").innerText = "SÉNÉGAL";
+    buildRegionMap(targetFeature, userColor);
+  }
 
   addLiveWatermark();
 }
@@ -1641,6 +1965,11 @@ async function exportToPNG() {
   const author = document.getElementById("author-name")?.value || "Sutura Maps";
   const mobile = isMobileDevice();
 
+  // Niveau et nom de la zone (commune par défaut, dept ou région en localisation).
+  const level = selectedMapType === "occupation" ? "commune" : selectedLevel;
+  const zoneName =
+    level === "region" ? reg : level === "dept" ? dept : commune;
+
   const btn = document.querySelector(".btn-export");
   const resetBtn = () => {
     btn.disabled = false;
@@ -1654,11 +1983,12 @@ async function exportToPNG() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        commune,
+        commune: zoneName,
         dept,
         reg,
         color,
         author,
+        level,
         client: mobile ? "mobile" : "desktop",
       }),
     });
@@ -1674,6 +2004,7 @@ async function exportToPNG() {
     // Contexte pour la reprise et la régénération éventuelle après paiement.
     sessionStorage.setItem("sutura_token", data.token);
     sessionStorage.setItem("sutura_maptype", selectedMapType);
+    sessionStorage.setItem("sutura_level", level);
     if (selectedMapType === "occupation") {
       sessionStorage.setItem(
         "sutura_palette",
@@ -1684,7 +2015,10 @@ async function exportToPNG() {
       "sutura_pending",
       JSON.stringify({
         token: data.token,
-        commune,
+        commune: zoneName,
+        dept,
+        reg,
+        level,
         maptype: selectedMapType,
         palette:
           selectedMapType === "occupation" ? occupationPalette || {} : undefined,
@@ -1702,7 +2036,7 @@ async function exportToPNG() {
     // et on surveille le paiement pour lancer le téléchargement ici.
     window.open(data.payment_url, "_blank", "noopener");
     resetBtn();
-    startDesktopPaymentWatch(data.token, commune);
+    startDesktopPaymentWatch(data.token, zoneName);
   } catch (e) {
     console.error("exportToPNG error:", e);
     showError("Erreur réseau. Réessayez.");
@@ -2149,15 +2483,37 @@ async function handleDownloadToken(token) {
       geoData.communes = await r.json();
     }
 
-    const targetFeature = geoData.communes.features.find(
-      (f) => f.properties.CCRCA === commune,
-    );
+    // Contexte sauvegardé avant le paiement (type, niveau, dept, région).
+    // sessionStorage en priorité ; repli sur localStorage (pending) si la
+    // session a été perdue pendant la redirection de paiement.
+    let pending = {};
+    try {
+      pending = JSON.parse(localStorage.getItem("sutura_pending") || "{}");
+    } catch (e) {
+      pending = {};
+    }
+    const mapType =
+      sessionStorage.getItem("sutura_maptype") ||
+      pending.maptype ||
+      "localisation";
+    const level =
+      sessionStorage.getItem("sutura_level") || pending.level || "commune";
+
+    // Construction de la zone selon le niveau.
+    let targetFeature;
+    if (level === "commune") {
+      targetFeature = geoData.communes.features.find(
+        (f) => f.properties.CCRCA === commune,
+      );
+    } else {
+      targetFeature = await buildMergedFeature(level, pending.dept, pending.reg);
+    }
 
     if (!targetFeature) {
       waitDiv.innerHTML = `
         <div style="font-size:3rem">⚠️</div>
         <p style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;color:var(--terra);">
-          Commune introuvable : ${commune}
+          Zone introuvable : ${commune}
         </p>
         <p style="font-size:0.78rem;color:var(--muted);">
           Contactez-nous sur WhatsApp avec votre code de paiement.
@@ -2176,20 +2532,6 @@ async function handleDownloadToken(token) {
     map.eachLayer((layer) => map.removeLayer(layer));
     if (mapControls.scale) map.removeControl(mapControls.scale);
     if (mapControls.north) map.removeControl(mapControls.north);
-
-    // Reproduire le type de carte choisi avant le paiement.
-    // sessionStorage en priorité ; repli sur localStorage (pending) si la
-    // session a été perdue pendant la redirection de paiement.
-    let pending = {};
-    try {
-      pending = JSON.parse(localStorage.getItem("sutura_pending") || "{}");
-    } catch (e) {
-      pending = {};
-    }
-    const mapType =
-      sessionStorage.getItem("sutura_maptype") ||
-      pending.maptype ||
-      "localisation";
 
     if (mapType === "occupation") {
       const dept = targetFeature.properties.DEPT;
@@ -2230,6 +2572,8 @@ async function handleDownloadToken(token) {
         color || "#7BA05B",
         commune,
         author || "Sutura Maps",
+        "DTGC",
+        level,
       );
     }
 
