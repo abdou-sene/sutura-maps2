@@ -737,7 +737,7 @@ button {
   }
 
   #export-container {
-    transform: scale(0.30);
+    transform: scale(0.35);
     transform-origin: top left;
     margin-bottom: calc(-700px * 0.65);
   }

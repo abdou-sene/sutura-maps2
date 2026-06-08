@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/dom-to-image@2.6.0/dist/dom-to-image.min.js"></script>
+<style>
+  html,body{margin:0;padding:0;font-family:system-ui,sans-serif;}
+  #map{width:820px;height:600px;background:#eef2f4;}
+  #panel{width:820px;padding:10px 14px;background:#0e0c0a;color:#eee;font-size:13px;line-height:1.6;}
+  .ok{color:#7CFC9A;font-weight:700;}
+  .ko{color:#ff8080;font-weight:700;}
+  .titlebar{width:820px;text-align:center;font-weight:700;letter-spacing:2px;padding:8px;background:#fff;}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="titlebar" id="titlebar">MNT — TEINTE HYPSOMÉTRIQUE</div>
+<div id="panel">
+  <div>Test CORS lecture pixels : <span id="cors" class="ko">en attente…</span></div>
+  <div>Test export PNG (dom-to-image) : <span id="exp" class="ko">en attente…</span></div>
+  <div id="msg"></div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const COMMUNE = (params.get("c") || "BANDAFASSI").toUpperCase();
+
+function setStatus(id, text, ok){
+  const el = document.getElementById(id);
+  el.textContent = text; el.className = ok ? "ok" : "ko";
+}
+
+// Rampe hypsométrique simple (m -> couleur).
+const STOPS = [
+  [0,  [46,125,50]], [50,[102,187,106]], [150,[205,220,57]],
+  [300,[212,176,106]], [450,[161,105,59]], [650,[245,240,230]],
+];
+function hypso(e){
+  if (e <= STOPS[0][0]) return STOPS[0][1];
+  for (let i=1;i<STOPS.length;i++){
+    if (e <= STOPS[i][0]){
+      const [e0,c0]=STOPS[i-1], [e1,c1]=STOPS[i];
+      const t=(e-e0)/(e1-e0);
+      return [0,1,2].map(k=>Math.round(c0[k]+(c1[k]-c0[k])*t));
+    }
+  }
+  return STOPS[STOPS.length-1][1];
+}
+
+const map = L.map("map",{zoomControl:false,attributionControl:false});
+
+let corsTested=false;
+const MNT = L.GridLayer.extend({
+  createTile:function(coords, done){
+    const tile=document.createElement("canvas");
+    tile.width=256; tile.height=256;
+    const ctx=tile.getContext("2d");
+    const img=new Image();
+    img.crossOrigin="anonymous";
+    img.onload=()=>{
+      try{
+        ctx.drawImage(img,0,0);
+        const id=ctx.getImageData(0,0,256,256); // <-- test CORS décisif
+        const d=id.data;
+        for(let i=0;i<d.length;i+=4){
+          const elev=(d[i]*256 + d[i+1] + d[i+2]/256) - 32768;
+          const c=hypso(elev);
+          d[i]=c[0]; d[i+1]=c[1]; d[i+2]=c[2]; d[i+3]=255;
+        }
+        ctx.putImageData(id,0,0);
+        if(!corsTested){corsTested=true; setStatus("cors","OK — pixels lisibles, export possible", true);}
+      }catch(e){
+        setStatus("cors","BLOQUÉ : "+e.message, false);
+      }
+      done(null,tile);
+    };
+    img.onerror=()=>{ setStatus("cors","Tuile non chargée (CORS ou réseau)", false); done(null,tile); };
+    img.src=`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${coords.z}/${coords.x}/${coords.y}.png`;
+    return tile;
+  }
+});
+new MNT({tileSize:256, minZoom:8, maxZoom:14}).addTo(map);
+
+fetch("/data/communes.geojson").then(r=>r.json()).then(gj=>{
+  const f=gj.features.find(x=>(x.properties.CCRCA||"").toUpperCase()===COMMUNE);
+  if(!f){document.getElementById("titlebar").textContent="COMMUNE INTROUVABLE: "+COMMUNE;return;}
+  const layer=L.geoJSON(f,{style:{color:"#0e0c0a",weight:2.5,fill:false}}).addTo(map);
+  map.fitBounds(layer.getBounds(),{padding:[20,20]});
+  document.getElementById("titlebar").textContent="MNT HYPSOMÉTRIQUE — "+COMMUNE;
+
+  // Test export après chargement des tuiles.
+  setTimeout(()=>{
+    domtoimage.toPng(document.getElementById("map"))
+      .then(()=>setStatus("exp","OK — PNG généré sans erreur de canvas", true))
+      .catch(e=>setStatus("exp","ÉCHEC : "+e.message, false));
+  }, 6000);
+});
+</script>
+</body>
+</html>
