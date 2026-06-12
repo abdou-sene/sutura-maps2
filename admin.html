@@ -3,24 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sutura Maps — Admin</title>
+    <title>Sutura Maps — Administration</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32.png" />
     <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;600;700&family=DM+Sans:wght@300;400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&family=Barlow+Condensed:wght@600;700&display=swap"
       rel="stylesheet"
     />
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
       :root {
         --ink: #0e0c0a;
         --sand: #f7f3ec;
+        --cream: #ede8df;
         --terra: #b85c2c;
+        --terra2: #d4784a;
         --gold: #c9a84c;
         --muted: #7a7068;
         --line: rgba(14, 12, 10, 0.1);
+        --ok: #2e7d32;
+        --warn: #b26a00;
+        --err: #c0392b;
       }
       body {
         font-family: "DM Sans", sans-serif;
@@ -28,7 +30,9 @@
         color: var(--ink);
         min-height: 100vh;
       }
+      button { font-family: "DM Sans", sans-serif; }
 
+      /* ── LOGIN ── */
       #login-screen {
         display: flex;
         align-items: center;
@@ -38,7 +42,6 @@
       .login-card {
         background: white;
         padding: 3rem;
-        border-radius: 2px;
         border: 1px solid var(--line);
         text-align: center;
         width: 100%;
@@ -51,8 +54,11 @@
         font-weight: 700;
         margin-bottom: 0.3rem;
       }
+      .login-card h1 em { color: var(--terra); }
       .login-card p {
-        font-size: 0.78rem;
+        font-size: 0.72rem;
+        letter-spacing: 2px;
+        text-transform: uppercase;
         color: var(--muted);
         margin-bottom: 2rem;
       }
@@ -60,615 +66,558 @@
         width: 100%;
         padding: 12px 14px;
         border: 1px solid var(--line);
-        border-radius: 1px;
-        font-family: "DM Sans", sans-serif;
         font-size: 0.9rem;
         margin-bottom: 1rem;
         background: var(--sand);
+        font-family: "DM Sans", sans-serif;
       }
       .btn-primary {
         background: var(--terra);
         color: white;
         border: none;
         padding: 12px 24px;
-        font-family: "DM Sans", sans-serif;
         font-size: 0.78rem;
         letter-spacing: 1.5px;
         text-transform: uppercase;
         cursor: pointer;
-        border-radius: 1px;
         width: 100%;
       }
-      .btn-primary:hover {
-        background: var(--ink);
-      }
+      .btn-primary:hover { background: var(--ink); }
 
-      #admin-screen {
-        display: none;
-        padding: 2rem;
-      }
+      /* ── LAYOUT ── */
+      #admin-screen { display: none; }
       header {
         background: var(--ink);
         color: white;
-        padding: 1.2rem 2rem;
+        padding: 1rem 2rem;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin: -2rem -2rem 2rem;
-        border-radius: 0;
+        gap: 1rem;
+        flex-wrap: wrap;
       }
       header h1 {
         font-family: "Cormorant Garamond", serif;
-        font-size: 1.5rem;
+        font-size: 1.4rem;
         font-weight: 700;
       }
-      header span {
-        color: var(--terra);
-        font-style: italic;
-      }
-      .logout {
-        background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: rgba(255, 255, 255, 0.6);
-        padding: 6px 16px;
-        font-size: 0.72rem;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        cursor: pointer;
-        border-radius: 1px;
-      }
-      .logout:hover {
-        border-color: var(--terra);
-        color: var(--terra);
-      }
-
-      /* STATS */
-      .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 1px;
-        background: var(--line);
-        border: 1px solid var(--line);
-        margin-bottom: 2rem;
-      }
-      .stat {
-        background: white;
-        padding: 1.5rem;
-        text-align: center;
-      }
-      .stat-value {
-        font-family: "Cormorant Garamond", serif;
-        font-size: 3rem;
-        font-weight: 700;
-        color: var(--ink);
-        line-height: 1;
-      }
-      .stat-label {
+      header h1 em { color: var(--terra2); }
+      header .sub {
         font-size: 0.65rem;
         letter-spacing: 2px;
         text-transform: uppercase;
-        color: var(--muted);
-        margin-top: 0.4rem;
-        font-weight: 500;
+        color: rgba(255, 255, 255, 0.4);
+        margin-left: 10px;
       }
-      .stat.highlight .stat-value {
-        color: var(--terra);
-      }
-
-      /* VERIFY */
-      .verify-card {
-        background: white;
-        border: 1px solid var(--line);
-        padding: 2rem;
-        border-radius: 2px;
-        margin-bottom: 2rem;
-        position: relative;
-        overflow: hidden;
-      }
-      .verify-card::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: linear-gradient(90deg, var(--terra), var(--gold));
-      }
-      .verify-card h2 {
-        font-family: "Cormorant Garamond", serif;
-        font-size: 1.4rem;
-        font-weight: 600;
-        margin-bottom: 1rem;
-      }
-      .code-input {
-        display: flex;
-        gap: 0.8rem;
-        align-items: center;
-      }
-      .code-input input {
-        flex: 1;
-        padding: 12px 16px;
-        border: 2px solid var(--line);
-        border-radius: 1px;
-        font-family: "Cormorant Garamond", serif;
-        font-size: 1.4rem;
-        letter-spacing: 4px;
-        text-transform: uppercase;
-        font-weight: 600;
-        background: var(--sand);
-      }
-      .code-input input:focus {
-        outline: none;
-        border-color: var(--terra);
-      }
-      .code-input button {
-        background: var(--terra);
-        color: white;
-        border: none;
-        padding: 12px 24px;
-        font-family: "DM Sans", sans-serif;
-        font-size: 0.78rem;
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
-        cursor: pointer;
-        border-radius: 1px;
-        white-space: nowrap;
-      }
-      .code-input button:hover {
-        background: var(--ink);
-      }
-
-      .verify-result {
-        margin-top: 1.2rem;
-        padding: 1rem 1.4rem;
-        border-radius: 1px;
-        display: none;
-      }
-      .verify-result.success {
-        background: #d4edda;
-        border: 1px solid #c3e6cb;
-        color: #155724;
-      }
-      .verify-result.error {
-        background: #f8d7da;
-        border: 1px solid #f5c6cb;
-        color: #721c24;
-      }
-      .verify-result.warning {
-        background: #fff3cd;
-        border: 1px solid #ffeeba;
-        color: #856404;
-      }
-      .result-commune {
-        font-family: "Cormorant Garamond", serif;
-        font-size: 1.3rem;
-        font-weight: 700;
-        margin-bottom: 0.3rem;
-      }
-      .result-link {
-        display: inline-block;
-        margin-top: 0.8rem;
-        background: var(--ink);
-        color: white;
-        padding: 8px 20px;
-        font-size: 0.75rem;
-        letter-spacing: 1.2px;
-        text-transform: uppercase;
-        text-decoration: none;
-        border-radius: 1px;
-      }
-      .copy-link {
-        display: inline-block;
-        margin-top: 0.5rem;
-        margin-left: 0.5rem;
-        background: var(--terra);
-        color: white;
-        padding: 8px 20px;
-        font-size: 0.75rem;
-        letter-spacing: 1.2px;
-        text-transform: uppercase;
-        border: none;
-        border-radius: 1px;
-        cursor: pointer;
-      }
-
-      /* TABLES */
-      .table-card {
-        background: white;
-        border: 1px solid var(--line);
-        border-radius: 2px;
-        margin-bottom: 2rem;
-        overflow: hidden;
-      }
-      .table-header {
-        padding: 1.2rem 1.5rem;
-        border-bottom: 1px solid var(--line);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }
-      .table-header h3 {
-        font-family: "Cormorant Garamond", serif;
-        font-size: 1.2rem;
-        font-weight: 600;
-      }
-      .badge {
-        display: inline-block;
-        padding: 2px 10px;
-        border-radius: 10px;
-        font-size: 0.65rem;
-        font-weight: 600;
+      .hbtns { display: flex; gap: 8px; }
+      .hbtn {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: rgba(255, 255, 255, 0.7);
+        padding: 7px 16px;
+        font-size: 0.7rem;
         letter-spacing: 1px;
         text-transform: uppercase;
+        cursor: pointer;
       }
-      .badge-pending {
-        background: #fff3cd;
-        color: #856404;
+      .hbtn:hover { border-color: var(--terra2); color: var(--terra2); }
+
+      .wrap { padding: 1.6rem 2rem 3rem; max-width: 1280px; margin: 0 auto; }
+
+      /* ── KPI ── */
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 1px;
+        background: var(--line);
+        border: 1px solid var(--line);
+        margin-bottom: 1.6rem;
       }
-      .badge-paid {
-        background: #d4edda;
-        color: #155724;
+      .kpi { background: white; padding: 1.3rem 1.4rem; }
+      .kpi .v {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 2.4rem;
+        font-weight: 700;
+        line-height: 1;
       }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      th {
+      .kpi .l {
         font-size: 0.62rem;
         letter-spacing: 2px;
         text-transform: uppercase;
         color: var(--muted);
+        margin-top: 0.45rem;
         font-weight: 500;
-        padding: 10px 15px;
+      }
+      .kpi .s { font-size: 0.7rem; color: var(--muted); margin-top: 0.35rem; }
+      .kpi.t .v { color: var(--terra); }
+      .kpi.g .v { color: var(--ok); }
+
+      /* ── PANELS ── */
+      .panels {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.2rem;
+        margin-bottom: 1.6rem;
+      }
+      @media (max-width: 760px) { .panels { grid-template-columns: 1fr; } }
+      .panel { background: white; border: 1px solid var(--line); padding: 1.2rem 1.4rem; }
+      .panel h3 {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin-bottom: 0.9rem;
+      }
+      .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+      .bar-label { width: 150px; font-size: 0.76rem; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .bar-track { flex: 1; height: 8px; background: var(--cream); }
+      .bar-fill { height: 100%; background: var(--terra); }
+      .bar-n { width: 28px; text-align: right; font-size: 0.76rem; font-weight: 600; }
+      .panel .empty-s { font-size: 0.78rem; color: var(--muted); font-style: italic; }
+
+      /* ── TABLE ── */
+      .table-card { background: white; border: 1px solid var(--line); }
+      .table-header {
+        padding: 1rem 1.4rem;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .table-header h3 {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+      .filters { display: flex; gap: 8px; flex-wrap: wrap; }
+      .filters input, .filters select {
+        padding: 7px 11px;
+        border: 1px solid var(--line);
+        background: var(--sand);
+        font-size: 0.78rem;
+        font-family: "DM Sans", sans-serif;
+      }
+      .filters input { width: 210px; }
+
+      .tbl-wrap { overflow-x: auto; }
+      table { width: 100%; border-collapse: collapse; min-width: 880px; }
+      th {
+        font-size: 0.6rem;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--muted);
+        font-weight: 500;
+        padding: 9px 13px;
         border-bottom: 1px solid var(--line);
         text-align: left;
+        background: #fbf9f5;
       }
       td {
-        padding: 12px 15px;
-        font-size: 0.82rem;
+        padding: 10px 13px;
+        font-size: 0.8rem;
         border-bottom: 1px solid rgba(14, 12, 10, 0.05);
+        vertical-align: middle;
       }
-      tr:last-child td {
-        border-bottom: none;
-      }
-      tr:hover td {
-        background: var(--sand);
-      }
-      .code-cell {
-        font-family: "Cormorant Garamond", serif;
-        font-size: 1rem;
-        font-weight: 700;
-        letter-spacing: 2px;
-        color: var(--terra);
-      }
-      .empty {
-        text-align: center;
-        padding: 3rem;
-        color: var(--muted);
-        font-size: 0.85rem;
-        font-style: italic;
-      }
-
-      .refresh-btn {
-        background: transparent;
-        border: 1px solid var(--line);
-        color: var(--muted);
-        padding: 6px 14px;
-        font-size: 0.72rem;
+      tr:hover td { background: var(--sand); }
+      .zone-cell { font-weight: 600; }
+      .zone-cell .lvl {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 1px 7px;
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 0.62rem;
         letter-spacing: 1px;
         text-transform: uppercase;
+        border: 1px solid var(--line);
+        color: var(--muted);
+      }
+      .type-pill {
+        display: inline-block;
+        padding: 2px 9px;
+        border-radius: 10px;
+        font-size: 0.64rem;
+        font-weight: 600;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+      }
+      .type-loc { background: #ece5d8; color: #6b5b3e; }
+      .type-occ { background: #e1ead8; color: #3f6233; }
+      .st {
+        display: inline-block;
+        padding: 2px 9px;
+        border-radius: 10px;
+        font-size: 0.64rem;
+        font-weight: 600;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+      }
+      .st-paid { background: #d9ecd9; color: var(--ok); }
+      .st-pending { background: #fdf0d4; color: var(--warn); }
+      .amount { font-weight: 600; white-space: nowrap; }
+      .dt { color: var(--muted); font-size: 0.74rem; white-space: nowrap; }
+
+      .acts { display: flex; gap: 5px; flex-wrap: nowrap; }
+      .act {
+        border: 1px solid var(--line);
+        background: white;
+        padding: 5px 9px;
+        font-size: 0.72rem;
         cursor: pointer;
-        border-radius: 1px;
+        white-space: nowrap;
       }
-      .refresh-btn:hover {
-        border-color: var(--ink);
-        color: var(--ink);
+      .act:hover { border-color: var(--ink); }
+      .act.ok { color: var(--ok); }
+      .act.warn { color: var(--warn); }
+      .act.err { color: var(--err); }
+      .empty { text-align: center; padding: 3rem; color: var(--muted); font-style: italic; }
+
+      /* ── TOAST ── */
+      #toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(80px);
+        background: var(--ink);
+        color: white;
+        padding: 11px 22px;
+        font-size: 0.8rem;
+        border-radius: 2px;
+        transition: transform 0.25s ease;
+        z-index: 99;
+        max-width: 90vw;
       }
+      #toast.show { transform: translateX(-50%) translateY(0); }
+      #toast.err { background: var(--err); }
     </style>
   </head>
   <body>
     <!-- LOGIN -->
     <div id="login-screen">
       <div class="login-card">
-        <h1>Sutura<span>·Maps</span></h1>
-        <p>Espace administration</p>
-        <input
-          type="password"
-          id="pwd-input"
-          placeholder="Mot de passe admin"
-          onkeydown="if (event.key === 'Enter') login();"
-        />
-        <button class="btn-primary" onclick="login()">Accéder →</button>
-        <div
-          id="login-error"
-          style="
-            margin-top: 1rem;
-            font-size: 0.78rem;
-            color: #c0392b;
-            display: none;
-          "
-        >
+        <h1>Sutura<em>·Maps</em></h1>
+        <p>Administration</p>
+        <input type="password" id="pwd-input" placeholder="Mot de passe admin" />
+        <button class="btn-primary" onclick="login()">Accéder</button>
+        <div id="login-error" style="margin-top: 1rem; font-size: 0.78rem; color: var(--err); display: none">
           Mot de passe incorrect
         </div>
       </div>
     </div>
 
-    <!-- ADMIN -->
+    <!-- DASHBOARD -->
     <div id="admin-screen">
       <header>
-        <h1>Sutura<span>·Maps</span> — Admin</h1>
-        <button class="logout" onclick="logout()">Déconnexion</button>
+        <h1>Sutura<em>·Maps</em><span class="sub">Tableau de bord</span></h1>
+        <div class="hbtns">
+          <button class="hbtn" onclick="loadData()">↺ Rafraîchir</button>
+          <button class="hbtn" onclick="logout()">Déconnexion</button>
+        </div>
       </header>
 
-      <!-- STATS -->
-      <div class="stats-grid" id="stats-grid">
-        <div class="stat">
-          <div class="stat-value" id="s-visits">—</div>
-          <div class="stat-label">Visites</div>
+      <div class="wrap">
+        <!-- KPI -->
+        <div class="kpis">
+          <div class="kpi"><div class="v" id="k-visits">—</div><div class="l">Visites</div></div>
+          <div class="kpi"><div class="v" id="k-gen">—</div><div class="l">Cartes générées</div></div>
+          <div class="kpi"><div class="v" id="k-init">—</div><div class="l">Paiements initiés</div></div>
+          <div class="kpi g">
+            <div class="v" id="k-paid">—</div>
+            <div class="l">Payés</div>
+            <div class="s" id="k-paid7">—</div>
+          </div>
+          <div class="kpi t">
+            <div class="v" id="k-rev">—</div>
+            <div class="l">Revenus (FCFA)</div>
+            <div class="s" id="k-rev7">—</div>
+          </div>
+          <div class="kpi">
+            <div class="v" id="k-conv">—</div>
+            <div class="l">Conversion paiement</div>
+            <div class="s">payés / initiés</div>
+          </div>
         </div>
-        <div class="stat">
-          <div class="stat-value" id="s-gen">—</div>
-          <div class="stat-label">Cartes générées</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value" id="s-init">—</div>
-          <div class="stat-label">Paiements initiés</div>
-        </div>
-        <div class="stat highlight">
-          <div class="stat-value" id="s-paid">—</div>
-          <div class="stat-label">Payés</div>
-        </div>
-        <div class="stat highlight">
-          <div class="stat-value" id="s-rev">—</div>
-          <div class="stat-label">Revenus (FCFA)</div>
-        </div>
-      </div>
 
-      <!-- VÉRIFIER UN CODE -->
-      <div class="verify-card">
-        <h2>Valider un paiement</h2>
-        <div class="code-input">
-          <input
-            type="text"
-            id="code-input"
-            placeholder="SUT-XXXX-XXXX"
-            maxlength="13"
-            oninput="formatCode(this)"
-            onkeydown="if (event.key === 'Enter') verifyCode();"
-          />
-          <button onclick="verifyCode()">Valider →</button>
+        <!-- PANELS -->
+        <div class="panels">
+          <div class="panel">
+            <h3>Zones les plus vendues</h3>
+            <div id="top-zones"><div class="empty-s">Aucune vente pour l'instant</div></div>
+          </div>
+          <div class="panel">
+            <h3>Ventes par type de carte</h3>
+            <div id="by-type"><div class="empty-s">Aucune vente pour l'instant</div></div>
+          </div>
         </div>
-        <div class="verify-result" id="verify-result"></div>
-      </div>
 
-      <!-- PENDING -->
-      <div class="table-card">
-        <div class="table-header">
-          <h3>
-            En attente de paiement
-            <span class="badge badge-pending" id="pending-count">0</span>
-          </h3>
-          <button class="refresh-btn" onclick="loadData()">↺ Rafraîchir</button>
+        <!-- COMMANDES -->
+        <div class="table-card">
+          <div class="table-header">
+            <h3>Commandes <span id="orders-count" style="font-size: 0.8rem; color: var(--muted)"></span></h3>
+            <div class="filters">
+              <input type="search" id="f-search" placeholder="Rechercher zone, email, token…" oninput="renderOrders()" />
+              <select id="f-status" onchange="renderOrders()">
+                <option value="">Tous statuts</option>
+                <option value="paid">Payés</option>
+                <option value="pending">En attente</option>
+              </select>
+              <select id="f-type" onchange="renderOrders()">
+                <option value="">Tous types</option>
+                <option value="localisation">Localisation</option>
+                <option value="occupation">Occupation du sol</option>
+              </select>
+            </div>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Zone</th>
+                  <th>Type</th>
+                  <th>Montant</th>
+                  <th>Statut</th>
+                  <th>Email</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="orders-tbody"></tbody>
+            </table>
+          </div>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Commune</th>
-              <th>Date</th>
-              <th>Email</th>
-            </tr>
-          </thead>
-          <tbody id="pending-tbody"></tbody>
-        </table>
-      </div>
-
-      <!-- PAID -->
-      <div class="table-card">
-        <div class="table-header">
-          <h3>Payés <span class="badge badge-paid" id="paid-count">0</span></h3>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Commune</th>
-              <th>Payé le</th>
-              <th>Email</th>
-              <th>Lien</th>
-            </tr>
-          </thead>
-          <tbody id="paid-tbody"></tbody>
-        </table>
       </div>
     </div>
 
-    <script>
-      let adminPwd = "";
+    <div id="toast"></div>
 
+    <script>
+      let adminPwd = sessionStorage.getItem("sutura_admin_pwd") || "";
+      let ORDERS = [];
+
+      /* ── Auth ── */
       function login() {
         const pwd = document.getElementById("pwd-input").value;
         if (!pwd) return;
         adminPwd = pwd;
         loadData();
       }
-
       function logout() {
         adminPwd = "";
+        sessionStorage.removeItem("sutura_admin_pwd");
         document.getElementById("login-screen").style.display = "flex";
         document.getElementById("admin-screen").style.display = "none";
       }
 
+      /* ── Chargement ── */
       async function loadData() {
-        const res = await fetch("/.netlify/functions/admin-stats", {
-          headers: { "x-admin-password": adminPwd },
-        });
-
-        if (res.status === 401) {
-          document.getElementById("login-error").style.display = "block";
+        let res;
+        try {
+          res = await fetch("/.netlify/functions/admin-stats", {
+            headers: { "x-admin-password": adminPwd },
+          });
+        } catch (e) {
+          toast("Erreur réseau", true);
           return;
         }
-
+        if (res.status === 401) {
+          sessionStorage.removeItem("sutura_admin_pwd");
+          document.getElementById("login-error").style.display = "block";
+          document.getElementById("login-screen").style.display = "flex";
+          document.getElementById("admin-screen").style.display = "none";
+          return;
+        }
+        sessionStorage.setItem("sutura_admin_pwd", adminPwd);
         document.getElementById("login-error").style.display = "none";
         document.getElementById("login-screen").style.display = "none";
         document.getElementById("admin-screen").style.display = "block";
 
-        const { stats, pending, paid } = await res.json();
+        const { stats, top_zones, by_type, orders } = await res.json();
+        ORDERS = orders || [];
 
-        // Stats
-        document.getElementById("s-visits").innerText =
-          stats.visits.toLocaleString("fr");
-        document.getElementById("s-gen").innerText =
-          stats.generations.toLocaleString("fr");
-        document.getElementById("s-init").innerText =
-          stats.payment_inits.toLocaleString("fr");
-        document.getElementById("s-paid").innerText =
-          stats.paid_total.toLocaleString("fr");
-        document.getElementById("s-rev").innerText =
-          stats.revenue.toLocaleString("fr");
+        const fmt = (n) => (n || 0).toLocaleString("fr-FR");
+        document.getElementById("k-visits").innerText = fmt(stats.visits);
+        document.getElementById("k-gen").innerText = fmt(stats.generations);
+        document.getElementById("k-init").innerText = fmt(stats.payment_inits);
+        document.getElementById("k-paid").innerText = fmt(stats.paid_total);
+        document.getElementById("k-paid7").innerText = `+${fmt(stats.paid_7d)} ces 7 jours`;
+        document.getElementById("k-rev").innerText = fmt(stats.revenue);
+        document.getElementById("k-rev7").innerText = `+${fmt(stats.revenue_7d)} ces 7 jours`;
+        const conv = stats.payment_inits
+          ? Math.round((stats.paid_total / stats.payment_inits) * 100)
+          : 0;
+        document.getElementById("k-conv").innerText = conv + " %";
 
-        // Pending
-        document.getElementById("pending-count").innerText = pending.length;
-        const pb = document.getElementById("pending-tbody");
-        pb.innerHTML =
-          pending.length === 0
-            ? '<tr><td colspan="4" class="empty">Aucun paiement en attente</td></tr>'
-            : pending
-                .map(
-                  (e) => `
-        <tr>
-          <td class="code-cell" onclick="fillCode('${e.code}')" style="cursor:pointer" title="Cliquer pour valider">
-            ${e.code}
-          </td>
-          <td>${e.commune}</td>
-          <td>${new Date(e.created_at).toLocaleString("fr-FR")}</td>
-          <td>${e.user_email || "—"}</td>
-        </tr>`,
-                )
-                .join("");
-
-        // Paid
-        document.getElementById("paid-count").innerText = paid.length;
-        const padb = document.getElementById("paid-tbody");
-        padb.innerHTML =
-          paid.length === 0
-            ? '<tr><td colspan="5" class="empty">Aucun export payé</td></tr>'
-            : paid
-                .map(
-                  (e) => `
-        <tr>
-          <td class="code-cell">${e.code}</td>
-          <td>${e.commune}</td>
-          <td>${e.paid_at ? new Date(e.paid_at).toLocaleString("fr-FR") : "—"}</td>
-          <td>${e.user_email || "—"}</td>
-          <td>
-            <a href="${window.location.origin.replace("/admin.html", "")}/map.html?token=${e.token}"
-               target="_blank" class="result-link" style="font-size:0.65rem;padding:5px 12px">
-              Ouvrir
-            </a>
-          </td>
-        </tr>`,
-                )
-                .join("");
+        renderBars("top-zones", (top_zones || []).map((z) => [z.zone, z.count]));
+        const typeLabels = { localisation: "Localisation", occupation: "Occupation du sol" };
+        renderBars(
+          "by-type",
+          Object.entries(by_type || {}).map(([k, v]) => [typeLabels[k] || k, v]),
+        );
+        renderOrders();
       }
 
-      function fillCode(code) {
-        document.getElementById("code-input").value = code;
-        document.getElementById("code-input").focus();
-        document
-          .querySelector(".verify-card")
-          .scrollIntoView({ behavior: "smooth" });
+      function renderBars(elId, pairs) {
+        const el = document.getElementById(elId);
+        if (!pairs.length) {
+          el.innerHTML = '<div class="empty-s">Aucune vente pour l\'instant</div>';
+          return;
+        }
+        const max = Math.max(...pairs.map(([, n]) => n));
+        el.innerHTML = pairs
+          .map(
+            ([label, n]) => `
+          <div class="bar-row">
+            <div class="bar-label" title="${esc(label)}">${esc(label)}</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${Math.round((n / max) * 100)}%"></div></div>
+            <div class="bar-n">${n}</div>
+          </div>`,
+          )
+          .join("");
       }
 
-      function formatCode(input) {
-        let v = input.value.toUpperCase().replace(/[^A-Z0-9-]/g, "");
-        input.value = v;
+      /* ── Tableau ── */
+      function esc(s) {
+        return String(s ?? "").replace(/[&<>"']/g, (c) =>
+          ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+        );
       }
+      const LVL = { commune: "Commune", dept: "Département", region: "Région" };
 
-      async function verifyCode() {
-        const code = document
-          .getElementById("code-input")
-          .value.trim()
-          .toUpperCase();
-        const result = document.getElementById("verify-result");
+      function renderOrders() {
+        const q = (document.getElementById("f-search").value || "").toLowerCase();
+        const st = document.getElementById("f-status").value;
+        const ty = document.getElementById("f-type").value;
 
-        if (!code) return;
-
-        result.style.display = "block";
-        result.className = "verify-result";
-        result.innerHTML = "⏳ Vérification...";
-
-        const res = await fetch("/.netlify/functions/admin-verify", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-admin-password": adminPwd,
-          },
-          body: JSON.stringify({ code }),
+        const rows = ORDERS.filter((o) => {
+          if (st === "paid" && !o.paid) return false;
+          if (st === "pending" && o.paid) return false;
+          if (ty && (o.maptype || "localisation") !== ty) return false;
+          if (q) {
+            const hay = `${o.commune} ${o.dept} ${o.reg} ${o.user_email} ${o.token} ${o.user_author}`.toLowerCase();
+            if (!hay.includes(q)) return false;
+          }
+          return true;
         });
 
-        const data = await res.json();
-
-        if (res.status === 404) {
-          result.className = "verify-result error";
-          result.innerHTML = "❌ Code introuvable. Vérifie la saisie.";
+        document.getElementById("orders-count").innerText = `(${rows.length})`;
+        const tb = document.getElementById("orders-tbody");
+        if (!rows.length) {
+          tb.innerHTML = '<tr><td colspan="7" class="empty">Aucune commande ne correspond</td></tr>';
           return;
         }
 
-        if (data.already_paid) {
-          result.className = "verify-result warning";
-          result.innerHTML = `
-      <div class="result-commune">⚠️ Déjà validé — ${data.commune}</div>
-      <a href="${data.download_url}" target="_blank" class="result-link">Ouvrir la carte</a>
-      <button class="copy-link" onclick="copyLink('${data.download_url}')">Copier le lien</button>
-    `;
-          return;
-        }
+        tb.innerHTML = rows
+          .map((o) => {
+            const t = o.maptype === "occupation" ? "occ" : "loc";
+            const tLabel = o.maptype === "occupation" ? "Occupation" : "Localisation";
+            const lvl = LVL[o.level] || "Commune";
+            const amount = (o.amount || 2000).toLocaleString("fr-FR");
+            const date = new Date(o.created_at).toLocaleString("fr-FR", {
+              day: "2-digit", month: "2-digit", year: "2-digit",
+              hour: "2-digit", minute: "2-digit",
+            });
+            const link = `${location.origin}/map.html?token=${o.token}`;
+            const mail = o.user_email
+              ? o.paid
+                ? `<button class="act" onclick="mailLink('${esc(o.user_email)}','${esc(o.commune)}','${o.token}')" title="Envoyer le lien de téléchargement">✉ Lien</button>`
+                : `<button class="act warn" onclick="mailRelance('${esc(o.user_email)}','${esc(o.commune)}')" title="Email de relance">✉ Relance</button>`
+              : "";
+            const acts = o.paid
+              ? `
+                <button class="act" onclick="copyLink('${link}')" title="Copier le lien de téléchargement">🔗</button>
+                <button class="act ok" onclick="doAction('extend','${o.token}','Lien prolongé d\\'une heure')" title="Redonner 1 h de téléchargement">⏱ +1 h</button>
+                ${mail}
+                <button class="act warn" onclick="confirmAction('mark-unpaid','${o.token}','Annuler le paiement de ${esc(o.commune)} ?','Paiement annulé')" title="Annuler le paiement">↩</button>
+                <button class="act err" onclick="confirmAction('delete','${o.token}','Supprimer définitivement la commande ${esc(o.commune)} ?','Commande supprimée')" title="Supprimer">🗑</button>`
+              : `
+                <button class="act ok" onclick="confirmAction('mark-paid','${o.token}','Marquer ${esc(o.commune)} comme PAYÉ ?','Paiement validé — lien actif 1 h')" title="Valider le paiement manuellement">✓ Valider</button>
+                ${mail}
+                <button class="act err" onclick="confirmAction('delete','${o.token}','Supprimer définitivement la commande ${esc(o.commune)} ?','Commande supprimée')" title="Supprimer">🗑</button>`;
 
-        if (data.success) {
-          result.className = "verify-result success";
-          result.innerHTML = `
-      <div class="result-commune">✅ Paiement validé — Commune de ${data.commune}</div>
-      ${data.email ? `<div style="font-size:0.8rem;margin-top:4px">📧 ${data.email}</div>` : ""}
-      <div style="margin-top:0.8rem">
-        <a href="${data.download_url}" target="_blank" class="result-link">Ouvrir la carte</a>
-        <button class="copy-link" onclick="copyLink('${data.download_url}')">Copier le lien</button>
-      </div>
-      ${
-        data.email
-          ? `
-        <a href="mailto:${data.email}?subject=Votre carte Sutura Maps — ${data.commune}&body=Bonjour,%0A%0AVotre carte de la commune de ${data.commune} est prête.%0A%0ATéléchargez-la ici (lien valable 48h) :%0A${encodeURIComponent(data.download_url)}%0A%0AMerci de votre confiance.%0ASutura Maps"
-           style="display:inline-block;margin-top:0.5rem;background:#25D366;color:white;
-                  padding:8px 20px;font-size:0.72rem;letter-spacing:1px;text-transform:uppercase;
-                  text-decoration:none;border-radius:1px">
-          Envoyer par email →
-        </a>`
-          : ""
+            return `
+            <tr>
+              <td class="dt">${date}</td>
+              <td class="zone-cell">${esc(o.commune)}<span class="lvl">${lvl}</span></td>
+              <td><span class="type-pill type-${t}">${tLabel}</span></td>
+              <td class="amount">${amount} F</td>
+              <td><span class="st ${o.paid ? "st-paid" : "st-pending"}">${o.paid ? "Payé" : "En attente"}</span></td>
+              <td>${esc(o.user_email) || '<span style="color:var(--muted)">—</span>'}</td>
+              <td><div class="acts">${acts}</div></td>
+            </tr>`;
+          })
+          .join("");
       }
-    `;
-          loadData(); // Refresh les tables
-          return;
-        }
 
-        result.className = "verify-result error";
-        result.innerHTML = "❌ " + (data.error || "Erreur inconnue");
+      /* ── Actions ── */
+      function confirmAction(action, token, msg, okMsg) {
+        if (!confirm(msg)) return;
+        doAction(action, token, okMsg);
+      }
+      async function doAction(action, token, okMsg) {
+        try {
+          const res = await fetch("/.netlify/functions/admin-actions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-admin-password": adminPwd,
+            },
+            body: JSON.stringify({ action, token }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.success) throw new Error(data.error || "Erreur");
+          toast(okMsg || "Fait");
+          loadData();
+        } catch (e) {
+          toast(e.message, true);
+        }
       }
 
       function copyLink(url) {
         navigator.clipboard.writeText(url);
-        event.target.innerText = "✓ Copié !";
-        setTimeout(() => {
-          event.target.innerText = "Copier le lien";
-        }, 2000);
+        toast("Lien copié");
       }
 
-      // Auto-load si déjà connecté (session)
+      function mailLink(email, commune, token) {
+        const url = `${location.origin}/map.html?token=${token}`;
+        const subject = encodeURIComponent(`Votre carte de ${commune} — Sutura Maps`);
+        const body = encodeURIComponent(
+          `Bonjour,\n\nVotre carte de ${commune} est prête.\n\n` +
+            `Téléchargez-la ici (lien actif pendant 1 heure) :\n${url}\n\n` +
+            `Si le lien a expiré, répondez à cet email et nous le réactiverons.\n\n` +
+            `Merci de votre confiance.\nSutura Maps — sutura-maps.com`,
+        );
+        location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+      }
+
+      function mailRelance(email, commune) {
+        const subject = encodeURIComponent(`Votre carte de ${commune} vous attend — Sutura Maps`);
+        const body = encodeURIComponent(
+          `Bonjour,\n\nVous avez généré la carte de ${commune} sur Sutura Maps, ` +
+            `mais le paiement n'a pas été finalisé.\n\n` +
+            `Elle reste disponible : rendez-vous sur https://sutura-maps.com, ` +
+            `régénérez votre carte en quelques secondes et payez par Wave, Orange Money ou MaxIt.\n\n` +
+            `Une difficulté avec le paiement ? Répondez simplement à cet email.\n\n` +
+            `Merci,\nSutura Maps — sutura-maps.com`,
+        );
+        location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+      }
+
+      /* ── Toast ── */
+      let toastTimer;
+      function toast(msg, isErr) {
+        const t = document.getElementById("toast");
+        t.innerText = msg;
+        t.className = isErr ? "err show" : "show";
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => (t.className = ""), 3000);
+      }
+
+      /* ── Init ── */
       window.onload = () => {
-        document
-          .getElementById("pwd-input")
-          .addEventListener("keydown", (e) => {
-            if (e.key === "Enter") login();
-          });
+        document.getElementById("pwd-input").addEventListener("keydown", (e) => {
+          if (e.key === "Enter") login();
+        });
+        if (adminPwd) loadData();
       };
     </script>
   </body>

@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body>
+<iframe id="f" src="/admin.html" style="width:1280px;height:900px;border:0"></iframe>
+<script>
+  // Aperçu hors-ligne : on injecte des données simulées dans le dashboard,
+  // sans toucher au vrai admin.html.
+  const FAKE = {
+    stats: { visits: 1026, generations: 698, payment_inits: 100, paid_total: 12,
+             revenue: 31000, paid_7d: 5, revenue_7d: 14000 },
+    top_zones: [
+      { zone: "BABA GARAGE", count: 4 }, { zone: "DANKH SENE", count: 3 },
+      { zone: "GOUMBAYEL", count: 2 }, { zone: "THIES", count: 2 },
+      { zone: "BANDAFASSI", count: 1 },
+    ],
+    by_type: { localisation: 8, occupation: 4 },
+    orders: [
+      { token: "DL-AAA111", commune: "THIES", dept: "", reg: "THIES", maptype: "occupation",
+        level: "region", amount: 5000, paid: true, paid_at: new Date().toISOString(),
+        created_at: new Date(Date.now() - 3600e3).toISOString(), user_email: "fatou@exemple.sn" },
+      { token: "DL-BBB222", commune: "MBOUR", dept: "MBOUR", reg: "THIES", maptype: "occupation",
+        level: "dept", amount: 4000, paid: true, paid_at: new Date().toISOString(),
+        created_at: new Date(Date.now() - 7200e3).toISOString(), user_email: null },
+      { token: "DL-CCC333", commune: "BABA GARAGE", dept: "BAMBEY", reg: "DIOURBEL",
+        maptype: "localisation", level: "commune", amount: 2000, paid: false,
+        created_at: new Date(Date.now() - 1800e3).toISOString(), user_email: "modou@exemple.sn" },
+      { token: "DL-DDD444", commune: "DANKH SENE", dept: "DIOURBEL", reg: "DIOURBEL",
+        maptype: "localisation", level: "commune", amount: 2000, paid: false,
+        created_at: new Date(Date.now() - 900e3).toISOString(), user_email: null },
+    ],
+  };
+  const f = document.getElementById("f");
+  f.onload = () => {
+    const w = f.contentWindow;
+    w.fetch = (url) => Promise.resolve({
+      ok: true, status: 200, json: () => Promise.resolve(FAKE),
+    });
+    w.adminPwd = "demo";
+    w.loadData();
+  };
+</script>
+</body>
+</html>

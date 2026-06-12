@@ -5,47 +5,76 @@ const supabase = createClient(
 );
 
 exports.handler = async (event) => {
-  // Auth simple
   if (event.headers["x-admin-password"] !== process.env.ADMIN_PASSWORD) {
     return { statusCode: 401, body: JSON.stringify({ error: "Non autorisé" }) };
   }
 
+  const since7d = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+
   const [visits, generations, paymentInits, exports_] = await Promise.all([
     supabase
       .from("analytics")
-      .select("id", { count: "exact" })
+      .select("id", { count: "exact", head: true })
       .eq("event", "visit"),
     supabase
       .from("analytics")
-      .select("id", { count: "exact" })
+      .select("id", { count: "exact", head: true })
       .eq("event", "generation"),
     supabase
       .from("analytics")
-      .select("id", { count: "exact" })
+      .select("id", { count: "exact", head: true })
       .eq("event", "payment_init"),
     supabase
       .from("exports")
-      .select("*")
+      .select(
+        "token, code, commune, dept, reg, maptype, level, amount, paid, paid_at, created_at, user_email, user_author",
+      )
       .order("created_at", { ascending: false })
-      .limit(50),
+      .limit(200),
   ]);
 
-  const paid = exports_.data?.filter((e) => e.paid) || [];
-  const pending = exports_.data?.filter((e) => !e.paid) || [];
+  const rows = exports_.data || [];
+  const paid = rows.filter((e) => e.paid);
+  const amountOf = (e) => e.amount || 2000;
+
+  const revenue = paid.reduce((s, e) => s + amountOf(e), 0);
+  const paid7d = paid.filter((e) => e.paid_at && e.paid_at >= since7d);
+  const revenue7d = paid7d.reduce((s, e) => s + amountOf(e), 0);
+
+  // Top zones payées (max 6)
+  const byZone = {};
+  paid.forEach((e) => {
+    const k = e.commune || "?";
+    byZone[k] = (byZone[k] || 0) + 1;
+  });
+  const topZones = Object.entries(byZone)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([zone, count]) => ({ zone, count }));
+
+  // Répartition payés par type de carte
+  const byType = {};
+  paid.forEach((e) => {
+    const k = e.maptype || "localisation";
+    byType[k] = (byType[k] || 0) + 1;
+  });
 
   return {
     statusCode: 200,
-    headers: { "Access-Control-Allow-Origin": "*" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       stats: {
         visits: visits.count || 0,
         generations: generations.count || 0,
         payment_inits: paymentInits.count || 0,
         paid_total: paid.length,
-        revenue: paid.length * 2000,
+        revenue,
+        paid_7d: paid7d.length,
+        revenue_7d: revenue7d,
       },
-      pending,
-      paid: paid.slice(0, 20),
+      top_zones: topZones,
+      by_type: byType,
+      orders: rows,
     }),
   };
 };
