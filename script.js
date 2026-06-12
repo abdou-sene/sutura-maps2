@@ -2189,8 +2189,8 @@ let paymentWatchTimer = null;
 
 // Prix affiché (le serveur reste la source de vérité). Occupation : paliers.
 function priceForClient(maptype, level) {
-  if (maptype === "occupation" && level === "dept") return 5000;
-  if (maptype === "occupation" && level === "region") return 10000;
+  if (maptype === "occupation" && level === "dept") return 4000;
+  if (maptype === "occupation" && level === "region") return 5000;
   return 2000;
 }
 function fmtPrice(n) {
