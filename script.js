@@ -1400,6 +1400,72 @@ async function ensureCommunesLoaded() {
   geoData.communes = await fetchGeo("data/communes.geojson");
 }
 
+/* ── Animation de l'écran « Génération en cours » ──
+   Étapes qui avancent avec coche, messages rotatifs, barre réarmée à
+   chaque génération. Tout est arrêté dès que la carte s'affiche. */
+let loadingTickers = [];
+const LOADING_TIPS = [
+  "Les contours des 557 communes du Sénégal sont issus des données officielles de la DTGC.",
+  "Votre carte est générée gratuitement : vous ne payez que pour télécharger la version HD sans filigrane.",
+  "Astuce : sur la carte, vous pourrez déplacer les noms des zones voisines pour ajuster la mise en page.",
+  "Les routes, cours d'eau et localités sont découpés précisément à l'emprise de votre zone.",
+  "L'export final est en haute résolution, prêt pour un mémoire, un rapport ou une impression.",
+  "Le paiement se fait par mobile money : Wave, Orange Money ou MaxIt.",
+];
+function startLoadingTicker() {
+  stopLoadingTicker();
+
+  // Réarme la barre de progression (sinon elle reste pleine au 2e passage).
+  const bar = document.getElementById("loading-bar");
+  if (bar) {
+    bar.style.animation = "none";
+    void bar.offsetHeight; // force le reflow
+    bar.style.animation = "";
+  }
+
+  // Étapes : avancent l'une après l'autre, les précédentes sont cochées.
+  const stepEls = ["ls1", "ls2", "ls3"].map((id) =>
+    document.getElementById(id),
+  );
+  stepEls.forEach((el) => el && el.classList.remove("active", "done"));
+  stepEls.forEach((el, i) => {
+    loadingTickers.push(
+      setTimeout(() => {
+        stepEls.forEach((e, j) => {
+          if (!e) return;
+          e.classList.toggle("done", j < i);
+          e.classList.toggle("active", j === i);
+        });
+      }, i * 1200),
+    );
+  });
+
+  // Messages rotatifs (fondu toutes les 4 s).
+  const tip = document.getElementById("loading-tip");
+  if (tip) {
+    let ti = Math.floor(Math.random() * LOADING_TIPS.length);
+    const show = () => {
+      tip.classList.remove("show");
+      loadingTickers.push(
+        setTimeout(() => {
+          tip.innerText = LOADING_TIPS[ti % LOADING_TIPS.length];
+          ti++;
+          tip.classList.add("show");
+        }, 350),
+      );
+    };
+    show();
+    loadingTickers.push(setInterval(show, 4000));
+  }
+}
+function stopLoadingTicker() {
+  loadingTickers.forEach((t) => {
+    clearTimeout(t);
+    clearInterval(t);
+  });
+  loadingTickers = [];
+}
+
 async function generateFinalMap() {
   const comName = document.getElementById("select-commune").value;
   const userColor = document.getElementById("color-picker")?.value || "#7BA05B";
@@ -1416,15 +1482,7 @@ async function generateFinalMap() {
     zoneName || ""
   ).toUpperCase();
 
-  const steps = ["ls1", "ls2", "ls3"];
-  steps.forEach((id, i) => {
-    setTimeout(() => {
-      document
-        .querySelectorAll(".lstep")
-        .forEach((s) => s.classList.remove("active"));
-      document.getElementById(id)?.classList.add("active");
-    }, i * 600);
-  });
+  startLoadingTicker();
 
   // Les données chargent PENDANT l'animation (déjà préchargées à l'étape 2
   // dans la plupart des cas). On attend le vrai chargement, pas un délai fixe,
@@ -1434,11 +1492,13 @@ async function generateFinalMap() {
   try {
     await Promise.all([ensureCommunesLoaded(), minAnim]);
   } catch (e) {
+    stopLoadingTicker();
     showError("Impossible de charger les données géographiques.");
     goToStep(2);
     return;
   }
 
+  stopLoadingTicker();
   goToStep(3);
 
   setTimeout(async () => {

@@ -604,9 +604,99 @@ button {
   text-align: center;
 }
 
-#loading-map-icon {
-  font-size: 3.5rem;
-  animation: pulse 1s ease-in-out infinite;
+/* ── Radar cartographique ── */
+#loading-anim {
+  position: relative;
+  width: 110px;
+  height: 110px;
+}
+.la-ring {
+  position: absolute;
+  border: 1px solid rgba(184, 92, 44, 0.35);
+  border-radius: 50%;
+}
+.la-r1 {
+  inset: 0;
+}
+.la-r2 {
+  inset: 18px;
+  border-color: rgba(184, 92, 44, 0.25);
+}
+.la-r3 {
+  inset: 36px;
+  border-color: rgba(201, 168, 76, 0.3);
+}
+.la-cross-h,
+.la-cross-v {
+  position: absolute;
+  background: rgba(14, 12, 10, 0.08);
+}
+.la-cross-h {
+  left: -8px;
+  right: -8px;
+  top: 50%;
+  height: 1px;
+}
+.la-cross-v {
+  top: -8px;
+  bottom: -8px;
+  left: 50%;
+  width: 1px;
+}
+.la-sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(184, 92, 44, 0.22),
+    transparent 70deg,
+    transparent 360deg
+  );
+  animation: laSweep 2.4s linear infinite;
+}
+.la-pin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: var(--terra);
+  animation: laPing 1.6s ease-out infinite;
+}
+.la-pin::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(184, 92, 44, 0.5);
+  animation: laHalo 1.6s ease-out infinite;
+}
+@keyframes laSweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes laPing {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.25);
+  }
+}
+@keyframes laHalo {
+  0% {
+    transform: scale(0.6);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
 }
 
 @keyframes pulse {
@@ -651,21 +741,23 @@ button {
   width: 0%;
   background: var(--terra);
   border-radius: 1px;
-  animation: loadBar 3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  /* Décélère et ne se fige jamais : monte à ~92 % sur 20 s.
+     L'écran change dès que la carte est prête, bien avant la fin. */
+  animation: loadBar 20s cubic-bezier(0.15, 0.75, 0.3, 1) forwards;
 }
 
 @keyframes loadBar {
   0% {
     width: 0%;
   }
-  60% {
-    width: 75%;
+  15% {
+    width: 55%;
   }
-  90% {
-    width: 92%;
+  45% {
+    width: 80%;
   }
   100% {
-    width: 100%;
+    width: 92%;
   }
 }
 
@@ -690,6 +782,29 @@ button {
   opacity: 1;
   color: var(--ink);
   font-weight: 500;
+}
+.lstep.done {
+  opacity: 0.75;
+  color: var(--terra);
+}
+.lstep.done::before {
+  content: "✓ ";
+}
+
+#loading-tip {
+  margin-top: 1.4rem;
+  max-width: 340px;
+  min-height: 2.6em;
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+#loading-tip.show {
+  opacity: 1;
 }
 
 /* ── COLOR PALETTE ── */
