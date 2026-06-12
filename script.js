@@ -234,7 +234,7 @@ window.onload = async () => {
 
     if (dlToken && fromTab) {
       // Onglet de paiement (ordinateur) : l'onglet d'origine télécharge.
-      showPaymentDoneInTab();
+      showPaymentDoneInTab(dlToken);
     } else if (dlToken) {
       handleDownloadToken(dlToken);
     } else {
@@ -2256,7 +2256,9 @@ function buildPaymentOverlay(commune) {
       </a>
       <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(14,12,10,.1);
                   font-size:0.72rem;color:#9a9088;line-height:1.5;">
-        Votre carte reste téléchargeable pendant 1&nbsp;heure, même si vous fermez cette page.
+        Votre carte reste téléchargeable pendant 1&nbsp;heure, même si vous fermez cette page.<br>
+        <strong style="color:#b85c2c;font-weight:500;">Satisfait ou remboursé sous 24&nbsp;h</strong>,
+        par le même mobile money.
       </div>
       <div style="margin-top:14px;">
         <span id="pay-cancel" style="font-size:0.72rem;color:#9a9088;
@@ -2337,19 +2339,34 @@ function finishDesktopDownload() {
 }
 
 /* Deretour (ordinateur) : ne pas re-teeelech ici. */
-function showPaymentDoneInTab() {
+function showPaymentDoneInTab(token) {
+  const dlUrl = `${window.location.origin}/map.html?token=${token}`;
   document.body.innerHTML = `
     <div style="min-height:100vh;display:flex;flex-direction:column;
-                align-items:center;justify-content:center;gap:1.2rem;
+                align-items:center;justify-content:center;gap:1.1rem;
                 text-align:center;padding:2rem;font-family:'DM Sans',sans-serif;
                 background:#f7f3ec;color:#0e0c0a;">
       <div style="font-size:3rem">✅</div>
-      <p style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:700;">
+      <p style="font-family:'Cormorant Garamond',serif;font-size:1.9rem;font-weight:700;">
         Paiement confirmé
       </p>
-      <p style="font-size:0.9rem;color:#7a7068;max-width:360px;line-height:1.6;">
-        Retournez à l'onglet Sutura Maps : votre téléchargement s'y lance
-        automatiquement. Vous pouvez fermer cette page.
+      <p style="font-size:0.9rem;color:#7a7068;max-width:380px;line-height:1.6;">
+        Votre téléchargement se lance dans l'onglet
+        <strong style="color:#0e0c0a;">Sutura Maps</strong> resté ouvert.
+      </p>
+      <p style="font-size:0.82rem;color:#7a7068;max-width:380px;line-height:1.6;margin-top:0.4rem;">
+        Il ne s'est pas lancé, ou vous avez fermé l'onglet ?
+      </p>
+      <a href="${dlUrl}"
+         style="display:inline-block;background:#b85c2c;color:#fff;
+                padding:14px 30px;font-size:0.82rem;font-weight:500;
+                letter-spacing:1.5px;text-transform:uppercase;
+                text-decoration:none;border-radius:2px;">
+        Télécharger ma carte
+      </a>
+      <p style="font-size:0.72rem;color:#9a9088;max-width:380px;line-height:1.6;">
+        Ce lien fonctionne sur ordinateur comme sur téléphone, et reste
+        valable 1&nbsp;heure, même si la carte a déjà été téléchargée.
       </p>
     </div>`;
 }

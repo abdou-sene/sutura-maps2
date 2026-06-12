@@ -27,7 +27,7 @@ exports.handler = async (event) => {
     supabase
       .from("exports")
       .select(
-        "token, code, commune, dept, reg, maptype, level, amount, paid, paid_at, created_at, user_email, user_author",
+        "token, code, commune, dept, reg, maptype, level, amount, paid, paid_at, refunded_at, created_at, user_email, user_author",
       )
       .order("created_at", { ascending: false })
       .limit(200),
@@ -37,13 +37,16 @@ exports.handler = async (event) => {
   const paid = rows.filter((e) => e.paid);
   const amountOf = (e) => e.amount || 2000;
 
-  const revenue = paid.reduce((s, e) => s + amountOf(e), 0);
-  const paid7d = paid.filter((e) => e.paid_at && e.paid_at >= since7d);
+  // Revenus nets : les commandes remboursées ne comptent pas.
+  const kept = paid.filter((e) => !e.refunded_at);
+  const refunded = paid.filter((e) => e.refunded_at);
+  const revenue = kept.reduce((s, e) => s + amountOf(e), 0);
+  const paid7d = kept.filter((e) => e.paid_at && e.paid_at >= since7d);
   const revenue7d = paid7d.reduce((s, e) => s + amountOf(e), 0);
 
   // Top zones payées (max 6)
   const byZone = {};
-  paid.forEach((e) => {
+  kept.forEach((e) => {
     const k = e.commune || "?";
     byZone[k] = (byZone[k] || 0) + 1;
   });
@@ -54,7 +57,7 @@ exports.handler = async (event) => {
 
   // Répartition payés par type de carte
   const byType = {};
-  paid.forEach((e) => {
+  kept.forEach((e) => {
     const k = e.maptype || "localisation";
     byType[k] = (byType[k] || 0) + 1;
   });
@@ -67,7 +70,8 @@ exports.handler = async (event) => {
         visits: visits.count || 0,
         generations: generations.count || 0,
         payment_inits: paymentInits.count || 0,
-        paid_total: paid.length,
+        paid_total: kept.length,
+        refunded_total: refunded.length,
         revenue,
         paid_7d: paid7d.length,
         revenue_7d: revenue7d,

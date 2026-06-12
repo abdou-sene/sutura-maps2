@@ -254,6 +254,7 @@
       }
       .st-paid { background: #d9ecd9; color: var(--ok); }
       .st-pending { background: #fdf0d4; color: var(--warn); }
+      .st-refund { background: #ece7e2; color: var(--muted); text-decoration: line-through; }
       .amount { font-weight: 600; white-space: nowrap; }
       .dt { color: var(--muted); font-size: 0.74rem; white-space: nowrap; }
 
@@ -360,6 +361,7 @@
                 <option value="">Tous statuts</option>
                 <option value="paid">Payés</option>
                 <option value="pending">En attente</option>
+                <option value="refunded">Remboursés</option>
               </select>
               <select id="f-type" onchange="renderOrders()">
                 <option value="">Tous types</option>
@@ -439,7 +441,9 @@
         document.getElementById("k-gen").innerText = fmt(stats.generations);
         document.getElementById("k-init").innerText = fmt(stats.payment_inits);
         document.getElementById("k-paid").innerText = fmt(stats.paid_total);
-        document.getElementById("k-paid7").innerText = `+${fmt(stats.paid_7d)} ces 7 jours`;
+        document.getElementById("k-paid7").innerText =
+          `+${fmt(stats.paid_7d)} ces 7 jours` +
+          (stats.refunded_total ? ` · ${fmt(stats.refunded_total)} remboursé(s)` : "");
         document.getElementById("k-rev").innerText = fmt(stats.revenue);
         document.getElementById("k-rev7").innerText = `+${fmt(stats.revenue_7d)} ces 7 jours`;
         const conv = stats.payment_inits
@@ -489,8 +493,9 @@
         const ty = document.getElementById("f-type").value;
 
         const rows = ORDERS.filter((o) => {
-          if (st === "paid" && !o.paid) return false;
+          if (st === "paid" && (!o.paid || o.refunded_at)) return false;
           if (st === "pending" && o.paid) return false;
+          if (st === "refunded" && !o.refunded_at) return false;
           if (ty && (o.maptype || "localisation") !== ty) return false;
           if (q) {
             const hay = `${o.commune} ${o.dept} ${o.reg} ${o.user_email} ${o.token} ${o.user_author}`.toLowerCase();
@@ -522,25 +527,34 @@
                 ? `<button class="act" onclick="mailLink('${esc(o.user_email)}','${esc(o.commune)}','${o.token}')" title="Envoyer le lien de téléchargement">✉ Lien</button>`
                 : `<button class="act warn" onclick="mailRelance('${esc(o.user_email)}','${esc(o.commune)}')" title="Email de relance">✉ Relance</button>`
               : "";
-            const acts = o.paid
+            const del = `<button class="act err" onclick="confirmAction('delete','${o.token}','Supprimer définitivement la commande ${esc(o.commune)} ?','Commande supprimée')" title="Supprimer">🗑</button>`;
+            const acts = o.refunded_at
               ? `
+                <button class="act" onclick="copyLink('${link}')" title="Copier le lien de téléchargement">🔗</button>
+                <button class="act warn" onclick="confirmAction('unrefund','${o.token}','Annuler le remboursement de ${esc(o.commune)} ?','Remboursement annulé')" title="Marqué remboursé par erreur">↩ Annuler remb.</button>
+                ${del}`
+              : o.paid
+                ? `
                 <button class="act" onclick="copyLink('${link}')" title="Copier le lien de téléchargement">🔗</button>
                 <button class="act ok" onclick="doAction('extend','${o.token}','Lien prolongé d\\'une heure')" title="Redonner 1 h de téléchargement">⏱ +1 h</button>
                 ${mail}
+                <button class="act warn" onclick="confirmAction('refund','${o.token}','Marquer ${esc(o.commune)} comme REMBOURSÉ ? (le remboursement mobile money se fait à part)','Marqué remboursé — pense au virement mobile money')" title="Garantie satisfait ou remboursé">💸 Remb.</button>
                 <button class="act warn" onclick="confirmAction('mark-unpaid','${o.token}','Annuler le paiement de ${esc(o.commune)} ?','Paiement annulé')" title="Annuler le paiement">↩</button>
-                <button class="act err" onclick="confirmAction('delete','${o.token}','Supprimer définitivement la commande ${esc(o.commune)} ?','Commande supprimée')" title="Supprimer">🗑</button>`
-              : `
+                ${del}`
+                : `
                 <button class="act ok" onclick="confirmAction('mark-paid','${o.token}','Marquer ${esc(o.commune)} comme PAYÉ ?','Paiement validé — lien actif 1 h')" title="Valider le paiement manuellement">✓ Valider</button>
                 ${mail}
-                <button class="act err" onclick="confirmAction('delete','${o.token}','Supprimer définitivement la commande ${esc(o.commune)} ?','Commande supprimée')" title="Supprimer">🗑</button>`;
+                ${del}`;
 
+            const stCls = o.refunded_at ? "st-refund" : o.paid ? "st-paid" : "st-pending";
+            const stTxt = o.refunded_at ? "Remboursé" : o.paid ? "Payé" : "En attente";
             return `
             <tr>
               <td class="dt">${date}</td>
               <td class="zone-cell">${esc(o.commune)}<span class="lvl">${lvl}</span></td>
               <td><span class="type-pill type-${t}">${tLabel}</span></td>
               <td class="amount">${amount} F</td>
-              <td><span class="st ${o.paid ? "st-paid" : "st-pending"}">${o.paid ? "Payé" : "En attente"}</span></td>
+              <td><span class="st ${stCls}">${stTxt}</span></td>
               <td>${esc(o.user_email) || '<span style="color:var(--muted)">—</span>'}</td>
               <td><div class="acts">${acts}</div></td>
             </tr>`;

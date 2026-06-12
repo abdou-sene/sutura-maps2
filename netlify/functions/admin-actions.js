@@ -8,6 +8,8 @@ const supabase = createClient(
 // - mark-paid   : marque payé (déclenche la fenêtre de téléchargement 1 h)
 // - mark-unpaid : annule le paiement
 // - extend      : relance la fenêtre de téléchargement (paid_at = maintenant)
+// - refund      : marque remboursé (garantie satisfait ou remboursé)
+// - unrefund    : annule un remboursement marqué par erreur
 // - delete      : supprime la commande
 exports.handler = async (event) => {
   if (event.headers["x-admin-password"] !== process.env.ADMIN_PASSWORD) {
@@ -56,6 +58,16 @@ exports.handler = async (event) => {
     ({ error } = await supabase
       .from("exports")
       .update({ paid: false, paid_at: null })
+      .eq("token", token));
+  } else if (action === "refund") {
+    ({ error } = await supabase
+      .from("exports")
+      .update({ refunded_at: new Date().toISOString() })
+      .eq("token", token));
+  } else if (action === "unrefund") {
+    ({ error } = await supabase
+      .from("exports")
+      .update({ refunded_at: null })
       .eq("token", token));
   } else if (action === "delete") {
     ({ error } = await supabase.from("exports").delete().eq("token", token));
