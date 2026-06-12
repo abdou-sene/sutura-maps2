@@ -956,6 +956,20 @@ function addGraticule(map) {
     spanX < 0.1 ? 0.02 : spanX < 0.3 ? 0.05 : spanX < 1 ? 0.1 : 0.5;
   const style = { color: "#555", weight: 0.5, opacity: 0.5, dashArray: "3 10" };
 
+  // Conteneur des étiquettes, dans les marges de 7 mm (recréé à chaque carte).
+  const area = document.getElementById("map-area");
+  const old = document.getElementById("grat-labels");
+  if (old) old.remove();
+  const labels = document.createElement("div");
+  labels.id = "grat-labels";
+  if (area) area.appendChild(labels);
+
+  // Décalage des marges en pixels (7 mm rendus par le navigateur).
+  const canvasEl = map.getContainer();
+  const offX = canvasEl.offsetLeft;
+  const offY = canvasEl.offsetTop;
+  const size = map.getSize();
+
   for (
     let x = Math.ceil(minX / interval) * interval;
     x <= maxX;
@@ -968,14 +982,16 @@ function addGraticule(map) {
       ],
       style,
     ).addTo(map);
-    L.marker([maxY, x], {
-      icon: L.divIcon({
-        className: "",
-        html: `<span style="font:300 10px DM Sans;color:#333333;white-space:nowrap">${toDMS(x, false)}</span>`,
-        iconAnchor: [10, -2],
-      }),
-      interactive: false,
-    }).addTo(map);
+
+    // Longitude : au-dessus du cadre, dans la marge haute.
+    const pt = map.latLngToContainerPoint([maxY, x]);
+    if (pt.x >= 0 && pt.x <= size.x) {
+      const d = document.createElement("div");
+      d.className = "grat-top";
+      d.style.left = offX + pt.x + "px";
+      d.innerHTML = `<span>${toDMS(x, false)}</span>`;
+      labels.appendChild(d);
+    }
   }
 
   for (
@@ -990,14 +1006,16 @@ function addGraticule(map) {
       ],
       style,
     ).addTo(map);
-    L.marker([y, minX], {
-      icon: L.divIcon({
-        className: "",
-        html: `<span style="font:300 10px DM Sans;color:#333333;white-space:nowrap">${toDMS(y, true)}</span>`,
-        iconAnchor: [-2, 4],
-      }),
-      interactive: false,
-    }).addTo(map);
+
+    // Latitude : à gauche du cadre, verticale ascendante, dans la marge gauche.
+    const pt = map.latLngToContainerPoint([y, minX]);
+    if (pt.y >= 0 && pt.y <= size.y) {
+      const d = document.createElement("div");
+      d.className = "grat-left";
+      d.style.top = offY + pt.y + "px";
+      d.innerHTML = `<span>${toDMS(y, true)}</span>`;
+      labels.appendChild(d);
+    }
   }
 
   L.rectangle(bounds, {

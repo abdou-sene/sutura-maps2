@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="/style.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+<style>
+  /* Harnais : on force l'affichage de la zone carte seule */
+  body { background: #ddd; margin: 0; }
+  #export-container { width: 760px; height: 560px; display: flex; background: #fff; }
+  #map-area { flex: 1 1 auto; }
+</style>
+</head>
+<body>
+<div id="export-container">
+  <div id="map-area">
+    <div id="map-canvas"></div>
+    <div id="map-title-bar"><h3 id="display-commune">COMMUNE</h3></div>
+  </div>
+</div>
+
+<!-- Le vrai code de l'app (toDMS / addGraticule réels) -->
+<script src="/script.js"></script>
+<script>
+  const COMMUNE = (new URLSearchParams(location.search).get("c") || "BABA GARAGE").toUpperCase();
+  // map est créé par window.onload de script.js ; on attend qu'il existe.
+  const wait = setInterval(async () => {
+    if (typeof map === "undefined" || !map) return;
+    clearInterval(wait);
+    const gj = await fetch("/data/communes.geojson").then((r) => r.json());
+    const f = gj.features.find((x) => (x.properties.CCRCA || "").toUpperCase() === COMMUNE);
+    map.invalidateSize();
+    const layer = L.geoJSON(f, {
+      style: { color: "#7BA05B", fillColor: "#7BA05B", fillOpacity: 0.5, weight: 3 },
+    }).addTo(map);
+    map.fitBounds(layer.getBounds(), { padding: [10, 35, 60, 35], animate: false });
+    addGraticule(map);
+    document.getElementById("display-commune").innerText = "COMMUNE DE " + COMMUNE;
+    window.__ready = true;
+  }, 150);
+</script>
+</body>
+</html>
