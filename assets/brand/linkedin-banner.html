@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:1584px;height:396px;overflow:hidden;}
+  .banner{position:relative;width:1584px;height:396px;background:#0e0c0a;overflow:hidden;
+          font-family:"DM Sans",sans-serif;}
+  /* trame discrète */
+  .grid{position:absolute;inset:0;opacity:.5;
+    background-image:
+      repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,.025) 40px),
+      repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,.025) 40px);}
+  /* arcs terracotta à droite */
+  .arc{position:absolute;border:1px solid rgba(184,92,44,.30);border-radius:50%;}
+  .a1{width:520px;height:520px;right:-120px;top:-80px;}
+  .a2{width:340px;height:340px;right:10px;top:30px;border-color:rgba(212,120,74,.22);}
+  .a3{width:160px;height:160px;right:100px;top:120px;border-color:rgba(201,168,76,.25);}
+  /* point signature */
+  .pin{position:absolute;right:178px;top:188px;width:16px;height:16px;border-radius:50%;background:#b85c2c;}
+
+  .content{position:absolute;left:90px;top:84px;max-width:980px;}
+  .brand{font-family:"Cormorant Garamond",serif;font-weight:700;font-size:40px;letter-spacing:1px;color:#f7f3ec;}
+  .brand .dot{color:#b85c2c;} .brand .maps{color:#b85c2c;font-style:italic;font-weight:400;}
+  .headline{font-family:"Cormorant Garamond",serif;font-weight:300;font-size:58px;line-height:1.05;
+            color:#f7f3ec;margin-top:18px;letter-spacing:-.5px;}
+  .headline b{font-weight:700;}
+  .headline em{font-style:italic;color:#d4784a;}
+  .feat{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:20px;letter-spacing:3px;
+        text-transform:uppercase;color:#9a9088;margin-top:22px;}
+  .feat .sep{color:#b85c2c;margin:0 8px;}
+  .site{position:absolute;left:90px;bottom:42px;font-family:"Barlow Condensed",sans-serif;
+        font-weight:700;font-size:24px;letter-spacing:2px;text-transform:uppercase;color:#f7f3ec;}
+  .site span{color:#b85c2c;}
+</style></head>
+<body>
+  <div class="banner">
+    <div class="grid"></div>
+    <div class="arc a1"></div><div class="arc a2"></div><div class="arc a3"></div>
+    <div class="pin"></div>
+    <div class="content">
+      <div class="brand">Sutura<span class="dot">·</span><span class="maps">Maps</span></div>
+      <div class="headline">Les cartes du Sénégal,<br><b>en quelques</b> <em>minutes.</em></div>
+      <div class="feat">Localisation<span class="sep">·</span>Occupation du sol<span class="sep">·</span>Relief<span class="sep">·</span>557 communes</div>
+    </div>
+    <div class="site">sutura-maps.com<span> · </span>Sans QGIS, sans installation</div>
+  </div>
+</body></html>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;height:100%;}
+  .mark{position:relative;width:100vw;height:100vh;background:#0e0c0a;
+        display:flex;align-items:center;justify-content:center;}
+  .ring{position:absolute;inset:11vw;border:0.8vw solid rgba(247,243,236,0.14);border-radius:6vw;}
+  .txt{font-family:"Cormorant Garamond",serif;font-weight:700;font-size:40vw;line-height:1;}
+  .s{color:#f7f3ec;} .d{color:#b85c2c;} .m{color:#b85c2c;}
+</style></head>
+<body>
+  <div class="mark">
+    <div class="ring"></div>
+    <span class="txt"><span class="s">S</span><span class="d">·</span><span class="m">M</span></span>
+  </div>
+  <script>
+    if (new URLSearchParams(location.search).has("noring"))
+      document.querySelector(".ring").style.display="none";
+  </script>
+</body></html>

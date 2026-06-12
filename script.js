@@ -445,9 +445,7 @@ async function preloadOccupation() {
   const level = selectedLevel;
 
   const missing =
-    (level === "commune" && !commune) ||
-    (level === "dept" && !dept) ||
-    !reg;
+    (level === "commune" && !commune) || (level === "dept" && !dept) || !reg;
   if (missing) {
     showError("Sélection incomplète pour l'occupation du sol.");
     goToStep(1);
@@ -599,7 +597,12 @@ async function addLayer(url, style, communeFeature) {
   }
 }
 
-async function addPoints(url, communeFeature, level = "commune", pointNames = null) {
+async function addPoints(
+  url,
+  communeFeature,
+  level = "commune",
+  pointNames = null,
+) {
   try {
     const res = await fetch(url);
     const data = await res.json();
@@ -655,8 +658,7 @@ async function addPoints(url, communeFeature, level = "commune", pointNames = nu
         const cur = byName.get(key);
         if (
           !cur ||
-          rank(f.properties.popPlace_1) <
-            rank(cur.properties.popPlace_1)
+          rank(f.properties.popPlace_1) < rank(cur.properties.popPlace_1)
         ) {
           byName.set(key, f);
         }
@@ -718,7 +720,8 @@ async function addPoints(url, communeFeature, level = "commune", pointNames = nu
           const type = (feature.properties.popPlace_1 || "").trim();
           layer.__label = {
             name: nm,
-            chef: level === "region" || CHEF_LIEUX.some((c) => type.includes(c)),
+            chef:
+              level === "region" || CHEF_LIEUX.some((c) => type.includes(c)),
           };
         },
       },
@@ -830,8 +833,7 @@ function placeLocaliteLabels(group) {
         return [ax - g - w, ay, "left", [-g, h / 2]];
     }
   }
-  const hit = (a, b) =>
-    !(a.r < b.l || a.l > b.r || a.b < b.t || a.t > b.b);
+  const hit = (a, b) => !(a.r < b.l || a.l > b.r || a.b < b.t || a.t > b.b);
   const inBounds = (l, t, w, h) =>
     l >= 0 && t >= 0 && l + w <= mapSize.x && t + h <= mapSize.y;
   // Marge de sécurité anti-chevauchement (absorbe le contour blanc des textes).
@@ -974,7 +976,7 @@ function addGraticule(map) {
 }
 
 /* ════════════════════════════════
-   FILIGRANE LIVE
+   SUTURA MAPS LIVE
 ════════════════════════════════ */
 
 function addLiveWatermark() {
@@ -986,7 +988,7 @@ function addLiveWatermark() {
   wm.id = "live-watermark";
   wm.style.cssText = `position:absolute;inset:0;z-index:999;pointer-events:none;overflow:hidden;`;
   wm.innerHTML = `
-    <!-- Filigrane dense -->
+    <!-- Sutura rek -->
     <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0">
       <defs>
         <pattern id="wm" x="0" y="0" width="180" height="120" patternUnits="userSpaceOnUse" patternTransform="rotate(-25)">
@@ -1378,8 +1380,7 @@ async function generateFinalMap() {
 
   // Niveau choisi (commune, département ou région) pour les deux types de carte.
   const level = selectedLevel;
-  const zoneName =
-    level === "region" ? reg : level === "dept" ? dept : comName;
+  const zoneName = level === "region" ? reg : level === "dept" ? dept : comName;
 
   goToStep("loading");
   document.getElementById("loading-commune").innerText = (
@@ -1764,9 +1765,8 @@ async function generateLocalisationMap(
 
   // ── Titre, auteur, source ──
   document.getElementById("display-author").innerText = author;
-  document.getElementById("display-date").innerText = new Date().toLocaleDateString(
-    "fr-FR",
-  );
+  document.getElementById("display-date").innerText =
+    new Date().toLocaleDateString("fr-FR");
   const dsEl = document.getElementById("data-source");
   if (dsEl) dsEl.innerText = source;
 
@@ -1774,23 +1774,30 @@ async function generateLocalisationMap(
   const regionCard = document.getElementById("region-card");
 
   if (level === "commune") {
-    document.getElementById("display-commune").innerText = `COMMUNE DE ${zoneName.toUpperCase()}`;
-    document.querySelector("#locator-card .panel-card-header").innerText = `DÉPARTEMENT ${dept || ""}`;
-    document.getElementById("region-card-header").innerText = `RÉGION ${reg || ""} — SÉNÉGAL`;
+    document.getElementById("display-commune").innerText =
+      `COMMUNE DE ${zoneName.toUpperCase()}`;
+    document.querySelector("#locator-card .panel-card-header").innerText =
+      `DÉPARTEMENT ${dept || ""}`;
+    document.getElementById("region-card-header").innerText =
+      `RÉGION ${reg || ""} — SÉNÉGAL`;
     locatorCard.style.display = "flex";
     regionCard.style.display = "flex";
     buildLocatorMap(targetFeature, userColor, "commune");
     buildRegionMap(targetFeature, userColor);
   } else if (level === "dept") {
-    document.getElementById("display-commune").innerText = `DÉPARTEMENT DE ${zoneName.toUpperCase()}`;
-    document.querySelector("#locator-card .panel-card-header").innerText = `RÉGION ${reg || ""}`;
-    document.getElementById("region-card-header").innerText = `RÉGION ${reg || ""} — SÉNÉGAL`;
+    document.getElementById("display-commune").innerText =
+      `DÉPARTEMENT DE ${zoneName.toUpperCase()}`;
+    document.querySelector("#locator-card .panel-card-header").innerText =
+      `RÉGION ${reg || ""}`;
+    document.getElementById("region-card-header").innerText =
+      `RÉGION ${reg || ""} — SÉNÉGAL`;
     locatorCard.style.display = "flex";
     regionCard.style.display = "flex";
     buildLocatorMap(targetFeature, userColor, "dept");
     buildRegionMap(targetFeature, userColor);
   } else {
-    document.getElementById("display-commune").innerText = `RÉGION DE ${zoneName.toUpperCase()}`;
+    document.getElementById("display-commune").innerText =
+      `RÉGION DE ${zoneName.toUpperCase()}`;
     locatorCard.style.display = "none";
     regionCard.style.display = "flex";
     document.getElementById("region-card-header").innerText = "SÉNÉGAL";
@@ -2013,8 +2020,7 @@ async function exportToPNG() {
 
   // Niveau et nom de la zone (commune, département ou région), pour les deux types.
   const level = selectedLevel;
-  const zoneName =
-    level === "region" ? reg : level === "dept" ? dept : commune;
+  const zoneName = level === "region" ? reg : level === "dept" ? dept : commune;
 
   const btn = document.querySelector(".btn-export");
   const resetBtn = () => {
@@ -2068,7 +2074,9 @@ async function exportToPNG() {
         level,
         maptype: selectedMapType,
         palette:
-          selectedMapType === "occupation" ? occupationPalette || {} : undefined,
+          selectedMapType === "occupation"
+            ? occupationPalette || {}
+            : undefined,
       }),
     );
 
@@ -2079,8 +2087,7 @@ async function exportToPNG() {
       return;
     }
 
-    // Ordinateur : on garde la page, on ouvre Bictorys dans un nouvel onglet,
-    // et on surveille le paiement pour lancer le téléchargement ici.
+    // Ordinateur : on garde la page.
     window.open(data.payment_url, "_blank", "noopener");
     resetBtn();
     startDesktopPaymentWatch(data.token, zoneName);
@@ -2241,11 +2248,10 @@ function finishDesktopDownload() {
   const ov = document.getElementById("pay-overlay");
   if (ov) ov.remove();
   localStorage.removeItem("sutura_pending");
-  // La carte (aperçu) est déjà rendue : on exporte sans filigrane.
   doExport(false);
 }
 
-/* Onglet Bictorys de retour (ordinateur) : ne pas re-télécharger ici. */
+/* Deretour (ordinateur) : ne pas re-teeelech ici. */
 function showPaymentDoneInTab() {
   document.body.innerHTML = `
     <div style="min-height:100vh;display:flex;flex-direction:column;
@@ -2263,7 +2269,6 @@ function showPaymentDoneInTab() {
     </div>`;
 }
 
-/* Reprise d'un téléchargement payé (page rechargée, 1 h de validité). */
 async function resumePendingDownload() {
   const pending = localStorage.getItem("sutura_pending");
   if (!pending) return;
@@ -2439,7 +2444,7 @@ async function checkAndDownload(token) {
 
       if (paid) {
         closePaymentModal();
-        doExport(false); // false = sans filigrane
+        doExport(false); // Pas de Sutura
         return;
       }
 
@@ -2498,7 +2503,11 @@ async function handleDownloadToken(token) {
     // Polling : le webhook Bictorys peut arriver quelques secondes après la redirection
     const MAX_TRIES = 12;
     const INTERVAL_MS = 2500;
-    let paid = false, commune, error, color, author;
+    let paid = false,
+      commune,
+      error,
+      color,
+      author;
     let tokMaptype, tokLevel, tokDept, tokReg;
 
     for (let i = 0; i < MAX_TRIES; i++) {
@@ -2521,7 +2530,8 @@ async function handleDownloadToken(token) {
 
       // Paiement en attente de confirmation webhook → on attend
       const dlStatus = document.getElementById("dl-status");
-      if (dlStatus) dlStatus.innerText = `Confirmation en cours… (${i + 1}/${MAX_TRIES})`;
+      if (dlStatus)
+        dlStatus.innerText = `Confirmation en cours… (${i + 1}/${MAX_TRIES})`;
       await new Promise((r) => setTimeout(r, INTERVAL_MS));
     }
 
@@ -2631,9 +2641,8 @@ async function handleDownloadToken(token) {
       }
 
       try {
-        occupationPalette = JSON.parse(
-          sessionStorage.getItem("sutura_palette") || "null",
-        ) ||
+        occupationPalette =
+          JSON.parse(sessionStorage.getItem("sutura_palette") || "null") ||
           pending.palette ||
           {};
       } catch (e) {

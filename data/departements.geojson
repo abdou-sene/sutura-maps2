@@ -75921,7 +75921,7 @@
     },
     {
       "type": "Feature",
-      "properties": { "REG": "THIES", "DEPT": "M'BOUR" },
+      "properties": { "REG": "THIES", "DEPT": "MBOUR" },
       "geometry": {
         "type": "MultiPolygon",
         "coordinates": [

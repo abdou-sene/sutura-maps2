@@ -90,6 +90,41 @@ fetch("/data/communes.geojson").then(r=>r.json()).then(gj=>{
   map.fitBounds(layer.getBounds(),{padding:[20,20]});
   document.getElementById("titlebar").textContent="MNT HYPSOMÉTRIQUE — "+COMMUNE;
 
+  // ── Masque de découpage : on recouvre l'EXTÉRIEUR du polygone avec le fond,
+  // en laissant transparent l'intérieur (le raster ne se voit que dans la zone).
+  function ringsOf(geom){
+    return geom.type==="Polygon" ? geom.coordinates
+         : geom.type==="MultiPolygon" ? geom.coordinates.flat() : [];
+  }
+  function drawMask(){
+    const old=document.getElementById("mnt-mask"); if(old) old.remove();
+    const size=map.getSize();
+    const svgNS="http://www.w3.org/2000/svg";
+    const svg=document.createElementNS(svgNS,"svg");
+    svg.id="mnt-mask";
+    svg.setAttribute("width",size.x); svg.setAttribute("height",size.y);
+    svg.style.cssText="position:absolute;top:0;left:0;pointer-events:none;z-index:650;";
+    // Rectangle extérieur + tous les anneaux du polygone, règle even-odd =>
+    // l'intérieur du polygone devient un trou (transparent).
+    let dRect=`M0 0 H${size.x} V${size.y} H0 Z`;
+    let dPoly="";
+    ringsOf(f.geometry).forEach(ring=>{
+      ring.forEach(([lng,lat],i)=>{
+        const p=map.latLngToContainerPoint([lat,lng]);
+        dPoly += (i===0?` M${p.x} ${p.y}`:` L${p.x} ${p.y}`);
+      });
+      dPoly+=" Z";
+    });
+    const path=document.createElementNS(svgNS,"path");
+    path.setAttribute("d",dRect+dPoly);
+    path.setAttribute("fill","#f7f3ec");      // couleur de fond de l'app
+    path.setAttribute("fill-rule","evenodd");
+    svg.appendChild(path);
+    document.getElementById("map").appendChild(svg);
+  }
+  drawMask();
+  map.on("moveend zoomend", drawMask);
+
   // Test export après chargement des tuiles.
   setTimeout(()=>{
     domtoimage.toPng(document.getElementById("map"))

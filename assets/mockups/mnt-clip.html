@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/dom-to-image@2.6.0/dist/dom-to-image.min.js"></script>
+<style>
+  html,body{margin:0;padding:0;font-family:system-ui,sans-serif;background:#fff;}
+  #map{width:820px;height:600px;background:#eef2f4;}
+  .titlebar{width:820px;text-align:center;font-weight:700;letter-spacing:2px;padding:8px;background:#fff;}
+  #panel{width:820px;padding:10px 14px;background:#0e0c0a;color:#eee;font-size:13px;line-height:1.6;}
+  .ok{color:#7CFC9A;font-weight:700;} .ko{color:#ff8080;font-weight:700;}
+  #legend{display:inline-block;margin-top:6px;}
+  #grad{height:12px;width:240px;border:1px solid #555;}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="titlebar" id="titlebar">MNT DÉCOUPÉ — chargement…</div>
+<div id="panel">
+  <div>Découpage raster (pixels dans le polygone) : <span id="clip" class="ko">en attente…</span></div>
+  <div>Export PNG : <span id="exp" class="ko">en attente…</span></div>
+  <div id="legend">
+    Altitude (commune) : <b id="emin">–</b> m → <b id="emax">–</b> m
+    <div id="grad"></div>
+  </div>
+</div>
+<script>
+const params=new URLSearchParams(location.search);
+const COMMUNE=(params.get("c")||"TOCKY GARE").toUpperCase();
+const TILE=256;
+const set=(id,t,ok)=>{const e=document.getElementById(id);e.textContent=t;e.className=ok?"ok":"ko";};
+
+// Slippy / Web Mercator
+const lon2px=(lon,z)=>(lon+180)/360*TILE*2**z;
+const lat2px=(lat,z)=>{const r=lat*Math.PI/180;return (1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*TILE*2**z;};
+const px2lon=(x,z)=>x/(TILE*2**z)*360-180;
+const px2lat=(y,z)=>{const n=Math.PI-2*Math.PI*y/(TILE*2**z);return 180/Math.PI*Math.atan(0.5*(Math.exp(n)-Math.exp(-n)));};
+
+// Rampe hypsométrique normalisée 0..1
+const STOPS=[[0,[46,125,50]],[0.2,[102,187,106]],[0.4,[205,220,57]],
+  [0.6,[212,176,106]],[0.8,[161,105,59]],[1,[245,240,230]]];
+function ramp(t){
+  if(t<=0)return STOPS[0][1]; if(t>=1)return STOPS[STOPS.length-1][1];
+  for(let i=1;i<STOPS.length;i++){if(t<=STOPS[i][0]){const[a,c0]=STOPS[i-1],[b,c1]=STOPS[i];const k=(t-a)/(b-a);return[0,1,2].map(j=>Math.round(c0[j]+(c1[j]-c0[j])*k));}}
+  return STOPS[STOPS.length-1][1];
+}
+// gradient de légende
+(()=>{const g=document.getElementById("grad");let s="linear-gradient(90deg,";
+  s+=STOPS.map(([p,c])=>`rgb(${c[0]},${c[1]},${c[2]}) ${Math.round(p*100)}%`).join(",");
+  g.style.background=s+")";})();
+
+function ringContains([x,y],ring){let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
+    if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))inside=!inside;}return inside;}
+function pip([x,y],geom){const polys=geom.type==="Polygon"?[geom.coordinates]:geom.coordinates;
+  for(const rings of polys){if(ringContains([x,y],rings[0])){let hole=false;
+    for(let i=1;i<rings.length;i++)if(ringContains([x,y],rings[i])){hole=true;break;}if(!hole)return true;}}return false;}
+
+const map=L.map("map",{zoomControl:false,attributionControl:false});
+
+function loadTile(z,x,y){return new Promise(res=>{
+  const img=new Image(); img.crossOrigin="anonymous";
+  img.onload=()=>res(img); img.onerror=()=>res(null);
+  img.src=`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
+});}
+
+fetch("/data/communes.geojson").then(r=>r.json()).then(async gj=>{
+  const f=gj.features.find(x=>(x.properties.CCRCA||"").toUpperCase()===COMMUNE);
+  if(!f){document.getElementById("titlebar").textContent="COMMUNE INTROUVABLE: "+COMMUNE;return;}
+
+  // bbox
+  let minLon=180,minLat=90,maxLon=-180,maxLat=-90;
+  const polys=f.geometry.type==="Polygon"?[f.geometry.coordinates]:f.geometry.coordinates;
+  polys.forEach(r=>r.forEach(ring=>ring.forEach(([lo,la])=>{
+    if(lo<minLon)minLon=lo;if(lo>maxLon)maxLon=lo;if(la<minLat)minLat=la;if(la>maxLat)maxLat=la;})));
+
+  // zoom pour ~800 px de large max
+  let z=8; for(z=8;z<=13;z++){ if(lon2px(maxLon,z)-lon2px(minLon,z)>=760) break; }
+
+  const txMin=Math.floor(lon2px(minLon,z)/TILE), txMax=Math.floor(lon2px(maxLon,z)/TILE);
+  const tyMin=Math.floor(lat2px(maxLat,z)/TILE), tyMax=Math.floor(lat2px(minLat,z)/TILE);
+  const ox=txMin*TILE, oy=tyMin*TILE;
+  const W=(txMax-txMin+1)*TILE, H=(tyMax-tyMin+1)*TILE;
+
+  // mosaïque des tuiles d'élévation
+  const mos=document.createElement("canvas"); mos.width=W; mos.height=H;
+  const mctx=mos.getContext("2d");
+  for(let tx=txMin;tx<=txMax;tx++)for(let ty=tyMin;ty<=tyMax;ty++){
+    const img=await loadTile(z,tx,ty);
+    if(img)mctx.drawImage(img,(tx-txMin)*TILE,(ty-tyMin)*TILE);
+  }
+  let id;
+  try{ id=mctx.getImageData(0,0,W,H); }
+  catch(e){ set("clip","CORS bloqué: "+e.message,false); return; }
+  const d=id.data;
+
+  // 1er passage : élévation + masque polygone + min/max INTÉRIEUR
+  const elev=new Float32Array(W*H); const inside=new Uint8Array(W*H);
+  let emin=Infinity, emax=-Infinity, nIn=0;
+  for(let py=0;py<H;py++){
+    const lat=px2lat(oy+py+0.5,z);
+    for(let px=0;px<W;px++){
+      const k=py*W+px, p=k*4;
+      const lon=px2lon(ox+px+0.5,z);
+      if(!pip([lon,lat],f.geometry)) continue;
+      const e=(d[p]*256+d[p+1]+d[p+2]/256)-32768;
+      elev[k]=e; inside[k]=1; nIn++;
+      if(e<emin)emin=e; if(e>emax)emax=e;
+    }
+  }
+  if(!nIn){ set("clip","Aucun pixel dans le polygone (zoom/bbox)",false); return; }
+
+  // 2e passage : couleur sur la plage réelle [emin,emax], extérieur transparent
+  const span=Math.max(1,emax-emin);
+  const out=document.createElement("canvas"); out.width=W; out.height=H;
+  const octx=out.getContext("2d"); const oid=octx.createImageData(W,H); const od=oid.data;
+  for(let k=0;k<W*H;k++){
+    const p=k*4;
+    if(!inside[k]){ od[p+3]=0; continue; }
+    const c=ramp((elev[k]-emin)/span);
+    od[p]=c[0]; od[p+1]=c[1]; od[p+2]=c[2]; od[p+3]=255;
+  }
+  octx.putImageData(oid,0,0);
+
+  // overlay géoréférencé
+  const south=px2lat(oy+H,z), north=px2lat(oy,z), west=px2lon(ox,z), east=px2lon(ox+W,z);
+  L.imageOverlay(out.toDataURL(),[[south,west],[north,east]]).addTo(map);
+  const layer=L.geoJSON(f,{style:{color:"#0e0c0a",weight:2.5,fill:false}}).addTo(map);
+  map.fitBounds(layer.getBounds(),{padding:[20,20]});
+
+  document.getElementById("titlebar").textContent="MNT DÉCOUPÉ — "+COMMUNE;
+  document.getElementById("emin").textContent=Math.round(emin);
+  document.getElementById("emax").textContent=Math.round(emax);
+  set("clip",`OK — ${nIn.toLocaleString("fr")} pixels intérieurs, plage ${Math.round(emin)}–${Math.round(emax)} m (zoom ${z})`,true);
+
+  setTimeout(()=>{domtoimage.toPng(document.getElementById("map"))
+    .then(()=>set("exp","OK — PNG généré",true))
+    .catch(e=>set("exp","ÉCHEC: "+e.message,false));},2500);
+});
+</script>
+</body>
+</html>
