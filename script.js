@@ -15,6 +15,37 @@ let mapControls = { scale: null, north: null };
 let locatorMap = null;
 let regionMap = null;
 
+/* ── Cache réseau des GeoJSON ───────────────────────────────────────
+   Une seule requête par fichier pour toute la session. Le préchargement
+   démarre dès l'étape 2 (pendant que l'utilisateur personnalise), donc à
+   la génération les données sont déjà là : plus d'écran vide. */
+const geoFetchCache = {};
+function fetchGeo(url) {
+  if (!geoFetchCache[url]) {
+    geoFetchCache[url] = fetch(url)
+      .then((r) => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .catch((e) => {
+        delete geoFetchCache[url]; // permet de réessayer plus tard
+        throw e;
+      });
+  }
+  return geoFetchCache[url];
+}
+function prefetchGeoData() {
+  [
+    "data/communes.geojson",
+    "data/localites.geojson",
+    "data/routes.geojson",
+    "data/cours_eau.geojson",
+    "data/ocean.geojson",
+    "data/departements.geojson",
+    "data/regions.geojson",
+  ].forEach((u) => fetchGeo(u).catch(() => {}));
+}
+
 let selectedMapType = "localisation";
 let selectedLevel = "commune"; // "commune" | "dept" | "region"
 let occupationClipped = null;
@@ -133,6 +164,10 @@ function checkNextBtn() {
 ════════════════════════════════ */
 
 async function handleNextBtn() {
+  // Préchargement des données en arrière-plan pendant la personnalisation :
+  // à la génération, tout est déjà téléchargé.
+  prefetchGeoData();
+
   if (selectedMapType === "localisation") {
     goToStep(2);
     restoreStep2Localisation();
@@ -569,8 +604,7 @@ function buildOccupationLegend(classes, palette) {
 
 async function addLayer(url, style, communeFeature) {
   try {
-    const res = await fetch(url);
-    const data = await res.json();
+    const data = await fetchGeo(url);
     const tb = turf.bbox(communeFeature);
     const filtered = data.features.filter((f) => {
       try {
@@ -604,8 +638,7 @@ async function addPoints(
   pointNames = null,
 ) {
   try {
-    const res = await fetch(url);
-    const data = await res.json();
+    const data = await fetchGeo(url);
     const bbox = turf.bbox(communeFeature);
     await new Promise((r) => setTimeout(r, 0));
 
@@ -1121,8 +1154,7 @@ function addNeighborLabels(neighbors, targetFeature, neighborStyle) {
 
 async function addOceanLayer(url, targetFeature) {
   try {
-    const res = await fetch(url);
-    const data = await res.json();
+    const data = await fetchGeo(url);
     if (!data.features?.length) return false;
     const tb = turf.bbox(targetFeature);
     const filtered = data.features.filter((f) => {
@@ -1176,8 +1208,7 @@ function buildLocatorMap(targetFeature, userColor, level = "commune") {
   const dept = targetFeature.properties.DEPT;
   const reg = targetFeature.properties.REG;
 
-  fetch("data/departements.geojson")
-    .then((r) => r.json())
+  fetchGeo("data/departements.geojson")
     .then((data) => {
       if (level === "dept") {
         // Département situé dans sa région : on montre les départements de la
@@ -1279,8 +1310,7 @@ function buildRegionMap(targetFeature, userColor) {
     keyboard: false,
   });
   const reg = targetFeature.properties.REG;
-  fetch("data/regions.geojson")
-    .then((r) => r.json())
+  fetchGeo("data/regions.geojson")
     .then((data) => {
       const targetReg = data.features.find((f) => f.properties.REG === reg);
       const otherRegs = data.features.filter((f) => f.properties.REG !== reg);
@@ -1367,8 +1397,7 @@ function showError(msg) {
 ════════════════════════════════ */
 async function ensureCommunesLoaded() {
   if (geoData.communes) return;
-  const res = await fetch("data/communes.geojson");
-  geoData.communes = await res.json();
+  geoData.communes = await fetchGeo("data/communes.geojson");
 }
 
 async function generateFinalMap() {
@@ -1394,21 +1423,20 @@ async function generateFinalMap() {
         .querySelectorAll(".lstep")
         .forEach((s) => s.classList.remove("active"));
       document.getElementById(id)?.classList.add("active");
-    }, i * 1000);
+    }, i * 600);
   });
 
-  await new Promise((r) => setTimeout(r, 3000));
-
-  // ← CHARGER communes.geojson ici si pas encore chargé
-  if (!geoData.communes) {
-    try {
-      const res = await fetch("data/communes.geojson");
-      geoData.communes = await res.json();
-    } catch (e) {
-      showError("Impossible de charger les données géographiques.");
-      goToStep(2);
-      return;
-    }
+  // Les données chargent PENDANT l'animation (déjà préchargées à l'étape 2
+  // dans la plupart des cas). On attend le vrai chargement, pas un délai fixe,
+  // avec un minimum de 1,2 s pour que l'animation ne flashe pas.
+  prefetchGeoData();
+  const minAnim = new Promise((r) => setTimeout(r, 1200));
+  try {
+    await Promise.all([ensureCommunesLoaded(), minAnim]);
+  } catch (e) {
+    showError("Impossible de charger les données géographiques.");
+    goToStep(2);
+    return;
   }
 
   goToStep(3);
@@ -1476,8 +1504,7 @@ async function generateFinalMap() {
 async function buildMergedFeature(level, dept, reg) {
   if (level === "dept") {
     try {
-      const res = await fetch("data/departements.geojson");
-      const data = await res.json();
+      const data = await fetchGeo("data/departements.geojson");
       const feat = data.features.find((f) => f.properties.DEPT === dept);
       if (feat) {
         feat.properties.REG = reg;
@@ -1496,8 +1523,7 @@ async function buildMergedFeature(level, dept, reg) {
   }
   if (level === "region") {
     try {
-      const res = await fetch("data/regions.geojson");
-      const data = await res.json();
+      const data = await fetchGeo("data/regions.geojson");
       const feat = data.features.find((f) => f.properties.REG === reg);
       if (feat) {
         feat.properties.LEVEL = "region";
@@ -1536,8 +1562,7 @@ function mergeFeatures(features, props) {
 // ── Helpers niveau (dept / région) ───────────────────────────────
 async function fetchJSON(url) {
   try {
-    const r = await fetch(url);
-    return await r.json();
+    return await fetchGeo(url);
   } catch (e) {
     return null;
   }
@@ -1849,8 +1874,7 @@ async function generateOccupationMap(
     });
   } else if (level === "dept") {
     try {
-      const res = await fetch("data/departements.geojson");
-      const data = await res.json();
+      const data = await fetchGeo("data/departements.geojson");
       neighborFeatures = data.features
         .filter((f) => {
           if (f.properties.DEPT === targetFeature.properties.DEPT) return false;
@@ -1869,8 +1893,7 @@ async function generateOccupationMap(
     }
   } else if (level === "region") {
     try {
-      const res = await fetch("data/regions.geojson");
-      const data = await res.json();
+      const data = await fetchGeo("data/regions.geojson");
       neighborFeatures = data.features
         .filter((f) => {
           if (f.properties.REG === targetFeature.properties.REG) return false;
@@ -2562,8 +2585,7 @@ async function handleDownloadToken(token) {
 
     // Charger communes.geojson si besoin
     if (!geoData.communes) {
-      const r = await fetch("data/communes.geojson");
-      geoData.communes = await r.json();
+      geoData.communes = await fetchGeo("data/communes.geojson");
     }
 
     // Contexte sauvegardé avant le paiement (type, niveau, dept, région).
