@@ -2139,6 +2139,9 @@ async function exportToPNG() {
       return;
     }
 
+    // Paiement initié : commande créée, l'utilisateur part vers Bictorys.
+    track("payment_init", zoneName);
+
     // Contexte pour la reprise et la régénération éventuelle après paiement.
     sessionStorage.setItem("sutura_token", data.token);
     sessionStorage.setItem("sutura_maptype", selectedMapType);
