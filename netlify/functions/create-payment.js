@@ -30,12 +30,21 @@ exports.handler = async (event) => {
   const { commune, dept, reg, color, author, client, maptype, level } = body;
 
   // Prix calculé CÔTÉ SERVEUR (jamais reçu du navigateur) selon le type de
-  // carte et le niveau. Occupation : paliers dept/région. Le reste : 2000.
-  const mt = maptype === "occupation" ? "occupation" : "localisation";
-  const lvl = level === "region" ? "region" : level === "dept" ? "dept" : "commune";
+  // carte et le niveau. Occupation et relief : paliers dept/région. Sinon 2000.
+  const mt =
+    maptype === "occupation" || maptype === "relief" ? maptype : "localisation";
+  const lvl =
+    level === "region"
+      ? "region"
+      : level === "dept"
+        ? "dept"
+        : level === "eco"
+          ? "eco"
+          : "commune";
   function priceFor(t, l) {
-    if (t === "occupation" && l === "dept") return 4000;
-    if (t === "occupation" && l === "region") return 5000;
+    if ((t === "occupation" || t === "relief") && l === "dept") return 4000;
+    if ((t === "occupation" || t === "relief") && (l === "region" || l === "eco"))
+      return 5000;
     return 2000;
   }
   const amount = priceFor(mt, lvl);

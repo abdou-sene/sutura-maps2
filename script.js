@@ -47,7 +47,9 @@ function prefetchGeoData() {
 }
 
 let selectedMapType = "localisation";
-let selectedLevel = "commune"; // "commune" | "dept" | "region"
+let selectedLevel = "commune"; // "commune" | "dept" | "region" | "eco"
+let selectedEco = ""; // zone éco-géographique sélectionnée (occupation)
+let ecoZonesLoaded = false;
 let occupationClipped = null;
 let occupationPalette = {};
 
@@ -127,9 +129,25 @@ function selectMapType(btn) {
   selectedMapType = btn.dataset.type;
   occupationClipped = null;
   occupationPalette = {};
-  if (selectedMapType === "localisation") {
+  // Localisation et relief partagent l'étape 2 simple (couleur ignorée pour
+  // le relief). Seule l'occupation a son écran de palette.
+  if (selectedMapType !== "occupation") {
     restoreStep2Localisation();
   }
+
+  // Le sélecteur de zone éco-géographique n'apparaît que pour l'occupation.
+  const ecoGroup = document.getElementById("eco-group");
+  if (ecoGroup) {
+    ecoGroup.style.display = selectedMapType === "occupation" ? "block" : "none";
+  }
+  if (selectedMapType === "occupation") {
+    loadEcoZones();
+  } else {
+    selectedEco = "";
+    const se = document.getElementById("select-eco");
+    if (se) se.value = "";
+  }
+
   checkNextBtn();
 }
 
@@ -144,6 +162,13 @@ function checkNextBtn() {
   const btn = document.getElementById("btn-to-step2");
   if (!btn) return;
 
+  // Zone éco-géographique (occupation) : prend le dessus sur la cascade.
+  if (selectedEco) {
+    selectedLevel = "eco";
+    btn.disabled = false;
+    return;
+  }
+
   if (commune) selectedLevel = "commune";
   else if (dept) selectedLevel = "dept";
   else if (reg) selectedLevel = "region";
@@ -153,9 +178,28 @@ function checkNextBtn() {
     return;
   }
 
-  // Localisation et occupation : on autorise commune, département ou région
-  // (au moins la région doit être choisie).
+  // Au moins la région doit être choisie.
   btn.disabled = !reg;
+}
+
+// Charge la liste des zones éco-géographiques dans le menu (une seule fois).
+async function loadEcoZones() {
+  if (ecoZonesLoaded) return;
+  const sel = document.getElementById("select-eco");
+  if (!sel) return;
+  try {
+    const res = await fetch("/.netlify/functions/get-occupation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "list-eco" }),
+    });
+    if (!res.ok) return;
+    const { zones } = await res.json();
+    (zones || []).forEach((z) => sel.add(new Option(z, z)));
+    ecoZonesLoaded = true;
+  } catch (e) {
+    /* le menu reste vide, la cascade reste utilisable */
+  }
 }
 
 /* ════════════════════════════════
@@ -168,7 +212,8 @@ async function handleNextBtn() {
   // à la génération, tout est déjà téléchargé.
   prefetchGeoData();
 
-  if (selectedMapType === "localisation") {
+  if (selectedMapType !== "occupation") {
+    // Localisation et relief : étape 2 simple, aucune donnée serveur.
     goToStep(2);
     restoreStep2Localisation();
   } else {
@@ -260,8 +305,31 @@ function initFilters() {
   const regions = [...new Set(metaData.map((f) => f.REG))].sort();
   regions.forEach((r) => selReg.add(new Option(r, r)));
 
+  // Sélecteur de zone éco-géographique (exclusif avec la cascade).
+  const selEco = document.getElementById("select-eco");
+  if (selEco) {
+    selEco.onchange = () => {
+      selectedEco = selEco.value;
+      if (selectedEco) {
+        // Vider la cascade : les deux modes de sélection sont exclusifs.
+        selReg.value = "";
+        selDept.innerHTML = '<option value="">-- Département --</option>';
+        selDept.disabled = true;
+        selCom.innerHTML = '<option value="">-- Commune --</option>';
+        selCom.disabled = true;
+        occupationClipped = null;
+        occupationPalette = {};
+      }
+      checkNextBtn();
+    };
+  }
+
   selReg.onchange = () => {
     const reg = selReg.value;
+
+    // Utiliser la cascade annule la sélection de zone éco.
+    selectedEco = "";
+    if (selEco) selEco.value = "";
 
     selDept.innerHTML = '<option value="">-- Département --</option>';
     selDept.disabled = !reg;
@@ -316,8 +384,14 @@ function showStep2LoadingScreen() {
   const dept = document.getElementById("select-dept").value;
   const commune = document.getElementById("select-commune").value;
 
-  const zoneName = commune || dept || reg;
-  const zoneLevel = commune ? "commune" : dept ? "département" : "région";
+  const zoneName = selectedEco || commune || dept || reg;
+  const zoneLevel = selectedEco
+    ? "zone éco-géographique"
+    : commune
+      ? "commune"
+      : dept
+        ? "département"
+        : "région";
 
   const card = document.querySelector("#step-2 .card");
   card.innerHTML = `
@@ -476,11 +550,18 @@ async function preloadOccupation() {
   const dept = document.getElementById("select-dept").value;
   const reg = document.getElementById("select-reg").value;
 
-  // Niveau selon la sélection (commune, département ou région).
+  // Niveau selon la sélection (commune, département, région ou zone éco).
   const level = selectedLevel;
 
+  // Le nom de la zone éco voyage dans le champ "commune" (zoneName générique).
+  const zoneCommune = level === "eco" ? selectedEco : commune;
+
   const missing =
-    (level === "commune" && !commune) || (level === "dept" && !dept) || !reg;
+    level === "eco"
+      ? !selectedEco
+      : (level === "commune" && !commune) ||
+        (level === "dept" && !dept) ||
+        !reg;
   if (missing) {
     showError("Sélection incomplète pour l'occupation du sol.");
     goToStep(1);
@@ -491,7 +572,7 @@ async function preloadOccupation() {
     const res = await fetch("/.netlify/functions/get-occupation", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ commune, dept, reg, level }),
+      body: JSON.stringify({ commune: zoneCommune, dept, reg, level }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const geojson = await res.json();
@@ -1491,9 +1572,16 @@ async function generateFinalMap() {
   const dept = document.getElementById("select-dept").value;
   const reg = document.getElementById("select-reg").value;
 
-  // Niveau choisi (commune, département ou région) pour les deux types de carte.
+  // Niveau choisi (commune, département, région ou zone éco).
   const level = selectedLevel;
-  const zoneName = level === "region" ? reg : level === "dept" ? dept : comName;
+  const zoneName =
+    level === "eco"
+      ? selectedEco
+      : level === "region"
+        ? reg
+        : level === "dept"
+          ? dept
+          : comName;
 
   goToStep("loading");
   document.getElementById("loading-commune").innerText = (
@@ -1535,6 +1623,9 @@ async function generateFinalMap() {
           f.properties.DEPT === dept &&
           f.properties.REG === reg,
       );
+    } else if (level === "eco") {
+      // Zone éco : le contour vient de l'occupation déjà chargée (dissoute).
+      targetFeature = dissolveToFeature(occupationClipped);
     } else {
       targetFeature = await buildMergedFeature(level, dept, reg);
     }
@@ -1556,6 +1647,8 @@ async function generateFinalMap() {
         "DTGC",
         level,
       );
+    } else if (selectedMapType === "relief") {
+      await generateReliefMap(targetFeature, zoneName, author, level);
     } else {
       await generateOccupationMap(
         targetFeature,
@@ -1616,6 +1709,31 @@ async function buildMergedFeature(level, dept, reg) {
     );
   }
   return null;
+}
+
+// Dissout une liste de features (classes d'occupation) en un seul contour.
+// Sert au niveau zone éco, dont on n'a pas le polygone localement.
+function dissolveToFeature(features) {
+  if (!features || !features.length) return null;
+  try {
+    let u = features[0];
+    for (let i = 1; i < features.length; i++) {
+      try {
+        const x = turf.union(u, features[i]);
+        if (x) u = x;
+      } catch (e) {
+        /* on ignore une classe qui résiste */
+      }
+    }
+    return u;
+  } catch (e) {
+    try {
+      const b = turf.bbox({ type: "FeatureCollection", features });
+      return turf.bboxPolygon(b);
+    } catch (e2) {
+      return null;
+    }
+  }
 }
 
 function mergeFeatures(features, props) {
@@ -2046,15 +2164,258 @@ async function generateOccupationMap(
       ? "RÉGION"
       : level === "dept"
         ? "DÉPARTEMENT"
-        : "COMMUNE";
+        : level === "eco"
+          ? "ZONE"
+          : "COMMUNE";
+  const titlePrefix = level === "eco" ? "" : "DE ";
   document.getElementById("display-commune").innerText =
-    `OCCUPATION DU SOL — ${levelLabel} DE ${zoneName.toUpperCase()}`;
+    `OCCUPATION DU SOL — ${levelLabel} ${titlePrefix}${zoneName.toUpperCase()}`;
   document.getElementById("display-author").innerText = author;
   document.getElementById("display-date").innerText =
     new Date().toLocaleDateString("fr-FR");
   document.getElementById("data-source").innerText = source;
 
   addLiveWatermark();
+}
+
+/* ════════════════════════════════
+   CARTE DE RELIEF (MNT — hypsométrie)
+   Tuiles d'élévation Terrarium 
+   teinte hypsométrique sur la plage d'altitude
+════════════════════════════════ */
+
+const MNT_TILE = 256;
+const MNT_STOPS = [
+  [0, [46, 125, 50]],
+  [0.2, [102, 187, 106]],
+  [0.4, [205, 220, 57]],
+  [0.6, [212, 176, 106]],
+  [0.8, [161, 105, 59]],
+  [1, [245, 240, 230]],
+];
+const _m = {
+  lon2px: (lon, z) => ((lon + 180) / 360) * MNT_TILE * 2 ** z,
+  lat2px: (lat, z) => {
+    const r = (lat * Math.PI) / 180;
+    return (
+      ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) *
+      MNT_TILE *
+      2 ** z
+    );
+  },
+  px2lon: (x, z) => (x / (MNT_TILE * 2 ** z)) * 360 - 180,
+  px2lat: (y, z) => {
+    const n = Math.PI - (2 * Math.PI * y) / (MNT_TILE * 2 ** z);
+    return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+  },
+};
+function mntRamp(t) {
+  if (t <= 0) return MNT_STOPS[0][1];
+  if (t >= 1) return MNT_STOPS[MNT_STOPS.length - 1][1];
+  for (let i = 1; i < MNT_STOPS.length; i++) {
+    if (t <= MNT_STOPS[i][0]) {
+      const [a, c0] = MNT_STOPS[i - 1],
+        [b, c1] = MNT_STOPS[i];
+      const k = (t - a) / (b - a);
+      return [0, 1, 2].map((j) => Math.round(c0[j] + (c1[j] - c0[j]) * k));
+    }
+  }
+  return MNT_STOPS[MNT_STOPS.length - 1][1];
+}
+function mntRingContains([x, y], ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0],
+      yi = ring[i][1],
+      xj = ring[j][0],
+      yj = ring[j][1];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)
+      inside = !inside;
+  }
+  return inside;
+}
+function mntPip([x, y], geom) {
+  const polys = geom.type === "Polygon" ? [geom.coordinates] : geom.coordinates;
+  for (const rings of polys) {
+    if (mntRingContains([x, y], rings[0])) {
+      let hole = false;
+      for (let i = 1; i < rings.length; i++)
+        if (mntRingContains([x, y], rings[i])) {
+          hole = true;
+          break;
+        }
+      if (!hole) return true;
+    }
+  }
+  return false;
+}
+function mntLoadTile(z, x, y) {
+  return new Promise((res) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => res(img);
+    img.onerror = () => res(null);
+    img.src = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
+  });
+}
+
+async function generateReliefMap(targetFeature, zoneName, author, level) {
+  const geom = targetFeature.geometry;
+
+  // bbox
+  let minLon = 180,
+    minLat = 90,
+    maxLon = -180,
+    maxLat = -90;
+  const polys = geom.type === "Polygon" ? [geom.coordinates] : geom.coordinates;
+  polys.forEach((r) =>
+    r.forEach((ring) =>
+      ring.forEach(([lo, la]) => {
+        if (lo < minLon) minLon = lo;
+        if (lo > maxLon) maxLon = lo;
+        if (la < minLat) minLat = la;
+        if (la > maxLat) maxLat = la;
+      }),
+    ),
+  );
+
+  // zoom pour viser ~800 px de large
+  let z = 8;
+  for (z = 8; z <= 13; z++) {
+    if (_m.lon2px(maxLon, z) - _m.lon2px(minLon, z) >= 760) break;
+  }
+
+  const txMin = Math.floor(_m.lon2px(minLon, z) / MNT_TILE),
+    txMax = Math.floor(_m.lon2px(maxLon, z) / MNT_TILE);
+  const tyMin = Math.floor(_m.lat2px(maxLat, z) / MNT_TILE),
+    tyMax = Math.floor(_m.lat2px(minLat, z) / MNT_TILE);
+  const ox = txMin * MNT_TILE,
+    oy = tyMin * MNT_TILE;
+  const W = (txMax - txMin + 1) * MNT_TILE,
+    H = (tyMax - tyMin + 1) * MNT_TILE;
+
+  const mos = document.createElement("canvas");
+  mos.width = W;
+  mos.height = H;
+  const mctx = mos.getContext("2d");
+  for (let tx = txMin; tx <= txMax; tx++)
+    for (let ty = tyMin; ty <= tyMax; ty++) {
+      const img = await mntLoadTile(z, tx, ty);
+      if (img) mctx.drawImage(img, (tx - txMin) * MNT_TILE, (ty - tyMin) * MNT_TILE);
+    }
+
+  let id;
+  try {
+    id = mctx.getImageData(0, 0, W, H);
+  } catch (e) {
+    showError("Relief indisponible (données d'élévation bloquées).");
+    return;
+  }
+  const d = id.data;
+
+  const elev = new Float32Array(W * H);
+  const inside = new Uint8Array(W * H);
+  let emin = Infinity,
+    emax = -Infinity,
+    nIn = 0;
+  for (let py = 0; py < H; py++) {
+    const lat = _m.px2lat(oy + py + 0.5, z);
+    for (let px = 0; px < W; px++) {
+      const k = py * W + px,
+        p = k * 4;
+      const lon = _m.px2lon(ox + px + 0.5, z);
+      if (!mntPip([lon, lat], geom)) continue;
+      const e = d[p] * 256 + d[p + 1] + d[p + 2] / 256 - 32768;
+      elev[k] = e;
+      inside[k] = 1;
+      nIn++;
+      if (e < emin) emin = e;
+      if (e > emax) emax = e;
+    }
+  }
+  if (!nIn) {
+    showError("Aucune donnée de relief pour cette zone.");
+    return;
+  }
+
+  const span = Math.max(1, emax - emin);
+  const out = document.createElement("canvas");
+  out.width = W;
+  out.height = H;
+  const octx = out.getContext("2d");
+  const oid = octx.createImageData(W, H);
+  const od = oid.data;
+  for (let k = 0; k < W * H; k++) {
+    const p = k * 4;
+    if (!inside[k]) {
+      od[p + 3] = 0;
+      continue;
+    }
+    const c = mntRamp((elev[k] - emin) / span);
+    od[p] = c[0];
+    od[p + 1] = c[1];
+    od[p + 2] = c[2];
+    od[p + 3] = 255;
+  }
+  octx.putImageData(oid, 0, 0);
+
+  const south = _m.px2lat(oy + H, z),
+    north = _m.px2lat(oy, z),
+    west = _m.px2lon(ox, z),
+    east = _m.px2lon(ox + W, z);
+  L.imageOverlay(out.toDataURL(), [
+    [south, west],
+    [north, east],
+  ]).addTo(map);
+
+  const studyAreaLayer = L.geoJSON(targetFeature, {
+    style: { color: "#2c3e50", fillColor: "transparent", weight: 3 },
+  }).addTo(map);
+
+  map.fitBounds(studyAreaLayer.getBounds(), {
+    padding: [10, 35, 60, 35],
+    animate: false,
+  });
+  addGraticule(map);
+  addMapControls();
+
+  buildReliefLegend(Math.round(emin), Math.round(emax));
+
+  document.getElementById("locator-card").style.display = "none";
+  document.getElementById("region-card").style.display = "none";
+
+  const levelLabel =
+    level === "region" ? "RÉGION" : level === "dept" ? "DÉPARTEMENT" : "COMMUNE";
+  document.getElementById("display-commune").innerText =
+    `RELIEF — ${levelLabel} DE ${zoneName.toUpperCase()}`;
+  document.getElementById("display-author").innerText = author;
+  document.getElementById("display-date").innerText =
+    new Date().toLocaleDateString("fr-FR");
+  document.getElementById("data-source").innerText = "SRTM NASA (30 m)";
+
+  addLiveWatermark();
+}
+
+function buildReliefLegend(emin, emax) {
+  const body = document.querySelector("#legend-card .panel-card-body");
+  if (!body) return;
+  const grad = MNT_STOPS.map(
+    ([p, c]) => `rgb(${c[0]},${c[1]},${c[2]}) ${Math.round(p * 100)}%`,
+  ).join(",");
+  const mid = Math.round((emin + emax) / 2);
+  body.innerHTML = `
+    <p style="font-size:0.68rem;font-weight:600;letter-spacing:1.5px;
+              text-transform:uppercase;color:var(--muted);
+              margin-bottom:10px;padding-bottom:6px;
+              border-bottom:1px solid rgba(14,12,10,0.1);">
+      Altitude (mètres)
+    </p>
+    <div style="height:14px;border:1px solid rgba(0,0,0,0.15);border-radius:2px;
+                background:linear-gradient(90deg, ${grad});"></div>
+    <div style="display:flex;justify-content:space-between;
+                font-size:0.72rem;color:var(--ink);margin-top:6px;">
+      <span>${emin} m</span><span>${mid} m</span><span>${emax} m</span>
+    </div>`;
 }
 
 /* ════════════════════════════════
@@ -2103,9 +2464,16 @@ async function exportToPNG() {
   const author = document.getElementById("author-name")?.value || "Sutura Maps";
   const mobile = isMobileDevice();
 
-  // Niveau et nom de la zone (commune, département ou région), pour les deux types.
+  // Niveau et nom de la zone (commune, département, région ou zone éco).
   const level = selectedLevel;
-  const zoneName = level === "region" ? reg : level === "dept" ? dept : commune;
+  const zoneName =
+    level === "eco"
+      ? selectedEco
+      : level === "region"
+        ? reg
+        : level === "dept"
+          ? dept
+          : commune;
 
   const btn = document.querySelector(".btn-export");
   const resetBtn = () => {
@@ -2194,8 +2562,13 @@ let paymentWatchTimer = null;
 
 // Prix affiché (le serveur reste la source de vérité). Occupation : paliers.
 function priceForClient(maptype, level) {
-  if (maptype === "occupation" && level === "dept") return 4000;
-  if (maptype === "occupation" && level === "region") return 5000;
+  if ((maptype === "occupation" || maptype === "relief") && level === "dept")
+    return 4000;
+  if (
+    (maptype === "occupation" || maptype === "relief") &&
+    (level === "region" || level === "eco")
+  )
+    return 5000;
   return 2000;
 }
 function fmtPrice(n) {
@@ -2207,7 +2580,9 @@ function zoneLabelFor(level, name) {
       ? "Région de "
       : level === "dept"
         ? "Département de "
-        : "Commune de ";
+        : level === "eco"
+          ? "Zone "
+          : "Commune de ";
   return prefix + (name || "").toUpperCase();
 }
 
@@ -2518,11 +2893,13 @@ async function handleDownloadToken(token) {
       targetFeature = geoData.communes.features.find(
         (f) => f.properties.CCRCA === commune,
       );
+    } else if (level === "eco") {
+      targetFeature = null; // construit après le chargement de l'occupation
     } else {
       targetFeature = await buildMergedFeature(level, zDept, zReg);
     }
 
-    if (!targetFeature) {
+    if (!targetFeature && level !== "eco") {
       waitDiv.innerHTML = `
         <div style="font-size:3rem">⚠️</div>
         <p style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;color:var(--terra);">
@@ -2546,9 +2923,16 @@ async function handleDownloadToken(token) {
     if (mapControls.scale) map.removeControl(mapControls.scale);
     if (mapControls.north) map.removeControl(mapControls.north);
 
-    if (mapType === "occupation") {
-      const dept = zDept || targetFeature.properties.DEPT;
-      const reg = zReg || targetFeature.properties.REG;
+    if (mapType === "relief") {
+      await generateReliefMap(
+        targetFeature,
+        commune,
+        author || "Sutura Maps",
+        level,
+      );
+    } else if (mapType === "occupation") {
+      const dept = level === "eco" ? null : zDept || targetFeature.properties.DEPT;
+      const reg = level === "eco" ? null : zReg || targetFeature.properties.REG;
       try {
         const ocRes = await fetch("/.netlify/functions/get-occupation", {
           method: "POST",
@@ -2560,6 +2944,15 @@ async function handleDownloadToken(token) {
         occupationClipped = ocJson.features || [];
       } catch (e) {
         occupationClipped = [];
+      }
+
+      // Zone éco : le contour se déduit de l'occupation chargée.
+      if (level === "eco") {
+        targetFeature = dissolveToFeature(occupationClipped);
+        if (!targetFeature) {
+          showError("Zone éco introuvable.");
+          return;
+        }
       }
 
       try {
