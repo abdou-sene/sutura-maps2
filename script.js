@@ -1310,22 +1310,29 @@ function largestPolygonCoords(feature) {
   return null;
 }
 
-function addNeighborLabels(neighbors, targetFeature, neighborStyle) {
+// Fond gris des voisins (ordre z : à dessiner AVANT la donnée/le raster).
+function drawNeighborFill(neighbors, neighborStyle) {
   const style = neighborStyle || {
     color: "#777879",
     fillColor: "#ffffff",
     fillOpacity: 0.7,
     weight: 2,
   };
+  L.geoJSON(neighbors, { style, interactive: false }).addTo(map);
+}
+
+// Placement des étiquettes des voisins. À appeler IMPÉRATIVEMENT après le
+// fitBounds : la projection en pixels n'est correcte qu'une fois la vue posée
+// (sinon, à la 1re génération, les étiquettes tombent à côté ou hors cadre).
+function placeNeighborLabels(neighbors, targetFeature) {
   const labeledNeighbors = new Set();
 
-  L.geoJSON(neighbors, {
-    style,
-    onEachFeature: (feature, layer) => {
-      if (!feature.properties?.CCRCA) return;
-      if (labeledNeighbors.has(feature.properties.CCRCA)) return;
-      labeledNeighbors.add(feature.properties.CCRCA);
+  neighbors.forEach((feature) => {
+    if (!feature.properties?.CCRCA) return;
+    if (labeledNeighbors.has(feature.properties.CCRCA)) return;
+    labeledNeighbors.add(feature.properties.CCRCA);
 
+    {
       try {
         const mapBounds = map.getBounds();
         const w = mapBounds.getWest(),
@@ -1401,21 +1408,21 @@ function addNeighborLabels(neighbors, targetFeature, neighborStyle) {
         const c = turf.centroid(feature).geometry.coordinates;
         createNeighborMarker([c[1], c[0]], feature.properties.CCRCA, 0);
       }
+    }
+  });
 
-      let hintShown = false;
-      setTimeout(() => {
-        if (hintShown) return;
-        hintShown = true;
-        const hint = document.getElementById("drag-hint");
-        if (hint) {
-          hint.style.display = "block";
-          hint.offsetHeight;
-          hint.style.animation =
-            "popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards, fadeOut 0.5s ease 4s forwards";
-        }
-      }, 4000);
-    },
-  }).addTo(map);
+  // Astuce « glisser pour ajuster » : une seule fois, si des voisins existent.
+  if (neighbors.length) {
+    setTimeout(() => {
+      const hint = document.getElementById("drag-hint");
+      if (hint) {
+        hint.style.display = "block";
+        hint.offsetHeight;
+        hint.style.animation =
+          "popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards, fadeOut 0.5s ease 4s forwards";
+      }
+    }, 4000);
+  }
 }
 
 async function addOceanLayer(url, targetFeature) {
@@ -2089,7 +2096,8 @@ async function generateLocalisationMap(
       }));
     setLimitropheLabel("Régions limitrophes");
   }
-  if (neighbors.length) addNeighborLabels(neighbors, filterFeature);
+  // Fond des voisins maintenant ; étiquettes après le fitBounds (projection).
+  if (neighbors.length) drawNeighborFill(neighbors);
 
   const hasOcean = await addOceanLayer("data/ocean.geojson", filterFeature);
   const elOC = document.getElementById("legend-ocean");
@@ -2150,6 +2158,7 @@ async function generateLocalisationMap(
   });
   addGraticule(map);
   addMapControls();
+  if (neighbors.length) placeNeighborLabels(neighbors, filterFeature);
 
   // ── Titre, auteur, source ──
   document.getElementById("display-author").innerText = author;
@@ -2282,16 +2291,16 @@ async function generateOccupationMap(
         "#cccccc";
   });
 
-  // Voisins (limitrophes) selon le niveau
+  // Voisins (limitrophes) selon le niveau — fond dessiné maintenant (sous la
+  // donnée), étiquettes placées plus bas, APRÈS le fitBounds.
+  const neighborStyle = {
+    color: "#aaa",
+    fillColor: "#e0e0e0",
+    fillOpacity: 0.4,
+    weight: 1,
+  };
   const neighborFeatures = await computeNeighbors(targetFeature, zoneName, level);
-  if (neighborFeatures.length > 0) {
-    addNeighborLabels(neighborFeatures, targetFeature, {
-      color: "#aaa",
-      fillColor: "#e0e0e0",
-      fillOpacity: 0.4,
-      weight: 1,
-    });
-  }
+  if (neighborFeatures.length > 0) drawNeighborFill(neighborFeatures, neighborStyle);
 
   // Couche occupation
   L.geoJSON(
@@ -2330,6 +2339,8 @@ async function generateOccupationMap(
   });
   addGraticule(map);
   addMapControls();
+  if (neighborFeatures.length > 0)
+    placeNeighborLabels(neighborFeatures, targetFeature);
 
   // Panneau — masquer les cartons de localisation
   document.getElementById("locator-card").style.display = "none";
@@ -2567,16 +2578,16 @@ async function generateReliefMap(targetFeature, zoneName, author, level) {
   }
   octx.putImageData(oid, 0, 0);
 
-  // Voisins (limitrophes) dessinés SOUS le raster (transparent hors polygone).
+  // Voisins (limitrophes) : fond dessiné SOUS le raster (transparent hors
+  // polygone) ; étiquettes placées plus bas, APRÈS le fitBounds.
   const neighborFeatures = await computeNeighbors(targetFeature, zoneName, level);
-  if (neighborFeatures.length > 0) {
-    addNeighborLabels(neighborFeatures, targetFeature, {
+  if (neighborFeatures.length > 0)
+    drawNeighborFill(neighborFeatures, {
       color: "#aaa",
       fillColor: "#e0e0e0",
       fillOpacity: 0.4,
       weight: 1,
     });
-  }
 
   const south = _m.px2lat(oy + H, z),
     north = _m.px2lat(oy, z),
@@ -2597,6 +2608,8 @@ async function generateReliefMap(targetFeature, zoneName, author, level) {
   });
   addGraticule(map);
   addMapControls();
+  if (neighborFeatures.length > 0)
+    placeNeighborLabels(neighborFeatures, targetFeature);
 
   buildReliefLegend(classes);
 
