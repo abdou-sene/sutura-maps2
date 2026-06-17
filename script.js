@@ -193,11 +193,19 @@ async function loadEcoZones() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "list-eco" }),
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      console.warn("[eco] list-eco a échoué :", res.status, txt);
+      return;
+    }
     const { zones } = await res.json();
+    if (!zones || !zones.length) {
+      console.warn("[eco] list-eco a renvoyé 0 zone (table zones_eco vide ?).");
+    }
     (zones || []).forEach((z) => sel.add(new Option(z, z)));
     ecoZonesLoaded = true;
   } catch (e) {
+    console.warn("[eco] loadEcoZones :", e.message);
     /* le menu reste vide, la cascade reste utilisable */
   }
 }
@@ -1165,6 +1173,143 @@ function createNeighborMarker(latlng, name, anchorX) {
    HELPER — LABELS VOISINS
 ════════════════════════════════ */
 
+/* ────────────────────────────────────────────────────────────
+   Placement d'étiquette : pôle d'inaccessibilité (polylabel)
+   Trouve le point le plus « au large » dans un polygone — celui qui
+   maximise la distance au bord. C'est là qu'une étiquette tient sans
+   chevaucher la zone d'étude ni sortir du cadre, sans viser le centroïde
+   (qui, sur les formes concaves ou en plusieurs morceaux, tombe dehors).
+   Portage compact de mapbox/polylabel (coordonnées en degrés, suffisant
+   à ces étendues).
+──────────────────────────────────────────────────────────── */
+function _plSegDistSq(px, py, a, b) {
+  let x = a[0],
+    y = a[1],
+    dx = b[0] - x,
+    dy = b[1] - y;
+  if (dx !== 0 || dy !== 0) {
+    const t = ((px - x) * dx + (py - y) * dy) / (dx * dx + dy * dy);
+    if (t > 1) {
+      x = b[0];
+      y = b[1];
+    } else if (t > 0) {
+      x += dx * t;
+      y += dy * t;
+    }
+  }
+  dx = px - x;
+  dy = py - y;
+  return dx * dx + dy * dy;
+}
+// Distance signée d'un point au polygone (positive à l'intérieur).
+function _plPointToPolyDist(x, y, polygon) {
+  let inside = false;
+  let minDistSq = Infinity;
+  for (let k = 0; k < polygon.length; k++) {
+    const ring = polygon[k];
+    for (let i = 0, len = ring.length, j = len - 1; i < len; j = i++) {
+      const a = ring[i],
+        b = ring[j];
+      if (
+        a[1] > y !== b[1] > y &&
+        x < ((b[0] - a[0]) * (y - a[1])) / (b[1] - a[1]) + a[0]
+      )
+        inside = !inside;
+      minDistSq = Math.min(minDistSq, _plSegDistSq(x, y, a, b));
+    }
+  }
+  return (inside ? 1 : -1) * Math.sqrt(minDistSq);
+}
+function _plCell(x, y, h, polygon) {
+  const d = _plPointToPolyDist(x, y, polygon);
+  return { x, y, h, d, max: d + h * Math.SQRT2 };
+}
+function _plCentroidCell(polygon) {
+  let area = 0,
+    x = 0,
+    y = 0;
+  const ring = polygon[0];
+  for (let i = 0, len = ring.length, j = len - 1; i < len; j = i++) {
+    const a = ring[i],
+      b = ring[j];
+    const f = a[0] * b[1] - b[0] * a[1];
+    x += (a[0] + b[0]) * f;
+    y += (a[1] + b[1]) * f;
+    area += f * 3;
+  }
+  if (area === 0) return _plCell(ring[0][0], ring[0][1], 0, polygon);
+  return _plCell(x / area, y / area, 0, polygon);
+}
+function polylabel(polygon) {
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  const outer = polygon[0];
+  for (const p of outer) {
+    if (p[0] < minX) minX = p[0];
+    if (p[1] < minY) minY = p[1];
+    if (p[0] > maxX) maxX = p[0];
+    if (p[1] > maxY) maxY = p[1];
+  }
+  const width = maxX - minX,
+    height = maxY - minY;
+  const cellSize = Math.min(width, height);
+  if (cellSize === 0) return [minX, minY];
+  const precision = cellSize / 100;
+  let h = cellSize / 2;
+
+  const queue = [];
+  for (let x = minX; x < maxX; x += cellSize)
+    for (let y = minY; y < maxY; y += cellSize)
+      queue.push(_plCell(x + h, y + h, h, polygon));
+
+  let best = _plCentroidCell(polygon);
+  const bboxCell = _plCell(minX + width / 2, minY + height / 2, 0, polygon);
+  if (bboxCell.d > best.d) best = bboxCell;
+
+  while (queue.length) {
+    let bi = 0;
+    for (let i = 1; i < queue.length; i++)
+      if (queue[i].max > queue[bi].max) bi = i;
+    const cell = queue.splice(bi, 1)[0];
+    if (cell.d > best.d) best = cell;
+    if (cell.max - best.d <= precision) continue;
+    h = cell.h / 2;
+    queue.push(_plCell(cell.x - h, cell.y - h, h, polygon));
+    queue.push(_plCell(cell.x + h, cell.y - h, h, polygon));
+    queue.push(_plCell(cell.x - h, cell.y + h, h, polygon));
+    queue.push(_plCell(cell.x + h, cell.y + h, h, polygon));
+  }
+  return [best.x, best.y];
+}
+// Aire (valeur absolue, shoelace) de l'anneau extérieur.
+function _ringAreaAbs(ring) {
+  let a = 0;
+  for (let i = 0, len = ring.length, j = len - 1; i < len; j = i++)
+    a += ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1];
+  return Math.abs(a) / 2;
+}
+// Coordonnées du plus grand polygone d'une entité (Polygon ou MultiPolygon).
+function largestPolygonCoords(feature) {
+  const g = feature.geometry;
+  if (!g) return null;
+  if (g.type === "Polygon") return g.coordinates;
+  if (g.type === "MultiPolygon") {
+    let best = null,
+      bestA = -1;
+    for (const poly of g.coordinates) {
+      const a = _ringAreaAbs(poly[0]);
+      if (a > bestA) {
+        bestA = a;
+        best = poly;
+      }
+    }
+    return best;
+  }
+  return null;
+}
+
 function addNeighborLabels(neighbors, targetFeature, neighborStyle) {
   const style = neighborStyle || {
     color: "#777879",
@@ -1183,35 +1328,43 @@ function addNeighborLabels(neighbors, targetFeature, neighborStyle) {
 
       try {
         const mapBounds = map.getBounds();
-        const bboxPoly = turf.bboxPolygon([
-          mapBounds.getWest(),
-          mapBounds.getSouth(),
-          mapBounds.getEast(),
-          mapBounds.getNorth(),
-        ]);
+        const w = mapBounds.getWest(),
+          s = mapBounds.getSouth(),
+          e = mapBounds.getEast(),
+          n = mapBounds.getNorth();
+        // Léger retrait (2 %) pour éviter de coller pile au bord ; le
+        // recadrage en pixels plus bas garantit le maintien dans le cadre.
+        const mx = (e - w) * 0.02,
+          my = (n - s) * 0.02;
+        const frame = turf.bboxPolygon([w + mx, s + my, e - mx, n - my]);
 
+        // 1) Partie du voisin visible dans le cadre.
         let visiblePart;
         try {
-          visiblePart = turf.intersect(feature, bboxPoly);
-        } catch (e) {
+          visiblePart = turf.intersect(feature, frame);
+        } catch (err) {
           visiblePart = null;
         }
         if (!visiblePart) visiblePart = feature;
 
+        // 2) On retranche la zone d'étude : l'étiquette ne tombe jamais dessus.
         let labelZone;
         try {
           labelZone = turf.difference(visiblePart, targetFeature);
-        } catch (e) {
+        } catch (err) {
           labelZone = visiblePart;
         }
         if (!labelZone) labelZone = visiblePart;
 
-        const centroid = turf.centroid(labelZone);
-        const [lng, lat] = centroid.geometry.coordinates;
-        let finalLatLng = [lat, lng];
-
-        if (!mapBounds.contains(finalLatLng)) {
-          const c = turf.centroid(visiblePart).geometry.coordinates;
+        // 3) Plus grand morceau libre + pôle d'inaccessibilité : le point le
+        //    plus au large, là où il y a vraiment de la place.
+        let finalLatLng;
+        const coords = largestPolygonCoords(labelZone);
+        if (coords) {
+          const [lng, lat] = polylabel(coords);
+          finalLatLng = [lat, lng];
+        } else {
+          const c = turf.centroid(labelZone).geometry.coordinates;
           finalLatLng = [c[1], c[0]];
         }
 
@@ -1222,13 +1375,27 @@ function addNeighborLabels(neighbors, targetFeature, neighborStyle) {
           feature.properties.CCRCA.toUpperCase(),
         ).width;
 
-        const studyCentroidPx = map.latLngToContainerPoint(
-          turf.centroid(targetFeature).geometry.coordinates.slice().reverse(),
-        );
-        const labelPx = map.latLngToContainerPoint(finalLatLng);
-        const anchorX =
-          labelPx.x < studyCentroidPx.x ? Math.round(textWidth) : 0;
+        // Recadrage EN PIXELS : on s'assure que toute la boîte de texte tient
+        // dans le cadre, et on étire le texte vers l'intérieur (pas vers le
+        // bord). C'est ce qui empêche les étiquettes de sortir de la marge.
+        const size = map.getSize();
+        const mPx = 6; // marge intérieure en pixels
+        const hPx = 7; // demi-hauteur du texte (~14 px)
+        const px = map.latLngToContainerPoint(finalLatLng);
 
+        // Le texte part vers la gauche s'il est dans la moitié droite du cadre.
+        const extendLeft = px.x > size.x / 2;
+        const anchorX = extendLeft ? Math.round(textWidth) : 0;
+
+        // Bornes horizontales de la boîte, puis décalage si elle déborde.
+        const boxLeft = px.x - (extendLeft ? textWidth : 0);
+        const boxRight = px.x + (extendLeft ? 0 : textWidth);
+        if (boxLeft < mPx) px.x += mPx - boxLeft;
+        else if (boxRight > size.x - mPx) px.x -= boxRight - (size.x - mPx);
+        // Bornes verticales.
+        px.y = Math.max(mPx + hPx, Math.min(size.y - mPx - hPx, px.y));
+
+        finalLatLng = map.containerPointToLatLng(px);
         createNeighborMarker(finalLatLng, feature.properties.CCRCA, anchorX);
       } catch (e) {
         const c = turf.centroid(feature).geometry.coordinates;
@@ -2032,6 +2199,64 @@ async function generateLocalisationMap(
    CARTE D'OCCUPATION DU SOL
 ════════════════════════════════ */
 
+// Renvoie les entités limitrophes (communes, départements ou régions) qui
+// touchent la zone d'étude, selon le niveau. Le nom voisin est normalisé dans
+// la propriété CCRCA pour qu'addNeighborLabels l'affiche de façon uniforme.
+// (Le niveau "eco" n'a pas de limitrophes administratifs : renvoie [].)
+async function computeNeighbors(targetFeature, zoneName, level) {
+  if (level === "commune") {
+    return geoData.communes.features.filter((f) => {
+      if (f.properties.CCRCA === zoneName) return false;
+      try {
+        return turf.booleanIntersects(targetFeature, f);
+      } catch (e) {
+        return false;
+      }
+    });
+  }
+  if (level === "dept") {
+    try {
+      const data = await fetchGeo("data/departements.geojson");
+      return data.features
+        .filter((f) => {
+          if (f.properties.DEPT === targetFeature.properties.DEPT) return false;
+          try {
+            return turf.booleanIntersects(targetFeature, f);
+          } catch (e) {
+            return false;
+          }
+        })
+        .map((f) => ({
+          ...f,
+          properties: { ...f.properties, CCRCA: f.properties.DEPT },
+        }));
+    } catch (e) {
+      return [];
+    }
+  }
+  if (level === "region") {
+    try {
+      const data = await fetchGeo("data/regions.geojson");
+      return data.features
+        .filter((f) => {
+          if (f.properties.REG === targetFeature.properties.REG) return false;
+          try {
+            return turf.booleanIntersects(targetFeature, f);
+          } catch (e) {
+            return false;
+          }
+        })
+        .map((f) => ({
+          ...f,
+          properties: { ...f.properties, CCRCA: f.properties.REG },
+        }));
+    } catch (e) {
+      return [];
+    }
+  }
+  return [];
+}
+
 async function generateOccupationMap(
   targetFeature,
   zoneName,
@@ -2057,57 +2282,8 @@ async function generateOccupationMap(
         "#cccccc";
   });
 
-  // Voisins selon le niveau
-  let neighborFeatures = [];
-  if (level === "commune") {
-    neighborFeatures = geoData.communes.features.filter((f) => {
-      if (f.properties.CCRCA === zoneName) return false;
-      try {
-        return turf.booleanIntersects(targetFeature, f);
-      } catch (e) {
-        return false;
-      }
-    });
-  } else if (level === "dept") {
-    try {
-      const data = await fetchGeo("data/departements.geojson");
-      neighborFeatures = data.features
-        .filter((f) => {
-          if (f.properties.DEPT === targetFeature.properties.DEPT) return false;
-          try {
-            return turf.booleanIntersects(targetFeature, f);
-          } catch (e) {
-            return false;
-          }
-        })
-        .map((f) => ({
-          ...f,
-          properties: { ...f.properties, CCRCA: f.properties.DEPT },
-        }));
-    } catch (e) {
-      /* pas de voisins */
-    }
-  } else if (level === "region") {
-    try {
-      const data = await fetchGeo("data/regions.geojson");
-      neighborFeatures = data.features
-        .filter((f) => {
-          if (f.properties.REG === targetFeature.properties.REG) return false;
-          try {
-            return turf.booleanIntersects(targetFeature, f);
-          } catch (e) {
-            return false;
-          }
-        })
-        .map((f) => ({
-          ...f,
-          properties: { ...f.properties, CCRCA: f.properties.REG },
-        }));
-    } catch (e) {
-      /* pas de voisins */
-    }
-  }
-
+  // Voisins (limitrophes) selon le niveau
+  const neighborFeatures = await computeNeighbors(targetFeature, zoneName, level);
   if (neighborFeatures.length > 0) {
     addNeighborLabels(neighborFeatures, targetFeature, {
       color: "#aaa",
@@ -2185,14 +2361,58 @@ async function generateOccupationMap(
 ════════════════════════════════ */
 
 const MNT_TILE = 256;
-const MNT_STOPS = [
-  [0, [46, 125, 50]],
-  [0.2, [102, 187, 106]],
-  [0.4, [205, 220, 57]],
-  [0.6, [212, 176, 106]],
-  [0.8, [161, 105, 59]],
-  [1, [245, 240, 230]],
+
+// Palette hypsométrique DISCRÈTE à 5 classes (du plus bas au plus haut).
+const MNT_COLORS = [
+  [60, 140, 80], // vert (bas)
+  [170, 195, 100], // vert-jaune
+  [225, 200, 110], // jaune-ocre
+  [180, 120, 70], // brun
+  [240, 235, 225], // pâle (haut)
 ];
+// Couleur dédiée aux zones sous le niveau de la mer (< 0 m).
+const MNT_NEG_COLOR = [80, 140, 170]; // bleu-gris
+
+// Arrondit un pas brut au multiple de 5 supérieur (minimum 5 m).
+function mntNiceStep(rawStep) {
+  return Math.max(5, Math.ceil(rawStep / 5) * 5);
+}
+
+// Construit le découpage en 5 classes selon la dénivelée.
+//  - Si l'altitude descend sous -1 m, la 1re classe est « < 0 » et les
+//    4 autres couvrent [0, emax].
+//  - Sinon, 5 classes régulières couvrant [emin, emax].
+// Retourne { classOf(e)->0..4, colors[5], labels[5] } (ordre bas → haut).
+function mntBuildClasses(emin, emax) {
+  const hasNeg = emin < -1;
+
+  if (hasNeg) {
+    const step = mntNiceStep(Math.max(emax, 1) / 4);
+    const labels = [
+      "< 0 m",
+      `0 – ${step} m`,
+      `${step} – ${2 * step} m`,
+      `${2 * step} – ${3 * step} m`,
+      `> ${3 * step} m`,
+    ];
+    const colors = [MNT_NEG_COLOR, ...MNT_COLORS.slice(0, 4)];
+    const classOf = (e) => {
+      if (e < 0) return 0;
+      return 1 + Math.min(3, Math.floor(e / step));
+    };
+    return { classOf, colors, labels };
+  }
+
+  const step = mntNiceStep((emax - emin) / 5);
+  const base = Math.floor(emin / step) * step;
+  const labels = [];
+  for (let i = 0; i < 5; i++) {
+    const lo = base + i * step;
+    labels.push(i < 4 ? `${lo} – ${lo + step} m` : `> ${base + 4 * step} m`);
+  }
+  const classOf = (e) => Math.max(0, Math.min(4, Math.floor((e - base) / step)));
+  return { classOf, colors: MNT_COLORS.slice(), labels };
+}
 const _m = {
   lon2px: (lon, z) => ((lon + 180) / 360) * MNT_TILE * 2 ** z,
   lat2px: (lat, z) => {
@@ -2209,19 +2429,6 @@ const _m = {
     return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
   },
 };
-function mntRamp(t) {
-  if (t <= 0) return MNT_STOPS[0][1];
-  if (t >= 1) return MNT_STOPS[MNT_STOPS.length - 1][1];
-  for (let i = 1; i < MNT_STOPS.length; i++) {
-    if (t <= MNT_STOPS[i][0]) {
-      const [a, c0] = MNT_STOPS[i - 1],
-        [b, c1] = MNT_STOPS[i];
-      const k = (t - a) / (b - a);
-      return [0, 1, 2].map((j) => Math.round(c0[j] + (c1[j] - c0[j]) * k));
-    }
-  }
-  return MNT_STOPS[MNT_STOPS.length - 1][1];
-}
 function mntRingContains([x, y], ring) {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -2338,7 +2545,8 @@ async function generateReliefMap(targetFeature, zoneName, author, level) {
     return;
   }
 
-  const span = Math.max(1, emax - emin);
+  // Découpage en 5 classes discrètes selon la dénivelée réelle.
+  const classes = mntBuildClasses(emin, emax);
   const out = document.createElement("canvas");
   out.width = W;
   out.height = H;
@@ -2351,13 +2559,24 @@ async function generateReliefMap(targetFeature, zoneName, author, level) {
       od[p + 3] = 0;
       continue;
     }
-    const c = mntRamp((elev[k] - emin) / span);
+    const c = classes.colors[classes.classOf(elev[k])];
     od[p] = c[0];
     od[p + 1] = c[1];
     od[p + 2] = c[2];
     od[p + 3] = 255;
   }
   octx.putImageData(oid, 0, 0);
+
+  // Voisins (limitrophes) dessinés SOUS le raster (transparent hors polygone).
+  const neighborFeatures = await computeNeighbors(targetFeature, zoneName, level);
+  if (neighborFeatures.length > 0) {
+    addNeighborLabels(neighborFeatures, targetFeature, {
+      color: "#aaa",
+      fillColor: "#e0e0e0",
+      fillOpacity: 0.4,
+      weight: 1,
+    });
+  }
 
   const south = _m.px2lat(oy + H, z),
     north = _m.px2lat(oy, z),
@@ -2379,7 +2598,7 @@ async function generateReliefMap(targetFeature, zoneName, author, level) {
   addGraticule(map);
   addMapControls();
 
-  buildReliefLegend(Math.round(emin), Math.round(emax));
+  buildReliefLegend(classes);
 
   document.getElementById("locator-card").style.display = "none";
   document.getElementById("region-card").style.display = "none";
@@ -2396,13 +2615,23 @@ async function generateReliefMap(targetFeature, zoneName, author, level) {
   addLiveWatermark();
 }
 
-function buildReliefLegend(emin, emax) {
+function buildReliefLegend(classes) {
   const body = document.querySelector("#legend-card .panel-card-body");
   if (!body) return;
-  const grad = MNT_STOPS.map(
-    ([p, c]) => `rgb(${c[0]},${c[1]},${c[2]}) ${Math.round(p * 100)}%`,
-  ).join(",");
-  const mid = Math.round((emin + emax) / 2);
+  // Légende verticale : du plus haut (en haut) au plus bas (en bas).
+  const rows = classes.colors
+    .map((c, i) => ({ c, label: classes.labels[i] }))
+    .reverse()
+    .map(
+      ({ c, label }) => `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+        <span style="width:18px;height:14px;flex:0 0 auto;
+                     background:rgb(${c[0]},${c[1]},${c[2]});
+                     border:1px solid rgba(0,0,0,0.2);border-radius:2px;"></span>
+        <span style="font-size:0.72rem;color:var(--ink);">${label}</span>
+      </div>`,
+    )
+    .join("");
   body.innerHTML = `
     <p style="font-size:0.68rem;font-weight:600;letter-spacing:1.5px;
               text-transform:uppercase;color:var(--muted);
@@ -2410,12 +2639,7 @@ function buildReliefLegend(emin, emax) {
               border-bottom:1px solid rgba(14,12,10,0.1);">
       Altitude (mètres)
     </p>
-    <div style="height:14px;border:1px solid rgba(0,0,0,0.15);border-radius:2px;
-                background:linear-gradient(90deg, ${grad});"></div>
-    <div style="display:flex;justify-content:space-between;
-                font-size:0.72rem;color:var(--ink);margin-top:6px;">
-      <span>${emin} m</span><span>${mid} m</span><span>${emax} m</span>
-    </div>`;
+    ${rows}`;
 }
 
 /* ════════════════════════════════
