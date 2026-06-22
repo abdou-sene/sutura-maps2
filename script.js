@@ -34,6 +34,7 @@ function fetchGeo(url) {
   }
   return geoFetchCache[url];
 }
+
 function prefetchGeoData() {
   [
     "data/communes.geojson",
@@ -47,9 +48,7 @@ function prefetchGeoData() {
 }
 
 let selectedMapType = "localisation";
-let selectedLevel = "commune"; // "commune" | "dept" | "region" | "eco"
-let selectedEco = ""; // zone éco-géographique sélectionnée (occupation)
-let ecoZonesLoaded = false;
+let selectedLevel = "commune"; // "commune" | "dept" | "region"
 let occupationClipped = null;
 let occupationPalette = {};
 
@@ -135,19 +134,6 @@ function selectMapType(btn) {
     restoreStep2Localisation();
   }
 
-  // Le sélecteur de zone éco-géographique n'apparaît que pour l'occupation.
-  const ecoGroup = document.getElementById("eco-group");
-  if (ecoGroup) {
-    ecoGroup.style.display = selectedMapType === "occupation" ? "block" : "none";
-  }
-  if (selectedMapType === "occupation") {
-    loadEcoZones();
-  } else {
-    selectedEco = "";
-    const se = document.getElementById("select-eco");
-    if (se) se.value = "";
-  }
-
   checkNextBtn();
 }
 
@@ -162,13 +148,6 @@ function checkNextBtn() {
   const btn = document.getElementById("btn-to-step2");
   if (!btn) return;
 
-  // Zone éco-géographique (occupation) : prend le dessus sur la cascade.
-  if (selectedEco) {
-    selectedLevel = "eco";
-    btn.disabled = false;
-    return;
-  }
-
   if (commune) selectedLevel = "commune";
   else if (dept) selectedLevel = "dept";
   else if (reg) selectedLevel = "region";
@@ -180,34 +159,6 @@ function checkNextBtn() {
 
   // Au moins la région doit être choisie.
   btn.disabled = !reg;
-}
-
-// Charge la liste des zones éco-géographiques dans le menu (une seule fois).
-async function loadEcoZones() {
-  if (ecoZonesLoaded) return;
-  const sel = document.getElementById("select-eco");
-  if (!sel) return;
-  try {
-    const res = await fetch("/.netlify/functions/get-occupation", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "list-eco" }),
-    });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      console.warn("[eco] list-eco a échoué :", res.status, txt);
-      return;
-    }
-    const { zones } = await res.json();
-    if (!zones || !zones.length) {
-      console.warn("[eco] list-eco a renvoyé 0 zone (table zones_eco vide ?).");
-    }
-    (zones || []).forEach((z) => sel.add(new Option(z, z)));
-    ecoZonesLoaded = true;
-  } catch (e) {
-    console.warn("[eco] loadEcoZones :", e.message);
-    /* le menu reste vide, la cascade reste utilisable */
-  }
 }
 
 /* ════════════════════════════════
@@ -313,31 +264,8 @@ function initFilters() {
   const regions = [...new Set(metaData.map((f) => f.REG))].sort();
   regions.forEach((r) => selReg.add(new Option(r, r)));
 
-  // Sélecteur de zone éco-géographique (exclusif avec la cascade).
-  const selEco = document.getElementById("select-eco");
-  if (selEco) {
-    selEco.onchange = () => {
-      selectedEco = selEco.value;
-      if (selectedEco) {
-        // Vider la cascade : les deux modes de sélection sont exclusifs.
-        selReg.value = "";
-        selDept.innerHTML = '<option value="">-- Département --</option>';
-        selDept.disabled = true;
-        selCom.innerHTML = '<option value="">-- Commune --</option>';
-        selCom.disabled = true;
-        occupationClipped = null;
-        occupationPalette = {};
-      }
-      checkNextBtn();
-    };
-  }
-
   selReg.onchange = () => {
     const reg = selReg.value;
-
-    // Utiliser la cascade annule la sélection de zone éco.
-    selectedEco = "";
-    if (selEco) selEco.value = "";
 
     selDept.innerHTML = '<option value="">-- Département --</option>';
     selDept.disabled = !reg;
@@ -392,14 +320,8 @@ function showStep2LoadingScreen() {
   const dept = document.getElementById("select-dept").value;
   const commune = document.getElementById("select-commune").value;
 
-  const zoneName = selectedEco || commune || dept || reg;
-  const zoneLevel = selectedEco
-    ? "zone éco-géographique"
-    : commune
-      ? "commune"
-      : dept
-        ? "département"
-        : "région";
+  const zoneName = commune || dept || reg;
+  const zoneLevel = commune ? "commune" : dept ? "département" : "région";
 
   const card = document.querySelector("#step-2 .card");
   card.innerHTML = `
@@ -558,18 +480,13 @@ async function preloadOccupation() {
   const dept = document.getElementById("select-dept").value;
   const reg = document.getElementById("select-reg").value;
 
-  // Niveau selon la sélection (commune, département, région ou zone éco).
+  // Niveau selon la sélection (commune, département ou région).
   const level = selectedLevel;
 
-  // Le nom de la zone éco voyage dans le champ "commune" (zoneName générique).
-  const zoneCommune = level === "eco" ? selectedEco : commune;
-
   const missing =
-    level === "eco"
-      ? !selectedEco
-      : (level === "commune" && !commune) ||
-        (level === "dept" && !dept) ||
-        !reg;
+    (level === "commune" && !commune) ||
+    (level === "dept" && !dept) ||
+    !reg;
   if (missing) {
     showError("Sélection incomplète pour l'occupation du sol.");
     goToStep(1);
@@ -580,7 +497,7 @@ async function preloadOccupation() {
     const res = await fetch("/.netlify/functions/get-occupation", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ commune: zoneCommune, dept, reg, level }),
+      body: JSON.stringify({ commune, dept, reg, level }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const geojson = await res.json();
@@ -651,7 +568,7 @@ function restoreLocalisationLegend() {
   </div>
   <div class="legend-item" id="legend-ocean" style="display:none">
     <span class="legend-swatch" style="background:#c8dfe8;border-color:#a8c8d8;opacity:1"></span>
-    <span class="legend-label">Océan</span>
+    <span class="legend-label">Océan Atlantique</span>
   </div>
 `;
 }
@@ -1749,13 +1666,7 @@ async function generateFinalMap() {
   // Niveau choisi (commune, département, région ou zone éco).
   const level = selectedLevel;
   const zoneName =
-    level === "eco"
-      ? selectedEco
-      : level === "region"
-        ? reg
-        : level === "dept"
-          ? dept
-          : comName;
+    level === "region" ? reg : level === "dept" ? dept : comName;
 
   goToStep("loading");
   document.getElementById("loading-commune").innerText = (
@@ -1797,9 +1708,6 @@ async function generateFinalMap() {
           f.properties.DEPT === dept &&
           f.properties.REG === reg,
       );
-    } else if (level === "eco") {
-      // Zone éco : le contour vient de l'occupation déjà chargée (dissoute).
-      targetFeature = dissolveToFeature(occupationClipped);
     } else {
       targetFeature = await buildMergedFeature(level, dept, reg);
     }
@@ -1883,31 +1791,6 @@ async function buildMergedFeature(level, dept, reg) {
     );
   }
   return null;
-}
-
-// Dissout une liste de features (classes d'occupation) en un seul contour.
-// Sert au niveau zone éco, dont on n'a pas le polygone localement.
-function dissolveToFeature(features) {
-  if (!features || !features.length) return null;
-  try {
-    let u = features[0];
-    for (let i = 1; i < features.length; i++) {
-      try {
-        const x = turf.union(u, features[i]);
-        if (x) u = x;
-      } catch (e) {
-        /* on ignore une classe qui résiste */
-      }
-    }
-    return u;
-  } catch (e) {
-    try {
-      const b = turf.bbox({ type: "FeatureCollection", features });
-      return turf.bboxPolygon(b);
-    } catch (e2) {
-      return null;
-    }
-  }
 }
 
 function mergeFeatures(features, props) {
@@ -2211,7 +2094,6 @@ async function generateLocalisationMap(
 // Renvoie les entités limitrophes (communes, départements ou régions) qui
 // touchent la zone d'étude, selon le niveau. Le nom voisin est normalisé dans
 // la propriété CCRCA pour qu'addNeighborLabels l'affiche de façon uniforme.
-// (Le niveau "eco" n'a pas de limitrophes administratifs : renvoie [].)
 async function computeNeighbors(targetFeature, zoneName, level) {
   if (level === "commune") {
     return geoData.communes.features.filter((f) => {
@@ -2351,12 +2233,9 @@ async function generateOccupationMap(
       ? "RÉGION"
       : level === "dept"
         ? "DÉPARTEMENT"
-        : level === "eco"
-          ? "ZONE"
-          : "COMMUNE";
-  const titlePrefix = level === "eco" ? "" : "DE ";
+        : "COMMUNE";
   document.getElementById("display-commune").innerText =
-    `OCCUPATION DU SOL — ${levelLabel} ${titlePrefix}${zoneName.toUpperCase()}`;
+    `OCCUPATION DU SOL — ${levelLabel} DE ${zoneName.toUpperCase()}`;
   document.getElementById("display-author").innerText = author;
   document.getElementById("display-date").innerText =
     new Date().toLocaleDateString("fr-FR");
@@ -2701,16 +2580,10 @@ async function exportToPNG() {
   const author = document.getElementById("author-name")?.value || "Sutura Maps";
   const mobile = isMobileDevice();
 
-  // Niveau et nom de la zone (commune, département, région ou zone éco).
+  // Niveau et nom de la zone (commune, département ou région).
   const level = selectedLevel;
   const zoneName =
-    level === "eco"
-      ? selectedEco
-      : level === "region"
-        ? reg
-        : level === "dept"
-          ? dept
-          : commune;
+    level === "region" ? reg : level === "dept" ? dept : commune;
 
   const btn = document.querySelector(".btn-export");
   const resetBtn = () => {
@@ -2803,7 +2676,7 @@ function priceForClient(maptype, level) {
     return 4000;
   if (
     (maptype === "occupation" || maptype === "relief") &&
-    (level === "region" || level === "eco")
+    level === "region"
   )
     return 5000;
   return 2000;
@@ -2817,9 +2690,7 @@ function zoneLabelFor(level, name) {
       ? "Région de "
       : level === "dept"
         ? "Département de "
-        : level === "eco"
-          ? "Zone "
-          : "Commune de ";
+        : "Commune de ";
   return prefix + (name || "").toUpperCase();
 }
 
@@ -3130,13 +3001,11 @@ async function handleDownloadToken(token) {
       targetFeature = geoData.communes.features.find(
         (f) => f.properties.CCRCA === commune,
       );
-    } else if (level === "eco") {
-      targetFeature = null; // construit après le chargement de l'occupation
     } else {
       targetFeature = await buildMergedFeature(level, zDept, zReg);
     }
 
-    if (!targetFeature && level !== "eco") {
+    if (!targetFeature) {
       waitDiv.innerHTML = `
         <div style="font-size:3rem">⚠️</div>
         <p style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;color:var(--terra);">
@@ -3168,8 +3037,8 @@ async function handleDownloadToken(token) {
         level,
       );
     } else if (mapType === "occupation") {
-      const dept = level === "eco" ? null : zDept || targetFeature.properties.DEPT;
-      const reg = level === "eco" ? null : zReg || targetFeature.properties.REG;
+      const dept = zDept || targetFeature.properties.DEPT;
+      const reg = zReg || targetFeature.properties.REG;
       try {
         const ocRes = await fetch("/.netlify/functions/get-occupation", {
           method: "POST",
@@ -3181,15 +3050,6 @@ async function handleDownloadToken(token) {
         occupationClipped = ocJson.features || [];
       } catch (e) {
         occupationClipped = [];
-      }
-
-      // Zone éco : le contour se déduit de l'occupation chargée.
-      if (level === "eco") {
-        targetFeature = dissolveToFeature(occupationClipped);
-        if (!targetFeature) {
-          showError("Zone éco introuvable.");
-          return;
-        }
       }
 
       try {

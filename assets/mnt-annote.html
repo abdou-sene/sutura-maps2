@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>Visuel annoté — Relief MNT</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500&family=Barlow+Condensed:wght@500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#0e0c0a; --sand:#f7f3ec; --terra:#b85c2c; --terra2:#d4784a;
+    --gold:#c9a84c; --muted:#7a7068;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#d9d2c6;display:flex;justify-content:center;padding:32px;
+       font-family:"DM Sans",sans-serif;}
+
+  /* Format 4:5 (1080x1350) : idéal LinkedIn, OK pour statut WhatsApp. */
+  .post{width:1080px;height:1350px;background:var(--sand);position:relative;
+        overflow:hidden;display:flex;flex-direction:column;}
+
+  /* Bande de marque */
+  .topbar{background:var(--ink);padding:18px 44px;display:flex;
+          align-items:center;justify-content:space-between;}
+  .brand{font-family:"Cormorant Garamond",serif;font-size:1.5rem;font-weight:600;
+         color:var(--sand);letter-spacing:2px;}
+  .brand em{font-style:italic;color:var(--terra2);}
+  .tag{font-family:"Barlow Condensed",sans-serif;font-size:.8rem;font-weight:700;
+       letter-spacing:3px;text-transform:uppercase;color:var(--terra);}
+
+  /* Accroche */
+  .head{padding:36px 56px 22px;}
+  .eyebrow{font-family:"Barlow Condensed",sans-serif;font-size:.9rem;font-weight:700;
+           letter-spacing:4px;text-transform:uppercase;color:var(--terra);
+           margin-bottom:12px;}
+  .title{font-family:"Cormorant Garamond",serif;font-size:3.1rem;font-weight:700;
+         line-height:1.04;color:var(--ink);}
+  .title em{font-style:italic;font-weight:400;color:var(--terra);}
+
+  /* Carte + annotations */
+  .mapwrap{position:relative;margin:8px 56px 0;border:1px solid rgba(14,12,10,.12);
+           box-shadow:0 18px 40px rgba(14,12,10,.12);}
+  .mapwrap img{display:block;width:100%;height:auto;}
+
+  /* Pastille numérotée posée sur la carte */
+  .pin{position:absolute;width:40px;height:40px;border-radius:50%;
+       background:var(--terra);color:#fff;display:flex;align-items:center;
+       justify-content:center;font-family:"Barlow Condensed",sans-serif;
+       font-weight:700;font-size:1.3rem;border:3px solid var(--sand);
+       box-shadow:0 4px 10px rgba(14,12,10,.35);transform:translate(-50%,-50%);}
+  /* Positions approximatives — ajuste de quelques % si besoin sur ta carte. */
+  .p1{left:30%;top:26%;}   /* sur la limite (contour) */
+  .p2{left:44%;top:60%;}   /* sur les bandes de couleur */
+  .p3{left:80%;top:20%;}   /* sur la légende */
+
+  /* Légende des annotations */
+  .notes{display:flex;gap:18px;padding:26px 56px 0;}
+  .note{flex:1;display:flex;gap:12px;align-items:flex-start;}
+  .note .n{flex:0 0 auto;width:30px;height:30px;border-radius:50%;
+           background:var(--ink);color:var(--sand);display:flex;
+           align-items:center;justify-content:center;
+           font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:1rem;}
+  .note p{font-size:.96rem;line-height:1.35;color:var(--ink);}
+  .note p strong{display:block;font-weight:500;}
+  .note p span{color:var(--muted);font-size:.86rem;}
+
+  /* Pied CTA */
+  .cta{margin-top:auto;background:var(--ink);padding:24px 56px;
+       display:flex;align-items:center;justify-content:space-between;}
+  .cta .l{font-family:"Cormorant Garamond",serif;font-size:1.5rem;
+          color:var(--sand);font-style:italic;}
+  .cta .r{font-family:"Barlow Condensed",sans-serif;font-weight:700;
+          letter-spacing:2px;text-transform:uppercase;color:var(--ink);
+          background:var(--gold);padding:12px 22px;font-size:1rem;}
+  .src{position:absolute;right:56px;bottom:96px;font-size:.72rem;
+       color:var(--muted);letter-spacing:.5px;}
+</style>
+</head>
+<body>
+<div class="post">
+
+  <div class="topbar">
+    <span class="brand">Sutura <em>Maps</em></span>
+    <span class="tag">Cartes du Sénégal</span>
+  </div>
+
+  <div class="head">
+    <div class="eyebrow">Nouveau · Relief (MNT)</div>
+    <h1 class="title">Le relief de ta commune,<br><em>au mètre près.</em></h1>
+  </div>
+
+  <div class="mapwrap">
+    <!-- Remplace par TON PNG exporté (carte + légende). -->
+    <img src="dindefello-relief.png" alt="Carte du relief" />
+    <span class="pin p1">1</span>
+    <span class="pin p2">2</span>
+    <span class="pin p3">3</span>
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <span class="n">1</span>
+      <p><strong>Découpé sur tes limites</strong>
+         <span>Pixel par pixel. Pas un rectangle approximatif.</span></p>
+    </div>
+    <div class="note">
+      <span class="n">2</span>
+      <p><strong>5 classes d'altitude</strong>
+         <span>L'intervalle s'adapte à la dénivelée réelle du terrain.</span></p>
+    </div>
+    <div class="note">
+      <span class="n">3</span>
+      <p><strong>Légende verticale et claire</strong>
+         <span>Palette lisible. Source SRTM, NASA, 30 m.</span></p>
+    </div>
+  </div>
+
+  <div class="cta">
+    <span class="l">Ta zone, en quelques minutes.</span>
+    <span class="r">sutura-maps</span>
+  </div>
+
+</div>
+</body>
+</html>

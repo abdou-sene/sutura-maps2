@@ -34,17 +34,10 @@ exports.handler = async (event) => {
   const mt =
     maptype === "occupation" || maptype === "relief" ? maptype : "localisation";
   const lvl =
-    level === "region"
-      ? "region"
-      : level === "dept"
-        ? "dept"
-        : level === "eco"
-          ? "eco"
-          : "commune";
+    level === "region" ? "region" : level === "dept" ? "dept" : "commune";
   function priceFor(t, l) {
     if ((t === "occupation" || t === "relief") && l === "dept") return 4000;
-    if ((t === "occupation" || t === "relief") && (l === "region" || l === "eco"))
-      return 5000;
+    if ((t === "occupation" || t === "relief") && l === "region") return 5000;
     return 2000;
   }
   const amount = priceFor(mt, lvl);
