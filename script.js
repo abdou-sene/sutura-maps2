@@ -2046,7 +2046,7 @@ async function generateLocalisationMap(
   // ── Titre, auteur, source ──
   document.getElementById("display-author").innerText = author;
   document.getElementById("display-date").innerText =
-    new Date().toLocaleDateString("fr-FR");
+    new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
   const dsEl = document.getElementById("data-source");
   if (dsEl) dsEl.innerText = source;
 
@@ -2055,29 +2055,29 @@ async function generateLocalisationMap(
 
   if (level === "commune") {
     document.getElementById("display-commune").innerText =
-      `COMMUNE DE ${zoneName.toUpperCase()}`;
+      `LOCALISATION DE LA COMMUNE DE ${zoneName.toUpperCase()}`;
     document.querySelector("#locator-card .panel-card-header").innerText =
       `DÉPARTEMENT ${dept || ""}`;
     document.getElementById("region-card-header").innerText =
-      `RÉGION ${reg || ""} — SÉNÉGAL`;
+      `RÉGION ${reg || ""} AU SÉNÉGAL`;
     locatorCard.style.display = "flex";
     regionCard.style.display = "flex";
     buildLocatorMap(targetFeature, userColor, "commune");
     buildRegionMap(targetFeature, userColor);
   } else if (level === "dept") {
     document.getElementById("display-commune").innerText =
-      `DÉPARTEMENT DE ${zoneName.toUpperCase()}`;
+      `LOCALISATION DU DÉPARTEMENT DE ${zoneName.toUpperCase()}`;
     document.querySelector("#locator-card .panel-card-header").innerText =
       `RÉGION ${reg || ""}`;
     document.getElementById("region-card-header").innerText =
-      `RÉGION ${reg || ""} — SÉNÉGAL`;
+      `RÉGION ${reg || ""} AU SÉNÉGAL`;
     locatorCard.style.display = "flex";
     regionCard.style.display = "flex";
     buildLocatorMap(targetFeature, userColor, "dept");
     buildRegionMap(targetFeature, userColor);
   } else {
     document.getElementById("display-commune").innerText =
-      `RÉGION DE ${zoneName.toUpperCase()}`;
+      `LOCALISATION DE LA RÉGION DE ${zoneName.toUpperCase()}`;
     locatorCard.style.display = "none";
     regionCard.style.display = "flex";
     document.getElementById("region-card-header").innerText = "SÉNÉGAL";
@@ -2238,7 +2238,7 @@ async function generateOccupationMap(
     `OCCUPATION DU SOL — ${levelLabel} DE ${zoneName.toUpperCase()}`;
   document.getElementById("display-author").innerText = author;
   document.getElementById("display-date").innerText =
-    new Date().toLocaleDateString("fr-FR");
+    new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
   document.getElementById("data-source").innerText = source;
 
   addLiveWatermark();
@@ -2501,7 +2501,7 @@ async function generateReliefMap(targetFeature, zoneName, author, level) {
     `RELIEF — ${levelLabel} DE ${zoneName.toUpperCase()}`;
   document.getElementById("display-author").innerText = author;
   document.getElementById("display-date").innerText =
-    new Date().toLocaleDateString("fr-FR");
+    new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
   document.getElementById("data-source").innerText = "SRTM NASA (30 m)";
 
   addLiveWatermark();
@@ -2548,12 +2548,12 @@ function updateSidePanel(comName, color, author, source) {
   document.querySelector("#locator-card .panel-card-header").innerText =
     `DÉPARTEMENT ${dept || ""}`;
   document.getElementById("region-card-header").innerText =
-    `RÉGION ${reg || ""} — SÉNÉGAL`;
+    `RÉGION ${reg || ""} AU SÉNÉGAL`;
   document.getElementById("display-commune").innerText =
     `COMMUNE DE ${comName.toUpperCase()}`;
   document.getElementById("display-author").innerText = author;
   document.getElementById("display-date").innerText =
-    new Date().toLocaleDateString("fr-FR");
+    new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
   document.getElementById("data-source").innerText = source;
 
   const communeSwatch = document.getElementById("legend-commune-swatch");

@@ -343,7 +343,7 @@ button {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #f8f9fa;
+  background: #ffffff;
   overflow: hidden;
 }
 
@@ -351,18 +351,43 @@ button {
   display: flex;
   flex-direction: column;
   border-bottom: 1px solid #dee2e6;
-  flex: 1.2;
+  flex: 1.25;
   min-height: 0;
 }
 
 .panel-card:first-child {
-  flex: 1;
+  flex: 1.2;
 }
 .panel-card:last-child {
   border-bottom: none;
-  flex: 0.45;
+  flex: 0.5;
   z-index: 1000;
   padding: 0px;
+}
+
+/* Cartons des cartes de situation : un peu moins hauts pour laisser de la
+   place au bloc infos en bas (Auteur/Source/Date/SCR ne doit pas être coupé). */
+#locator-card,
+#region-card {
+  flex: 1.05;
+  overflow: hidden; /* la carte (height:95%) ne déborde plus sur le bloc infos */
+}
+#info-card {
+  flex: 0.62;
+  background: #ffffff; /* fond opaque : la carte du dessus ne transparaît plus */
+  border-top: 1px solid #dee2e6;
+  position: relative;
+}
+#info-card .panel-card-body {
+  /* Bloc encadré, centré, façon cartouche. */
+  margin: 8px 14px;
+  padding: 8px 10px;
+  border: 1px solid #2c3e50;
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: #ffffff;
 }
 
 .panel-card-header {
@@ -392,6 +417,10 @@ button {
 #info-card .panel-card-body {
   padding: 2px 14px;
 }
+/* En-tête vide du carton infos : on le masque pour que le bloc remonte. */
+#info-card .panel-card-header {
+  display: none;
+}
 
 /* ── LÉGENDE ── */
 .legend-item {
@@ -399,7 +428,7 @@ button {
   align-items: center;
   gap: 5px;
   margin-bottom: 4px;
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   color: #000000;
 }
 
@@ -428,7 +457,7 @@ button {
 }
 
 .legend-label {
-  font-size: 0.72rem;
+  font-size: 0.84rem;
   font-weight: 400;
   color: #000000;
   font-family: "DM Sans", sans-serif;
@@ -460,31 +489,30 @@ button {
 }
 
 /* ── INFORMATIONS ── */
+/* Chaque ligne « Label : valeur », centrée ; le bloc est encadré. */
 .info-row {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 2px 0;
-  border-bottom: 1px dashed #e0e0e0;
-  font-size: 0.65rem;
+  justify-content: center;
+  align-items: baseline;
+  padding: 1px 0;
+  font-size: 0.78rem;
   gap: 5px;
 }
-.info-row:last-child {
-  border-bottom: none;
-}
 
+/* Label et valeur : exactement la même police (couleur, graisse). */
+.info-label,
+.info-value {
+  color: #2c3e50;
+  font-weight: 500;
+  word-break: break-word;
+  text-align: center;
+}
 .info-label {
-  color: #6c757d;
-  font-weight: 600;
   white-space: nowrap;
   flex-shrink: 0;
 }
-.info-value {
-  width: 150px;
-  color: #2c3e50;
-  font-weight: 500;
-  text-align: right;
-  word-break: break-word;
+.info-label::after {
+  content: " :";
 }
 
 /* ── PIED DE PANNEAU ── */
