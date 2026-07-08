@@ -1394,6 +1394,9 @@ function buildLocatorMap(targetFeature, userColor, level = "commune") {
     doubleClickZoom: false,
     boxZoom: false,
     keyboard: false,
+    // Zoom par quarts (11.25, 11.5, 11.75…), arrondi vers le bas : la zone
+    // remplit le carton sans déborder ni masquer le bas de la carte.
+    zoomSnap: 0.25,
   });
   const dept = targetFeature.properties.DEPT;
   const reg = targetFeature.properties.REG;
@@ -1498,6 +1501,8 @@ function buildRegionMap(targetFeature, userColor) {
     doubleClickZoom: false,
     boxZoom: false,
     keyboard: false,
+    // Zoom par quarts (11.25, 11.5…), arrondi vers le bas : pas de débordement.
+    zoomSnap: 0.25,
   });
   const reg = targetFeature.properties.REG;
   fetchGeo("data/regions.geojson")

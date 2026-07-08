@@ -1,6 +1,8 @@
-# Sutura Maps — Playbook de vente, 14 jours
+# Sutura Maps — Playbook de vente, 14 jours (v2)
 
-Tout est prêt à copier-coller ici. Tu ne réfléchis plus, tu exécutes. Chaque jour est autonome : le texte à publier est écrit dans la section du jour, pas ailleurs.
+Tout est prêt à copier-coller. Tu ne réfléchis plus, tu exécutes. Chaque jour est autonome : le texte à publier est écrit dans la section du jour.
+
+Cette version ajoute un pilier nouveau : **le récit en transparence**. Sutura Maps attire du monde mais ne vend pas encore assez. Au lieu de cacher ça, on en fait une arme. Les gens n'achètent pas un outil, ils achètent une histoire à laquelle ils croient et un humain qu'ils ont envie de voir gagner. Tu construis seul, tu te bats, tu apprends en public. C'est ça qui crée l'attachement, et l'attachement précède l'achat.
 
 ---
 
@@ -9,30 +11,38 @@ Tout est prêt à copier-coller ici. Tu ne réfléchis plus, tu exécutes. Chaqu
 - **Site :** sutura-maps.com
 - **Prix localisation :** 2 000 FCFA, tous niveaux (commune, département, région).
 - **Prix occupation du sol :** commune 2 000, département 4 000, région 5 000.
+- **Prix relief (MNT) :** commune 2 000, département 4 000, région 5 000.
 - **Paiement :** Wave, Orange Money, MaxIt.
 - **Garantie :** satisfait ou remboursé sous 24 h, par le même mobile money.
-- **Données :** communes (DTGC) ; occupation du sol (ANAT, CSE, ANSD, 2020).
+- **Données :** communes (DTGC) ; occupation du sol (ANAT, CSE, ANSD, 2020) ; relief (SRTM, NASA, 30 m).
 - **Objectif du sprint :** 25 cartes payées en 14 jours.
 - **Rituel du soir (5 min) :** ouvre le dashboard admin, note 3 chiffres dans une note de téléphone : payés du jour, paiements initiés, conversion. À côté, écris ce que tu as posté ce jour-là.
 
-**La règle d'or :** chaque commentaire « et ma commune ? » reçoit une réponse avec la carte ou le lien. Chaque réponse est une vente. Dix réponses par jour, minimum.
+**Les deux règles d'or :**
+1. Chaque commentaire « et ma commune ? » reçoit une réponse avec la carte ou le lien. Chaque réponse est une vente. Dix par jour, minimum.
+2. Une publication sur deux raconte les coulisses (le parcours, les chiffres, les galères). L'autre vend un produit précis. Jamais que de la vente sèche.
+
+**Les trois angles qui marchent pour toi :**
+- **Le gain de temps** (une journée de SIG devient cinq minutes).
+- **La source officielle** (une carte défendable dans un mémoire ou un rapport).
+- **L'humain qui construit** (toi, seul, en transparence). C'est le plus sous-exploité, et c'est ton avantage.
 
 ---
 
 ## SOMMAIRE
 
-- [Jour 1 — Lancement](#jour-1)
+- [Jour 1 — En chiffres (le récit qui ouvre le sprint)](#jour-1)
 - [Jour 2 — Relance des abandons](#jour-2)
 - [Jour 3 — Lecture de carte](#jour-3)
-- [Jour 4 — Vidéo YouTube occupation](#jour-4)
+- [Jour 4 — Le relief (MNT), nouveau produit](#jour-4)
 - [Jour 5 — Roue des régions (live)](#jour-5)
-- [Jour 6 — Preuve sociale](#jour-6)
+- [Jour 6 — Coulisses : la semaine de panne](#jour-6)
 - [Jour 7 — Bilan mi-parcours](#jour-7)
 - [Jour 8 — Diaspora](#jour-8)
 - [Jour 9 — Défi communes](#jour-9)
 - [Jour 10 — Offensive pro](#jour-10)
 - [Jour 11 — Étudiants / mémoire](#jour-11)
-- [Jour 12 — Lecture de carte 2](#jour-12)
+- [Jour 12 — Avant / après (le SIG vs Sutura)](#jour-12)
 - [Jour 13 — Témoignages clients](#jour-13)
 - [Jour 14 — Bilan et bascule](#jour-14)
 - [Bibliothèque réutilisable](#bibliotheque)
@@ -40,34 +50,41 @@ Tout est prêt à copier-coller ici. Tu ne réfléchis plus, tu exécutes. Chaqu
 ---
 
 <a name="jour-1"></a>
-## JOUR 1 — Lancement
+## JOUR 1 — En chiffres (le récit qui ouvre le sprint)
 
-**Action 1. Post LinkedIn + Facebook.** Copie-colle :
+C'est le post le plus important du sprint. Il pose ton histoire et crée l'attachement. Mets une image de ton dashboard « Sutura Maps en chiffres » ou ta plus belle carte.
 
-> L'occupation du sol de n'importe quelle commune, département ou région du Sénégal. En cinq minutes, à partir des données officielles ANAT, CSE et ANSD (2020).
+**Action 1. Post LinkedIn + Facebook.** Copie-colle (remplace par tes vrais chiffres du jour) :
+
+> Sutura Maps, 3 mois. Les vrais chiffres, sans filtre.
 >
-> Jusqu'ici, ce travail demandait une journée de SIG : trouver la donnée, la nettoyer, la découper, la mettre en page. Maintenant : vous choisissez votre zone, vous ajustez les couleurs des classes, vous téléchargez en haute définition.
+> 1 565 visites. 1 124 cartes générées. 105 paiements lancés. 27 payés.
 >
-> Commune 2 000 FCFA, département 4 000, région 5 000. Paiement Wave, Orange Money ou MaxIt. Satisfait ou remboursé sous 24 h.
+> Traduction : ça attire du monde, ça ne ramène pas encore d'argent. Et je te le dis quand même, parce que je préfère ça à un beau storytelling tout lisse.
 >
-> Pour un mémoire, une étude d'impact, un diagnostic territorial. sutura-maps.com
+> Au début c'était simple, presque un jeu. Faire la carte de localisation de ta commune en quelques minutes. Puis j'ai voulu monter d'un cran. L'occupation du sol. Le relief, le MNT. Des hauts, des bas, des nuits blanches.
+>
+> Et puis j'ai pensé aux zones éco-géographiques. Héhéhé. Mais là. Alors là. Mais vraiment là, les choses se sont corsées. Je me suis battu avec ma base de données jusqu'à ce qu'elle me lâche. L'app a carrément dû être stoppée pendant une semaine.
+>
+> Tu l'avais remarqué ? Probablement pas. Et c'est peut-être ça le plus dur quand tu construis seul. Le silence.
+>
+> Mais je continue. Parce que derrière chaque carte il y a un étudiant qui boucle son mémoire, un agent qui prépare un rapport, quelqu'un à qui je fais gagner des heures.
+>
+> 27 personnes ont payé. 27 fois où ça a vraiment servi. C'est peu. C'est énorme. C'est un début.
+>
+> sutura-maps.com
 
-**Action 2. Statut WhatsApp (4 slides d'affilée).** Copie chaque ligne dans un statut :
+**Action 2. Statut WhatsApp (court) :**
 
-1. Nouveau sur Sutura Maps : la carte d'occupation du sol. Commune, département ou région.
-2. [mets ici ta plus belle carte d'occupation en image]
-3. Données officielles ANAT, CSE, ANSD. Cinq minutes. À partir de 2 000 FCFA, Wave ou Orange Money. Satisfait ou remboursé.
-4. sutura-maps.com — Dis-moi ta commune, je te montre.
+> 1 565 visites. 27 payées. Sutura Maps a 3 mois, je te montre les vrais chiffres. Même la semaine où l'app était à terre. sutura-maps.com
 
-**Action 3. Trois groupes WhatsApp.** Dans chacun, poste l'image de la carte du groupe + ce texte :
+**Action 3. TikTok / Reel (accroche parlée, 1re phrase) :**
 
-> Salam à tous. J'ai construit un outil qui génère la carte de notre commune en quelques minutes (localisation et occupation du sol, données officielles). Voici celle de [commune du groupe]. Si quelqu'un veut la sienne personnalisée, dites-moi en privé.
+> « Mon app a généré 1 124 cartes en 3 mois. Devine combien m'ont rapporté de l'argent. »
 
-**Action 4. Message à tes 4 témoins** (Binta, Souleymane, Mamadou, Modou), un par un :
+Puis tu montres le dashboard, tu racontes en 30 secondes, tu finis sur le lien.
 
-> Salam [prénom], merci encore pour ton retour sur Sutura Maps. On lance vraiment cette semaine. Si tu peux partager le site (sutura-maps.com) dans un de tes groupes, ça m'aiderait énormément. Merci frère.
-
-**Action 5. Soir :** rituel des 3 chiffres.
+**Action 4 :** 10 réponses aux commentaires. **Soir :** rituel des 3 chiffres.
 
 ---
 
@@ -76,7 +93,7 @@ Tout est prêt à copier-coller ici. Tu ne réfléchis plus, tu exécutes. Chaqu
 
 **Action 1.** Dashboard admin : pour chaque commande en attente avec un email, clique « Relance ». Le message est déjà pré-rédigé, tu valides l'envoi. Fais-les tous en une session.
 
-**Action 2. Statut WhatsApp** (1 slide) :
+**Action 2. Statut WhatsApp (1 slide) :**
 
 > Ta carte est générée et visible avant de payer. Tu ne paies que si elle te plaît, et tu es remboursé sous 24 h si tu changes d'avis. Zéro risque. sutura-maps.com
 
@@ -91,7 +108,7 @@ Tout est prêt à copier-coller ici. Tu ne réfléchis plus, tu exécutes. Chaqu
 
 Légende : « La carte de localisation de ta zone d'étude en 5 minutes. 2 000 FCFA. #mémoire #Sénégal #géographie »
 
-**Action 4 :** 10 réponses aux commentaires. **Soir :** 3 chiffres.
+**Action 4 :** 10 réponses. **Soir :** 3 chiffres.
 
 ---
 
@@ -112,25 +129,33 @@ Légende : « La carte de localisation de ta zone d'étude en 5 minutes. 2 000 F
 
 **Action 2. Statut WhatsApp :** la même image + « Lecture de carte : [commune]. Je lis ta commune aussi, écris-moi. »
 
-**Action 3 :** un nouveau groupe WhatsApp (méthode du jour 1). **10 réponses. Soir : 3 chiffres.**
+**Action 3 :** un nouveau groupe WhatsApp (méthode du jour 1 de l'ancien sprint : tu postes la carte du groupe + une phrase d'apport). **10 réponses. Soir : 3 chiffres.**
 
 ---
 
 <a name="jour-4"></a>
-## JOUR 4 — Vidéo YouTube occupation du sol
+## JOUR 4 — Le relief (MNT), nouveau produit
 
-**Action 1.** Tourne la vidéo (7 à 9 min), c'est ton actif durable. Déroulé :
+Le relief est ta nouveauté la plus spectaculaire visuellement. Profites-en.
 
-- Ouverture caméra : « Faire une carte d'occupation du sol propre, normalement, c'est un chantier d'une journée. Là, je le fais devant vous en cinq minutes. »
-- Rappelle les usages : diagnostic territorial, étude d'impact, mémoire en géographie ou agronomie.
-- Montre vite la galère QGIS habituelle (ta crédibilité SIG).
-- Démo Sutura Maps : choix de la zone, couleurs des classes, génération, paiement, téléchargement.
-- Insiste sur la source officielle ANAT, CSE, ANSD (2020).
-- Clôture : « Une carte défendable, avec ses sources, en cinq minutes. Lien en description. »
+**Action 1. Post LinkedIn + Facebook** (image : une carte MNT bien contrastée, type Dindéfello ou Kédougou) :
 
-**Action 2.** Décline la démo en short vertical (30 s) pour TikTok le jour même.
+> Nouveau sur Sutura Maps : la carte du relief de n'importe quelle commune, département ou région du Sénégal.
+>
+> Le modèle numérique de terrain est découpé pixel par pixel sur les limites exactes de ta zone. L'altitude est classée en 5 paliers, avec un intervalle calculé selon la dénivelée réelle. Une plaine et une zone de montagne n'ont pas la même légende, et c'est normal.
+>
+> Source SRTM (NASA, 30 m). Quelques minutes, paiement mobile money, téléchargement immédiat. Utile pour un mémoire, un rapport de terrain, un cours.
+>
+> Commune 2 000, département 4 000, région 5 000. sutura-maps.com
 
-**Action 3. Statut WhatsApp :** « Nouvelle vidéo : la carte d'occupation du sol expliquée pas à pas. [lien YouTube] »
+**Action 2. Statut WhatsApp (carrousel MNT, 4 slides)** — tu as déjà les visuels générés dans `assets/carrousels/out/` :
+
+1. NOUVEAU : la carte du relief de ta commune.
+2. [ta carte MNT annotée]
+3. Découpé sur tes limites exactes. 5 classes d'altitude. Source SRTM, NASA.
+4. À partir de 2 000 FCFA, Wave ou Orange. sutura-maps.com
+
+**Action 3.** Décline en short vertical (30 s) : tu fais défiler le dégradé vert vers brun, tu expliques en une phrase « du plus bas au plus haut, le relief réel ».
 
 **10 réponses. Soir : 3 chiffres.**
 
@@ -160,22 +185,36 @@ Diouloulou
 
 **Action 2. Message WhatsApp 30 min avant** (groupes + statut) :
 
-> 🔴 LIVE Sutura Maps dans 30 min. La roue des régions tourne : 14 communes, une par région, je génère la carte en direct de celle qui sort. Ta commune est peut-être dedans. [lien du live]
+> LIVE Sutura Maps dans 30 min. La roue des régions tourne : 14 communes, une par région, je génère la carte en direct de celle qui sort. Ta commune est peut-être dedans. [lien du live]
 
-**Action 3. Pendant le live :** montre la génération en direct, fais tourner la roue, génère la carte gagnante, et rappelle les prix + la garantie. Invite à commenter sa commune.
+**Action 3. Pendant le live :** montre la génération en direct, fais tourner la roue, génère la carte gagnante (alterne localisation et relief pour le spectacle), rappelle les prix et la garantie. Invite à commenter sa commune.
 
 **Action 4. Après :** poste le replay en statut. **Soir : 3 chiffres.**
 
 ---
 
 <a name="jour-6"></a>
-## JOUR 6 — Preuve sociale
+## JOUR 6 — Coulisses : la semaine de panne
 
-**Action 1.** Reposte une vraie carte commandée par un client (avec son accord), ou à défaut une carte que tu as générée, en story et statut, avec : « Encore une commune cartographiée aujourd'hui. La tienne ? sutura-maps.com »
+Le jour où tu transformes ta plus grosse galère en contenu. Les gens adorent les histoires de combat. Tu en as une vraie.
 
-**Action 2. Carrousel Instagram/Facebook** (tu as déjà le gabarit) : les 4 étapes choisis / personnalise / paie / télécharge.
+**Action 1. Post LinkedIn** (storytelling, pas de vente directe) :
 
-**Action 3 :** un nouveau groupe WhatsApp. **10 réponses. Soir : 3 chiffres.**
+> Mon application a été à l'arrêt pendant une semaine. Voilà ce qui s'est passé.
+>
+> J'ai voulu ajouter une fonction ambitieuse à Sutura Maps : les zones éco-géographiques. De grandes zones, des calculs lourds. Ma base de données, sur le petit plan gratuit, n'a pas tenu. Saturée. Plus rien ne répondait, même pas le tableau de bord.
+>
+> J'ai passé des heures à comprendre, à réparer, à me battre avec des messages d'erreur que personne ne lit jamais. À un moment, j'ai pris la décision dure : couper le site. Le temps que la base respire. Une semaine.
+>
+> Ce que j'en retiens : on n'ajoute pas une fonction lourde sur une infrastructure légère sans le payer. Et surtout, construire seul, c'est encaisser ces semaines-là sans personne pour te dire que ça va aller.
+>
+> Le site est revenu. La localisation, l'occupation du sol et le relief tournent. Les zones éco-géographiques attendront d'avoir les moyens de leur ambition.
+>
+> Si tu construis quelque chose toi aussi, dis-moi en commentaire ta pire semaine. On est plus nombreux qu'on ne croit.
+
+**Action 2. Statut WhatsApp :** « Le site a été coupé une semaine. Je raconte tout sur LinkedIn. Spoiler : il est revenu, plus solide. sutura-maps.com »
+
+**10 réponses. Soir : 3 chiffres.**
 
 ---
 
@@ -184,13 +223,13 @@ Diouloulou
 
 **Action 1. Post LinkedIn**, avec tes vrais chiffres du dashboard :
 
-> Une semaine que Sutura Maps est lancé pour de bon. Les chiffres, en transparence : [X visites, Y cartes générées, Z payées].
+> Une semaine de sprint sur Sutura Maps. Les chiffres, en transparence : [X visites, Y cartes générées, Z payées] cette semaine.
 >
 > Ce que j'apprends : [1 ou 2 enseignements honnêtes]. Ce qui surprend : [1 chose]. La suite : [1 intention].
 >
-> Si vous travaillez sur une commune du Sénégal, montrez-moi laquelle, je vous la génère en commentaire. sutura-maps.com
+> Si tu travailles sur une commune du Sénégal, montre-moi laquelle, je te la génère en commentaire. sutura-maps.com
 
-**Action 2. Statut WhatsApp :** « 1 semaine, [Z] cartes vendues. Merci. Ta commune, c'est laquelle ? »
+**Action 2. Statut WhatsApp :** « 1 semaine de sprint, [Z] cartes vendues. Merci. Ta commune, c'est laquelle ? »
 
 **10 réponses. Soir : 3 chiffres.**
 
@@ -209,7 +248,7 @@ Diouloulou
 
 **Action 2. Statut WhatsApp :** « Pour la diaspora : la carte de ta commune d'origine, où que tu sois. Paiement Wave ou Orange. sutura-maps.com »
 
-**Action 3 :** un nouveau groupe (vise un groupe de ressortissants à l'étranger). **10 réponses. Soir : 3 chiffres.**
+**Action 3 :** un nouveau groupe (vise des ressortissants à l'étranger). **10 réponses. Soir : 3 chiffres.**
 
 ---
 
@@ -232,13 +271,13 @@ Diouloulou
 <a name="jour-10"></a>
 ## JOUR 10 — Offensive pro
 
-**Action 1.** Repère 5 contacts (bureaux d'études, projets, mairies, profs). Pour chacun, génère la carte d'occupation de SA zone, et envoie en privé :
+**Action 1.** Repère 5 contacts (bureaux d'études, projets, mairies, profs). Pour chacun, génère la carte d'occupation ou de relief de SA zone, et envoie en privé :
 
-> Bonjour [prénom]. Je développe Sutura Maps, un outil qui génère les cartes des communes du Sénégal en quelques minutes, à partir de données officielles. J'ai généré l'occupation du sol de [sa zone], je te l'envoie. Si c'est utile pour tes dossiers, l'outil le fait pour les 557 communes, 45 départements et 14 régions.
+> Bonjour [prénom]. Je développe Sutura Maps, un outil qui génère les cartes des communes du Sénégal en quelques minutes, à partir de données officielles. J'ai généré [l'occupation du sol / le relief] de [sa zone], je te l'envoie. Si c'est utile pour tes dossiers, l'outil le fait pour les 557 communes, 45 départements et 14 régions.
 
 **Action 2. Post LinkedIn ciblé :**
 
-> Une mairie, un bureau d'études ou un projet a besoin de cartes plus souvent qu'on ne le croit : communication, diagnostics, rapports, aménagement. Sutura Maps les génère en minutes, aux couleurs voulues, à partir de données officielles. Localisation et occupation du sol, des 557 communes aux 14 régions. sutura-maps.com
+> Une mairie, un bureau d'études ou un projet a besoin de cartes plus souvent qu'on ne le croit : communication, diagnostics, rapports, aménagement. Sutura Maps les génère en minutes, aux couleurs voulues, à partir de données officielles. Localisation, occupation du sol et relief, des 557 communes aux 14 régions. sutura-maps.com
 
 **10 réponses. Soir : 3 chiffres.**
 
@@ -249,18 +288,29 @@ Diouloulou
 
 **Action 1. Statut WhatsApp + post Facebook :**
 
-> Étudiant en géographie, en agronomie, en aménagement ? La carte de localisation de ta zone d'étude, propre et avec ses sources, en 5 minutes. Plus besoin de galérer sur QGIS la veille du dépôt. 2 000 FCFA, satisfait ou remboursé. sutura-maps.com
+> Étudiant en géographie, en agronomie, en aménagement ? La carte de localisation, d'occupation du sol ou de relief de ta zone d'étude, propre et avec ses sources, en 5 minutes. Plus besoin de galérer sur QGIS la veille du dépôt. À partir de 2 000 FCFA, satisfait ou remboursé. sutura-maps.com
 
-**Action 2.** Cible 2 groupes d'étudiants (facs, masters) avec la méthode d'apport du jour 1.
+**Action 2.** Cible 2 groupes d'étudiants (facs, masters) avec la méthode d'apport (carte du groupe + phrase).
 
 **10 réponses. Soir : 3 chiffres.**
 
 ---
 
 <a name="jour-12"></a>
-## JOUR 12 — Lecture de carte, épisode 2
+## JOUR 12 — Avant / après (le SIG vs Sutura)
 
-Reprends le format du jour 3 sur une nouvelle commune (idéalement une demandée en commentaire, pour boucler la boucle). Même structure de post, nouvelle zone, nouvelles observations. Publie LinkedIn + Facebook + statut WhatsApp.
+Tu es SIG de métier. Montre la galère que tu épargnes aux gens.
+
+**Action 1. Reel ou carrousel** en deux temps :
+
+- À gauche / slide 1 : ton écran QGIS, plein de menus, une heure de travail, le texte « Avant : une journée ».
+- À droite / slide 2 : Sutura Maps, la zone choisie, la carte générée, le texte « Après : cinq minutes ».
+
+**Action 2. Légende / post :**
+
+> Faire une carte propre, avec ses sources et une mise en page correcte, c'est un vrai métier. Je le fais depuis des années sur QGIS. Sutura Maps, c'est ce métier réduit à cinq minutes, pour les zones du Sénégal. Pas pour remplacer le SIG, pour te faire gagner la journée quand tu as juste besoin de la carte. sutura-maps.com
+
+**Action 3. Statut WhatsApp :** l'image avant/après + « Avant : une journée. Après : 5 minutes. sutura-maps.com »
 
 **Un nouveau groupe. 10 réponses. Soir : 3 chiffres.**
 
@@ -269,7 +319,7 @@ Reprends le format du jour 3 sur une nouvelle commune (idéalement une demandée
 <a name="jour-13"></a>
 ## JOUR 13 — Témoignages clients
 
-**Action 1. Carrousel ou story** avec tes 4 témoignages réels (texte ci-dessous, section Bibliothèque). Termine par « Rejoins-les : sutura-maps.com ».
+**Action 1. Carrousel ou story** avec tes 4 témoignages réels (section Bibliothèque). Termine par « Rejoins-les : sutura-maps.com ».
 
 **Action 2. Statut WhatsApp :** un témoignage + « Ils ont essayé. Ta commune, c'est laquelle ? »
 
@@ -280,11 +330,11 @@ Reprends le format du jour 3 sur une nouvelle commune (idéalement une demandée
 <a name="jour-14"></a>
 ## JOUR 14 — Bilan et bascule
 
-**Action 1. Post bilan LinkedIn** : chiffres réels du sprint, ce qui a vendu, remerciements.
+**Action 1. Post bilan LinkedIn** : chiffres réels du sprint, ce qui a vendu, remerciements. Reprends le ton transparent du jour 1, boucle la boucle.
 
 **Action 2.** Regarde ta note de téléphone des 14 soirs : quel format a précédé les ventes ? Ce format devient le pilier du mois suivant. Ce qui n'a rien vendu après 4 essais est abandonné.
 
-**Action 3.** Décide : reconduire le sprint, ou passer à un rythme mensuel sur le format gagnant.
+**Action 3.** Décide : reconduire le sprint, ou passer à un rythme mensuel sur le format gagnant. Garde toujours un post « coulisses » par semaine : c'est lui qui crée l'attachement.
 
 ---
 
@@ -301,9 +351,17 @@ Reprends le format du jour 3 sur une nouvelle commune (idéalement une demandée
 
 > « Waaaw, c'est extraordinaire. Et facile à faire. Gain de temps. » — Modou T.
 
-### Phrase de clôture universelle (à coller en fin de tout post)
+### Banque de hooks (récit / vulnérabilité)
 
-> Localisation et occupation du sol, des 557 communes aux 14 régions. À partir de 2 000 FCFA. Satisfait ou remboursé sous 24 h. sutura-maps.com
+- « Mon app a généré 1 124 cartes en 3 mois. Devine combien m'ont rapporté de l'argent. »
+- « J'ai coupé mon propre site pendant une semaine. Voilà pourquoi. »
+- « Beaucoup de trafic, peu de ventes. Je te raconte ce que ça fait, vraiment. »
+- « Construire seul, c'est encaisser les mauvaises semaines sans personne pour te dire que ça va aller. »
+- « Personne n'a remarqué que le site était à l'arrêt. C'est ça le plus dur. »
+
+### Phrase de clôture universelle (à coller en fin de tout post de vente)
+
+> Localisation, occupation du sol et relief, des 557 communes aux 14 régions. À partir de 2 000 FCFA. Satisfait ou remboursé sous 24 h. sutura-maps.com
 
 ### Réponse type en commentaire « et ma commune ? »
 
@@ -315,4 +373,8 @@ Tivaouane Diacksao, Thiénaba, Patar, Diagane Barka, Fass, Medinatoul Salam II, 
 
 ### Mémo prix (à ne jamais oublier dans un post)
 
-Localisation : 2 000 partout. Occupation : 2 000 commune / 4 000 département / 5 000 région.
+Localisation : 2 000 partout. Occupation et relief : 2 000 commune / 4 000 département / 5 000 région.
+
+### Le ratio à tenir
+
+Une publication sur deux raconte les coulisses (parcours, chiffres, galères), l'autre vend un produit précis. C'est l'alternance qui crée l'attachement puis l'achat. Ne tombe jamais dans le tout-vente.

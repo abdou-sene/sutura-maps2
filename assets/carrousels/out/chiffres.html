@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#0e0c0a; --sand:#f7f3ec; --terra:#b85c2c; --terra2:#d4784a;
+    --gold:#c9a84c; --muted:#7a7068; --green:#2f6b3f; --track:#ece6da;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:1080px;height:1080px;}
+  body{
+    background:#ffffff; font-family:"DM Sans",sans-serif; color:var(--ink);
+    padding:64px 72px; display:flex; flex-direction:column;
+  }
+
+  /* En-tête */
+  .head{display:flex;align-items:center;gap:22px;margin-bottom:8px;}
+  .badge{
+    background:var(--ink); padding:12px 22px;
+    font-family:"Cormorant Garamond",serif; font-size:1.9rem; font-weight:600;
+    letter-spacing:1px; color:var(--sand);
+  }
+  .badge em{font-style:italic;color:var(--terra2);}
+  .head .script{
+    font-family:"Cormorant Garamond",serif; font-style:italic; font-weight:600;
+    font-size:3rem; color:var(--ink);
+  }
+  .rule{height:2px;background:var(--ink);width:100%;margin:26px 0 40px;opacity:.9;}
+
+  /* KPIs */
+  .kpis{display:flex;justify-content:space-between;margin-bottom:54px;}
+  .kpi{flex:1;}
+  .kpi .num{
+    font-family:"Barlow Condensed",sans-serif; font-weight:700;
+    font-size:4.6rem; line-height:.9; color:var(--ink); letter-spacing:1px;
+  }
+  .kpi.paid .num{color:var(--green);}
+  .kpi .lab{
+    font-family:"Barlow Condensed",sans-serif; font-weight:600;
+    font-size:1rem; letter-spacing:3px; text-transform:uppercase;
+    color:var(--muted); margin-top:10px;
+  }
+
+  /* Sections de barres */
+  .section{margin-bottom:46px;}
+  .section h2{
+    font-family:"Cormorant Garamond",serif; font-weight:600; font-size:2.1rem;
+    color:var(--ink); margin-bottom:24px;
+  }
+  .bar-row{display:flex;align-items:center;margin-bottom:16px;}
+  .bar-row .name{
+    width:230px; flex:0 0 auto;
+    font-family:"Barlow Condensed",sans-serif; font-weight:600; font-size:1.15rem;
+    letter-spacing:1px; text-transform:uppercase; color:var(--ink);
+  }
+  .bar-row .track{
+    flex:1; height:20px; background:var(--track); border-radius:3px; overflow:hidden;
+  }
+  .bar-row .fill{display:block;height:100%;background:var(--terra);border-radius:3px;}
+  .bar-row .val{
+    width:54px; flex:0 0 auto; text-align:right;
+    font-family:"Barlow Condensed",sans-serif; font-weight:700; font-size:1.4rem;
+    color:var(--ink);
+  }
+
+  .foot{
+    margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end;
+  }
+  .foot .url{
+    font-family:"Barlow Condensed",sans-serif; font-weight:700; font-size:1.5rem;
+    letter-spacing:2px; text-transform:uppercase; color:var(--ink);
+    border-bottom:3px solid var(--terra); padding-bottom:4px;
+  }
+  .foot .period{
+    font-family:"Cormorant Garamond",serif; font-style:italic; font-size:1.4rem;
+    color:var(--muted);
+  }
+</style>
+</head>
+<body>
+
+  <div class="head">
+    <span class="badge">Sutura <em>Maps</em></span>
+    <span class="script">en Chiffres</span>
+  </div>
+  <div class="rule"></div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="num">1 565</div><div class="lab">Visites</div></div>
+    <div class="kpi"><div class="num">1 124</div><div class="lab">Cartes générées</div></div>
+    <div class="kpi"><div class="num">105</div><div class="lab">Paiements initiés</div></div>
+    <div class="kpi paid"><div class="num">27</div><div class="lab">Payés</div></div>
+  </div>
+
+  <div class="section">
+    <h2>Zones les plus vendues</h2>
+    <div class="bar-row"><span class="name">Ouro Sidy</span><span class="track"><span class="fill" style="width:100%"></span></span><span class="val">2</span></div>
+    <div class="bar-row"><span class="name">Diourbel</span><span class="track"><span class="fill" style="width:100%"></span></span><span class="val">2</span></div>
+    <div class="bar-row"><span class="name">Baba Garage</span><span class="track"><span class="fill" style="width:100%"></span></span><span class="val">2</span></div>
+    <div class="bar-row"><span class="name">Bambilor</span><span class="track"><span class="fill" style="width:50%"></span></span><span class="val">1</span></div>
+    <div class="bar-row"><span class="name">Faoune</span><span class="track"><span class="fill" style="width:50%"></span></span><span class="val">1</span></div>
+    <div class="bar-row"><span class="name">Bonconto</span><span class="track"><span class="fill" style="width:50%"></span></span><span class="val">1</span></div>
+  </div>
+
+  <div class="section">
+    <h2>Ventes par type de carte</h2>
+    <div class="bar-row"><span class="name">Localisation</span><span class="track"><span class="fill" style="width:100%"></span></span><span class="val">22</span></div>
+    <div class="bar-row"><span class="name">Occupation du sol</span><span class="track"><span class="fill" style="width:23%"></span></span><span class="val">5</span></div>
+  </div>
+
+  <div class="foot">
+    <span class="url">sutura-maps.com</span>
+    <span class="period">3 mois de chiffres, sans filtre.</span>
+  </div>
+
+</body>
+</html>
