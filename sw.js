@@ -7,7 +7,7 @@
   hors ligne, sans rien casser du flux existant.
 */
 
-const CACHE = "sutura-v1";
+const CACHE = "sutura-v2";
 
 // Coquille de l'app mise en cache dès l'installation.
 const SHELL = [
@@ -20,6 +20,8 @@ const SHELL = [
   "./assets/brand/favicon-32.png",
   "./assets/brand/favicon-180.png",
   "./assets/brand/favicon-512.png",
+  "./assets/brand/icon-192.png",
+  "./assets/brand/icon-maskable-512.png",
 ];
 
 self.addEventListener("install", (event) => {
