@@ -8,6 +8,13 @@
     <title>Sutura Maps</title>
     <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/favicon-180.png" />
+    <!-- App installable (PWA) -->
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#0e0c0a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Sutura Maps" />
+    <link rel="stylesheet" href="pwa.css" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -323,5 +330,6 @@
       </div>
     </div>
     <script src="script.js"></script>
+    <script src="pwa.js"></script>
   </body>
 </html>

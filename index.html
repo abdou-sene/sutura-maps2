@@ -6,6 +6,13 @@
     <title>Sutura Maps — Cartographiez avec dignité</title>
     <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/favicon-180.png" />
+    <!-- App installable (PWA) -->
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#0e0c0a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Sutura Maps" />
+    <link rel="stylesheet" href="pwa.css" />
     <link
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap"
       rel="stylesheet"
@@ -2034,5 +2041,25 @@
         }
       });
     </script>
+
+    <!-- Barre d'installation de l'app : n'apparaît que si c'est installable -->
+    <div id="install-bar">
+      <img src="assets/brand/favicon-512.png" alt="" />
+      <div class="ib-text">
+        <div class="ib-title">C'est plus rapide avec l'app</div>
+        <div class="ib-sub">
+          Installation en 2 secondes. Sans Play Store, sans inscription.
+        </div>
+      </div>
+      <button class="ib-btn" onclick="suturaInstall()">Installer</button>
+      <button
+        class="ib-close"
+        onclick="suturaDismissInstall()"
+        aria-label="Fermer"
+      >
+        ✕
+      </button>
+    </div>
+    <script src="pwa.js"></script>
   </body>
 </html>
