@@ -2336,9 +2336,30 @@ function mntRingContains([x, y], ring) {
   }
   return inside;
 }
-function mntPip([x, y], geom) {
+// Masque accéléré : pour chaque polygone, on précalcule sa bbox. Le test par
+// pixel rejette d'abord sur la bbox (très rapide) avant le vrai ray-casting.
+function buildMntMask(geom) {
   const polys = geom.type === "Polygon" ? [geom.coordinates] : geom.coordinates;
-  for (const rings of polys) {
+  return polys.map((rings) => {
+    const outer = rings[0];
+    let x0 = Infinity,
+      y0 = Infinity,
+      x1 = -Infinity,
+      y1 = -Infinity;
+    for (const p of outer) {
+      if (p[0] < x0) x0 = p[0];
+      if (p[0] > x1) x1 = p[0];
+      if (p[1] < y0) y0 = p[1];
+      if (p[1] > y1) y1 = p[1];
+    }
+    return { rings, bbox: [x0, y0, x1, y1] };
+  });
+}
+function mntInside(x, y, mask) {
+  for (let m = 0; m < mask.length; m++) {
+    const b = mask[m].bbox;
+    if (x < b[0] || x > b[2] || y < b[1] || y > b[3]) continue;
+    const rings = mask[m].rings;
     if (mntRingContains([x, y], rings[0])) {
       let hole = false;
       for (let i = 1; i < rings.length; i++)
@@ -2381,10 +2402,16 @@ async function generateReliefMap(targetFeature, zoneName, author, level) {
     ),
   );
 
-  // zoom pour viser ~800 px de large
+  // Résolution BORNÉE. Un zoom élevé sur une grande zone produit des millions
+  // de pixels à masquer → l'onglet plante. On prend le zoom le plus fin dont le
+  // raster tient sous MAX_DIM ; si la zone reste énorme, on sous-échantillonne.
+  const MAX_DIM = 820;
   let z = 8;
-  for (z = 8; z <= 13; z++) {
-    if (_m.lon2px(maxLon, z) - _m.lon2px(minLon, z) >= 760) break;
+  for (let zz = 8; zz <= 13; zz++) {
+    const w = _m.lon2px(maxLon, zz) - _m.lon2px(minLon, zz);
+    const h = _m.lat2px(minLat, zz) - _m.lat2px(maxLat, zz);
+    if (Math.max(w, h) > MAX_DIM) break;
+    z = zz;
   }
 
   const txMin = Math.floor(_m.lon2px(minLon, z) / MNT_TILE),
@@ -2396,15 +2423,23 @@ async function generateReliefMap(targetFeature, zoneName, author, level) {
   const W = (txMax - txMin + 1) * MNT_TILE,
     H = (tyMax - tyMin + 1) * MNT_TILE;
 
+  // Tuiles téléchargées EN PARALLÈLE (bien plus rapide que séquentiel).
   const mos = document.createElement("canvas");
   mos.width = W;
   mos.height = H;
   const mctx = mos.getContext("2d");
+  const tileJobs = [];
   for (let tx = txMin; tx <= txMax; tx++)
     for (let ty = tyMin; ty <= tyMax; ty++) {
-      const img = await mntLoadTile(z, tx, ty);
-      if (img) mctx.drawImage(img, (tx - txMin) * MNT_TILE, (ty - tyMin) * MNT_TILE);
+      const dx = (tx - txMin) * MNT_TILE,
+        dy = (ty - tyMin) * MNT_TILE;
+      tileJobs.push(
+        mntLoadTile(z, tx, ty).then((img) => {
+          if (img) mctx.drawImage(img, dx, dy);
+        }),
+      );
     }
+  await Promise.all(tileJobs);
 
   let id;
   try {
@@ -2415,25 +2450,51 @@ async function generateReliefMap(targetFeature, zoneName, author, level) {
   }
   const d = id.data;
 
-  const elev = new Float32Array(W * H);
-  const inside = new Uint8Array(W * H);
+  // Sous-échantillonnage : la grille de sortie est bornée à MAX_DIM par côté.
+  const stride = Math.max(1, Math.ceil(Math.max(W, H) / MAX_DIM));
+  const OW = Math.ceil(W / stride),
+    OH = Math.ceil(H / stride);
+
+  // Masque SIMPLIFIÉ : à la résolution du raster, le contour n'a pas besoin de
+  // tous ses sommets. La simplification réduit énormément le coût du test
+  // point-dans-polygone (le vrai goulot). Le contour net reste tracé à part
+  // avec la géométrie complète (studyAreaLayer, plus bas).
+  let maskSrc = targetFeature;
+  try {
+    const tolDeg = ((maxLon - minLon) / Math.max(W, 1)) * stride * 1.5;
+    maskSrc = turf.simplify(targetFeature, {
+      tolerance: tolDeg,
+      highQuality: false,
+      mutate: false,
+    });
+  } catch (e) {
+    maskSrc = targetFeature;
+  }
+  const mask = buildMntMask(maskSrc.geometry || geom);
+
+  const elev = new Float32Array(OW * OH);
+  const inside = new Uint8Array(OW * OH);
   let emin = Infinity,
     emax = -Infinity,
     nIn = 0;
-  for (let py = 0; py < H; py++) {
+  for (let iy = 0; iy < OH; iy++) {
+    const py = iy * stride;
     const lat = _m.px2lat(oy + py + 0.5, z);
-    for (let px = 0; px < W; px++) {
-      const k = py * W + px,
-        p = k * 4;
+    for (let ix = 0; ix < OW; ix++) {
+      const px = ix * stride;
       const lon = _m.px2lon(ox + px + 0.5, z);
-      if (!mntPip([lon, lat], geom)) continue;
+      if (!mntInside(lon, lat, mask)) continue;
+      const p = (py * W + px) * 4;
       const e = d[p] * 256 + d[p + 1] + d[p + 2] / 256 - 32768;
+      const k = iy * OW + ix;
       elev[k] = e;
       inside[k] = 1;
       nIn++;
       if (e < emin) emin = e;
       if (e > emax) emax = e;
     }
+    // On rend la main au navigateur toutes les 32 lignes : plus de blocage.
+    if ((iy & 31) === 0) await new Promise((r) => setTimeout(r));
   }
   if (!nIn) {
     showError("Aucune donnée de relief pour cette zone.");
@@ -2443,12 +2504,12 @@ async function generateReliefMap(targetFeature, zoneName, author, level) {
   // Découpage en 5 classes discrètes selon la dénivelée réelle.
   const classes = mntBuildClasses(emin, emax);
   const out = document.createElement("canvas");
-  out.width = W;
-  out.height = H;
+  out.width = OW;
+  out.height = OH;
   const octx = out.getContext("2d");
-  const oid = octx.createImageData(W, H);
+  const oid = octx.createImageData(OW, OH);
   const od = oid.data;
-  for (let k = 0; k < W * H; k++) {
+  for (let k = 0; k < OW * OH; k++) {
     const p = k * 4;
     if (!inside[k]) {
       od[p + 3] = 0;
