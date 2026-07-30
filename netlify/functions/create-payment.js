@@ -32,18 +32,13 @@ exports.handler = async (event) => {
   const country = typeof body.country === "string" ? body.country : "SN";
   const gid = typeof body.gid === "string" ? body.gid : null;
 
-  // Prix calculé CÔTÉ SERVEUR (jamais reçu du navigateur) selon le type de
-  // carte et le niveau. Occupation et relief : paliers dept/région. Sinon 2000.
+  // Prix UNIQUE, côté serveur : 2 000 FCFA pour toute carte, toute échelle,
+  // tout pays. Simple et accessible.
   const mt =
     maptype === "occupation" || maptype === "relief" ? maptype : "localisation";
   const lvl =
     level === "region" ? "region" : level === "dept" ? "dept" : "commune";
-  function priceFor(t, l) {
-    if ((t === "occupation" || t === "relief") && l === "dept") return 4000;
-    if ((t === "occupation" || t === "relief") && l === "region") return 5000;
-    return 2000;
-  }
-  const amount = priceFor(mt, lvl);
+  const amount = 2000;
 
   // Sur ordinateur, le paiement s'ouvre dans un nouvel onglet ; on marque le
   // retour avec tab=1 pour que cet onglet n'enclenche pas un second

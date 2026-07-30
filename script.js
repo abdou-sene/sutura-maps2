@@ -2053,7 +2053,7 @@ async function generateFinalMap() {
     const exportBtn = document.querySelector(".btn-export");
     if (exportBtn) {
       const p = fmtPrice(priceForClient(selectedMapType, level));
-      exportBtn.innerText = `PAYEZ ${p} ET TÉLÉCHARGEZ`;
+      exportBtn.innerText = `JE TÉLÉCHARGE MA CARTE HD · ${p}`;
     }
   }, 600);
 }
@@ -2099,7 +2099,7 @@ async function generateFinalMapIntl() {
     const exportBtn = document.querySelector(".btn-export");
     if (exportBtn) {
       const p = fmtPrice(priceForClient("relief", lvlKey));
-      exportBtn.innerText = `PAYEZ ${p} ET TÉLÉCHARGEZ`;
+      exportBtn.innerText = `JE TÉLÉCHARGE MA CARTE HD · ${p}`;
     }
   }, 600);
 }
@@ -3103,10 +3103,10 @@ async function exportToPNG() {
   const btn = document.querySelector(".btn-export");
   const resetBtn = () => {
     btn.disabled = false;
-    btn.innerText = "PAYEZ ET TÉLÉCHARGEZ";
+    btn.innerText = "JE TÉLÉCHARGE MA CARTE HD";
   };
   btn.disabled = true;
-  btn.innerText = "⏳ Initialisation...";
+  btn.innerText = "⏳ Un instant…";
 
   try {
     const res = await fetch("/.netlify/functions/create-payment", {
@@ -3190,14 +3190,8 @@ async function exportToPNG() {
 let paymentWatchTimer = null;
 
 // Prix affiché (le serveur reste la source de vérité). Occupation : paliers.
-function priceForClient(maptype, level) {
-  if ((maptype === "occupation" || maptype === "relief") && level === "dept")
-    return 4000;
-  if (
-    (maptype === "occupation" || maptype === "relief") &&
-    level === "region"
-  )
-    return 5000;
+// Prix unique : 2 000 FCFA pour toute carte, toute échelle, tout pays.
+function priceForClient() {
   return 2000;
 }
 function fmtPrice(n) {
@@ -3417,17 +3411,18 @@ async function handleDownloadToken(token) {
   waitDiv.innerHTML = `
     <div style="font-size:3rem">🗺️</div>
     <p style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:600;color:var(--ink);">
-      Vérification du paiement…
+      Votre carte arrive…
     </p>
-    <p style="font-size:0.82rem;color:var(--muted);">Préparation de votre carte en cours.</p>
+    <p style="font-size:0.82rem;color:var(--muted);">On confirme le paiement, le téléchargement démarre tout seul.</p>
     <div id="dl-status" style="font-size:0.78rem;color:var(--terra);font-weight:500;letter-spacing:1px;"></div>
   `;
   main.appendChild(waitDiv);
 
   try {
-    // Polling : le webhook Bictorys peut arriver quelques secondes après la redirection
-    const MAX_TRIES = 12;
-    const INTERVAL_MS = 2500;
+    // Polling : la confirmation Bictorys arrive en quelques secondes. Fenêtre
+    // courte et discrète, cohérente avec la promesse « ta carte en minutes ».
+    const MAX_TRIES = 18;
+    const delayFor = () => 2500; // ~45 s au total, sans jamais l'annoncer
     let paid = false,
       commune,
       error,
@@ -3458,22 +3453,33 @@ async function handleDownloadToken(token) {
       // Paiement en attente de confirmation webhook → on attend
       const dlStatus = document.getElementById("dl-status");
       if (dlStatus)
-        dlStatus.innerText = `Confirmation en cours… (${i + 1}/${MAX_TRIES})`;
-      await new Promise((r) => setTimeout(r, INTERVAL_MS));
+        dlStatus.innerText = "Confirmation du paiement en cours…";
+      await new Promise((r) => setTimeout(r, delayFor(i)));
     }
 
     if (!paid) {
+      // Erreur définitive (lien expiré/introuvable) vs simple lenteur de
+      // confirmation. Dans le 2e cas, le client a peut-être déjà payé : on
+      // rassure et on garde le lien actif (le pending reste, il sera repris).
+      const isRealError = !!error;
       waitDiv.innerHTML = `
-        <div style="font-size:3rem">❌</div>
+        <div style="font-size:3rem">${isRealError ? "⚠️" : "⏳"}</div>
         <p style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;
-                  font-weight:600;color:var(--terra);">
-          ${error || "Paiement non encore confirmé — réessayez dans quelques instants"}
+                  font-weight:600;color:var(--ink);max-width:420px;line-height:1.4;">
+          ${isRealError ? error : "On finalise la confirmation"}
         </p>
-        <a href="map.html?token=${token}" style="display:inline-block;margin-top:1rem;
-           background:var(--terra);color:white;padding:12px 28px;
+        <p style="font-size:0.82rem;color:var(--muted);max-width:420px;line-height:1.6;">
+          ${
+            isRealError
+              ? "Contactez-nous sur WhatsApp avec votre code de paiement, on règle ça."
+              : "Déjà payé ? Votre carte reste téléchargeable pendant 1&nbsp;heure. Cliquez pour la récupérer."
+          }
+        </p>
+        <a href="map.html?token=${token}" style="display:inline-block;margin-top:0.5rem;
+           background:var(--terra);color:white;padding:14px 30px;
            font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;
-           text-decoration:none;border-radius:1px;">
-          Réessayer
+           text-decoration:none;border-radius:2px;">
+          ${isRealError ? "Réessayer" : "Vérifier à nouveau"}
         </a>
         <a href="map.html" style="display:inline-block;margin-top:0.5rem;
            font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;

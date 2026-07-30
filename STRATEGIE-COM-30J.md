@@ -9,9 +9,7 @@ Cette version ajoute un pilier nouveau : **le récit en transparence**. Sutura M
 ## À SAVOIR (mémo permanent)
 
 - **Site :** sutura-maps.com
-- **Prix localisation :** 2 000 FCFA, tous niveaux (commune, département, région).
-- **Prix occupation du sol :** commune 2 000, département 4 000, région 5 000.
-- **Prix relief (MNT) :** commune 2 000, département 4 000, région 5 000.
+- **Prix : 2 000 FCFA par carte, prix unique.** Tout type (localisation, occupation du sol, relief), toute échelle (commune, département, région) et tout pays. Simple et accessible.
 - **Paiement :** Wave, Orange Money, MaxIt.
 - **Garantie :** satisfait ou remboursé sous 24 h, par le même mobile money.
 - **Données :** communes (DTGC) ; occupation du sol (ANAT, CSE, ANSD, 2020) ; relief (SRTM, NASA, 30 m).
@@ -123,7 +121,7 @@ Légende : « La carte de localisation de ta zone d'étude en 5 minutes. 2 000 F
 >
 > Ce qu'on y lit : [2 ou 3 observations concrètes : où est la forêt, où sont les cultures, l'eau, le bâti, ce que ça raconte du territoire].
 >
-> Une carte d'occupation du sol, c'est la base d'un diagnostic territorial, d'une étude d'impact ou d'un mémoire. Commune 2 000, département 4 000, région 5 000. sutura-maps.com
+> Une carte d'occupation du sol, c'est la base d'un diagnostic territorial, d'une étude d'impact ou d'un mémoire. 2 000 FCFA la carte, quelle que soit l'échelle. sutura-maps.com
 >
 > Dis-moi en commentaire quelle zone on lit au prochain épisode.
 
@@ -146,14 +144,14 @@ Le relief est ta nouveauté la plus spectaculaire visuellement. Profites-en.
 >
 > Source SRTM (NASA, 30 m). Quelques minutes, paiement mobile money, téléchargement immédiat. Utile pour un mémoire, un rapport de terrain, un cours.
 >
-> Commune 2 000, département 4 000, région 5 000. sutura-maps.com
+> 2 000 FCFA la carte, quelle que soit l'échelle. sutura-maps.com
 
 **Action 2. Statut WhatsApp (carrousel MNT, 4 slides)** — tu as déjà les visuels générés dans `assets/carrousels/out/` :
 
 1. NOUVEAU : la carte du relief de ta commune.
 2. [ta carte MNT annotée]
 3. Découpé sur tes limites exactes. 5 classes d'altitude. Source SRTM, NASA.
-4. À partir de 2 000 FCFA, Wave ou Orange. sutura-maps.com
+4. 2 000 FCFA la carte, Wave ou Orange. sutura-maps.com
 
 **Action 3.** Décline en short vertical (30 s) : tu fais défiler le dégradé vert vers brun, tu expliques en une phrase « du plus bas au plus haut, le relief réel ».
 
@@ -288,7 +286,7 @@ Le jour où tu transformes ta plus grosse galère en contenu. Les gens adorent l
 
 **Action 1. Statut WhatsApp + post Facebook :**
 
-> Étudiant en géographie, en agronomie, en aménagement ? La carte de localisation, d'occupation du sol ou de relief de ta zone d'étude, propre et avec ses sources, en 5 minutes. Plus besoin de galérer sur QGIS la veille du dépôt. À partir de 2 000 FCFA, satisfait ou remboursé. sutura-maps.com
+> Étudiant en géographie, en agronomie, en aménagement ? La carte de localisation, d'occupation du sol ou de relief de ta zone d'étude, propre et avec ses sources, en 5 minutes. Plus besoin de galérer sur QGIS la veille du dépôt. 2 000 FCFA la carte, satisfait ou remboursé. sutura-maps.com
 
 **Action 2.** Cible 2 groupes d'étudiants (facs, masters) avec la méthode d'apport (carte du groupe + phrase).
 
@@ -361,7 +359,7 @@ Tu es SIG de métier. Montre la galère que tu épargnes aux gens.
 
 ### Phrase de clôture universelle (à coller en fin de tout post de vente)
 
-> Localisation, occupation du sol et relief, des 557 communes aux 14 régions. À partir de 2 000 FCFA. Satisfait ou remboursé sous 24 h. sutura-maps.com
+> Localisation, occupation du sol et relief, des 557 communes aux 14 régions. 2 000 FCFA la carte. Satisfait ou remboursé sous 24 h. sutura-maps.com
 
 ### Réponse type en commentaire « et ma commune ? »
 
@@ -373,7 +371,7 @@ Tivaouane Diacksao, Thiénaba, Patar, Diagane Barka, Fass, Medinatoul Salam II, 
 
 ### Mémo prix (à ne jamais oublier dans un post)
 
-Localisation : 2 000 partout. Occupation et relief : 2 000 commune / 4 000 département / 5 000 région.
+**2 000 FCFA par carte, prix unique** : tout type (localisation, occupation, relief), toute échelle (commune, département, région), tout pays.
 
 ### Le ratio à tenir
 
