@@ -16,46 +16,41 @@ let locatorMap = null;
 let regionMap = null;
 
 /* ── PAYS (multi-pays Afrique de l'Ouest) ───────────────────────────
-   Registre extensible. Chaque pays déclare ses fichiers et les types de
-   carte qu'il supporte. Le relief (MNT) marche partout (tuiles mondiales) ;
-   localisation et occupation ne sont pour l'instant activées que pour le
-   Sénégal. Pour activer un type sur un autre pays, il suffira d'ajouter son
-   nom dans `cartes` une fois les données prêtes.
-   Convention de fichiers pour les nouveaux pays (GADM, noms renommés
-   NAME_1/2/3 → REG/DEPT/CCRCA) :
-     data/countries/<ISO>/meta.json   (noms seuls, pour les menus)
-     data/countries/<ISO>/adm1.geojson (REG)         → niveau région
-     data/countries/<ISO>/adm2.geojson (REG,DEPT)     → niveau département
-     data/countries/<ISO>/adm3.geojson (REG,DEPT,CCRCA) → niveau commune */
+   Registre extensible. Le Sénégal (native:true) garde sa cascade d'origine
+   (région/département/commune, données meta.json). Les autres pays utilisent
+   une cascade GÉNÉRIQUE construite à partir de leurs fichiers GADM, où chaque
+   niveau déclare : son libellé, le champ nom (NAME_k), le champ code GID
+   (GID_k, unique et hiérarchique), et le fichier geojson correspondant.
+   Le relief (MNT) marche partout (tuiles d'élévation mondiales). Pour activer
+   un autre type de carte sur un pays, on ajoute son nom dans `cartes`. */
 const COUNTRIES = {
   SN: {
     nom: "Sénégal",
+    native: true,
     meta: "data/meta.json",
-    geo: {
-      commune: "data/communes.geojson",
-      dept: "data/departements.geojson",
-      region: "data/regions.geojson",
-    },
     cartes: ["localisation", "occupation", "relief"],
   },
   BEN: {
     nom: "Bénin",
-    meta: "data/countries/BEN/meta.json",
-    geo: {
-      commune: "data/countries/BEN/adm3.geojson",
-      dept: "data/countries/BEN/adm2.geojson",
-      region: "data/countries/BEN/adm1.geojson",
-    },
+    // Bénin : pas de niveau région. Département → Commune → Arrondissement.
+    levels: [
+      { label: "Département", nameKey: "NAME_1", gidKey: "GID_1", file: "data/BEN/departements.geojson" },
+      { label: "Commune", nameKey: "NAME_2", gidKey: "GID_2", file: "data/BEN/communes.geojson" },
+      { label: "Arrondissement", nameKey: "NAME_3", gidKey: "GID_3", file: "data/BEN/arrondissements.geojson" },
+    ],
     cartes: ["relief"],
   },
   CIV: {
     nom: "Côte d'Ivoire",
-    meta: "data/countries/CIV/meta.json",
-    geo: {
-      commune: "data/countries/CIV/adm3.geojson",
-      dept: "data/countries/CIV/adm2.geojson",
-      region: "data/countries/CIV/adm1.geojson",
-    },
+    // CIV : District → Région → Département → Sous-préfecture. Les 2 districts
+    // autonomes (Abidjan, Yamoussoukro) ont une « région » du même nom : la
+    // cascade par GID gère ce cas sans confusion.
+    levels: [
+      { label: "District", nameKey: "NAME_1", gidKey: "GID_1", file: "data/CIV/districts.geojson" },
+      { label: "Région", nameKey: "NAME_2", gidKey: "GID_2", file: "data/CIV/regions.geojson" },
+      { label: "Département", nameKey: "NAME_3", gidKey: "GID_3", file: "data/CIV/departements.geojson" },
+      { label: "Sous-préfecture", nameKey: "NAME_4", gidKey: "GID_4", file: "data/CIV/sous_prefectures.geojson" },
+    ],
     cartes: ["relief"],
   },
 };
@@ -66,6 +61,15 @@ function countryCfg() {
 function countrySupports(mapType) {
   return countryCfg().cartes.includes(mapType);
 }
+function isNativeCountry() {
+  return !!countryCfg().native;
+}
+
+/* État de la cascade générique (pays non natifs). Pour chaque niveau
+   sélectionné : le code GID choisi et le nom affiché. */
+let intlSelGid = [];
+let intlSelName = [];
+let intlTargetLevel = 0; // index du niveau le plus profond sélectionné
 
 /* ── Cache réseau des GeoJSON ───────────────────────────────────────
    Une seule requête par fichier pour toute la session. Le préchargement
@@ -204,6 +208,13 @@ function checkNextBtn() {
   // Ce type de carte n'est pas encore disponible pour le pays choisi.
   if (!countrySupports(selectedMapType)) {
     btn.disabled = true;
+    return;
+  }
+
+  // Pays GADM : la cascade générique pilote l'activation (au moins le niveau
+  // de tête doit être choisi ; les niveaux plus fins sont optionnels).
+  if (!isNativeCountry()) {
+    btn.disabled = !(intlSelGid[0]);
     return;
   }
 
@@ -362,28 +373,160 @@ function updateCountryNotice() {
   }
 }
 
-// Changement de pays : recharge le menu (meta.json du pays) et réévalue
-// l'état des types de carte. Le Sénégal retrouve son comportement d'origine.
+// Changement de pays. Le Sénégal (natif) retrouve exactement sa cascade
+// d'origine ; les autres pays passent par la cascade générique GADM.
 async function loadCountry(iso) {
   currentCountry = COUNTRIES[iso] ? iso : "SN";
   const cfg = countryCfg();
-  resetCascadeSelects();
   selectedLevel = "commune";
   occupationClipped = null;
   occupationPalette = {};
   geoData = { communes: null };
   for (const k of Object.keys(geoFetchCache)) delete geoFetchCache[k];
-  try {
-    const res = await fetch(cfg.meta);
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    metaData = await res.json();
-  } catch (e) {
+  intlSelGid = [];
+  intlSelName = [];
+
+  const staticGroup = document.getElementById("filter-group");
+  const intlGroup = document.getElementById("filter-group-intl");
+
+  if (cfg.native) {
+    // Sénégal : cascade statique d'origine.
+    if (staticGroup) staticGroup.style.display = "";
+    if (intlGroup) intlGroup.style.display = "none";
+    resetCascadeSelects();
+    try {
+      const res = await fetch(cfg.meta);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      metaData = await res.json();
+    } catch (e) {
+      metaData = [];
+      console.warn("[pays] meta indisponible pour", iso, "—", e.message);
+    }
+    initFilters();
+  } else {
+    // Pays GADM : cascade générique par niveaux.
     metaData = [];
-    console.warn("[pays] données indisponibles pour", iso, "—", e.message);
+    if (staticGroup) staticGroup.style.display = "none";
+    if (intlGroup) intlGroup.style.display = "";
+    await buildIntlCascade(cfg);
   }
-  initFilters();
+
+  // Si le type de carte courant n'est pas supporté par ce pays, on bascule
+  // sur le premier type disponible (le relief pour les pays GADM).
+  if (!countrySupports(selectedMapType)) {
+    selectedMapType = cfg.cartes[0] || "relief";
+    document
+      .querySelectorAll(".map-type-btn")
+      .forEach((b) =>
+        b.classList.toggle("active", b.dataset.type === selectedMapType),
+      );
+    restoreStep2Localisation();
+  }
+
   updateCountryNotice();
   checkNextBtn();
+}
+
+/* ── CASCADE GÉNÉRIQUE (pays GADM) ──────────────────────────────────
+   Construit un menu déroulant par niveau, alimenté par les fichiers du pays.
+   La sélection se propage par code GID (unique et hiérarchique). */
+async function buildIntlCascade(cfg) {
+  const box = document.getElementById("filter-group-intl");
+  if (!box) return;
+  box.innerHTML = "";
+  intlSelGid = new Array(cfg.levels.length).fill("");
+  intlSelName = new Array(cfg.levels.length).fill("");
+
+  cfg.levels.forEach((lvl, i) => {
+    const sel = document.createElement("select");
+    sel.id = "intl-sel-" + i;
+    sel.innerHTML = `<option value="">-- ${lvl.label} --</option>`;
+    if (i > 0) sel.disabled = true;
+    sel.onchange = () => onIntlChange(i);
+    box.appendChild(sel);
+  });
+
+  // Niveau 0 : toutes les entités du fichier de tête.
+  try {
+    const data = await fetchGeo(cfg.levels[0].file);
+    fillIntlSelect(0, data.features, cfg.levels[0]);
+  } catch (e) {
+    console.warn("[pays] niveau 0 indisponible —", e.message);
+  }
+}
+
+function fillIntlSelect(i, features, lvl) {
+  const sel = document.getElementById("intl-sel-" + i);
+  if (!sel) return;
+  const seen = new Set();
+  const opts = [];
+  for (const f of features) {
+    const gid = f.properties[lvl.gidKey];
+    const nom = f.properties[lvl.nameKey];
+    if (!gid || seen.has(gid)) continue;
+    seen.add(gid);
+    opts.push([gid, nom]);
+  }
+  opts.sort((a, b) => String(a[1]).localeCompare(String(b[1]), "fr"));
+  for (const [gid, nom] of opts) sel.add(new Option(nom, gid));
+  sel.disabled = false;
+}
+
+async function onIntlChange(i) {
+  const cfg = countryCfg();
+  const sel = document.getElementById("intl-sel-" + i);
+  const gid = sel.value;
+  const nom = sel.options[sel.selectedIndex]?.text || "";
+  intlSelGid[i] = gid;
+  intlSelName[i] = gid ? nom : "";
+
+  // Réinitialise tous les niveaux plus profonds.
+  for (let j = i + 1; j < cfg.levels.length; j++) {
+    intlSelGid[j] = "";
+    intlSelName[j] = "";
+    const sj = document.getElementById("intl-sel-" + j);
+    if (sj) {
+      sj.innerHTML = `<option value="">-- ${cfg.levels[j].label} --</option>`;
+      sj.disabled = true;
+    }
+  }
+
+  // Remplit le niveau suivant, filtré par le GID parent.
+  if (gid && i + 1 < cfg.levels.length) {
+    const parentKey = cfg.levels[i].gidKey; // GID du niveau courant
+    try {
+      const data = await fetchGeo(cfg.levels[i + 1].file);
+      const children = data.features.filter(
+        (f) => f.properties[parentKey] === gid,
+      );
+      fillIntlSelect(i + 1, children, cfg.levels[i + 1]);
+    } catch (e) {
+      console.warn("[pays] niveau", i + 1, "indisponible —", e.message);
+    }
+  }
+
+  checkNextBtn();
+}
+
+// Récupère l'entité (feature) du niveau le plus profond sélectionné.
+async function getIntlTarget() {
+  const cfg = countryCfg();
+  let idx = -1;
+  for (let i = 0; i < cfg.levels.length; i++) if (intlSelGid[i]) idx = i;
+  if (idx < 0) return null;
+  const lvl = cfg.levels[idx];
+  const data = await fetchGeo(lvl.file);
+  const feat = data.features.find(
+    (f) => f.properties[lvl.gidKey] === intlSelGid[idx],
+  );
+  if (!feat) return null;
+  intlTargetLevel = idx;
+  return {
+    feature: feat,
+    name: intlSelName[idx],
+    label: lvl.label.toUpperCase(),
+    levelIndex: idx,
+  };
 }
 
 function initFilters() {
@@ -1791,6 +1934,12 @@ function stopLoadingTicker() {
 }
 
 async function generateFinalMap() {
+  // Pays GADM (non natifs) : chemin dédié (relief uniquement).
+  if (!isNativeCountry()) {
+    await generateFinalMapIntl();
+    return;
+  }
+
   const comName = document.getElementById("select-commune").value;
   const userColor = document.getElementById("color-picker")?.value || "#7BA05B";
   const author = document.getElementById("author-name")?.value || "Sutura Maps";
@@ -1879,6 +2028,52 @@ async function generateFinalMap() {
     const exportBtn = document.querySelector(".btn-export");
     if (exportBtn) {
       const p = fmtPrice(priceForClient(selectedMapType, level));
+      exportBtn.innerText = `PAYEZ ${p} ET TÉLÉCHARGEZ`;
+    }
+  }, 600);
+}
+
+// Génération pour les pays GADM : relief (MNT) de l'entité sélectionnée.
+async function generateFinalMapIntl() {
+  const author = document.getElementById("author-name")?.value || "Sutura Maps";
+  const target = await getIntlTarget();
+  if (!target) {
+    showError("Sélectionnez au moins un niveau.");
+    goToStep(1);
+    return;
+  }
+  const zoneName = target.name;
+
+  goToStep("loading");
+  document.getElementById("loading-commune").innerText = (
+    zoneName || ""
+  ).toUpperCase();
+  startLoadingTicker();
+  await new Promise((r) => setTimeout(r, 1200));
+  stopLoadingTicker();
+  goToStep(3);
+
+  setTimeout(async () => {
+    await new Promise((r) => setTimeout(r, 200));
+    map.invalidateSize();
+    map.eachLayer((layer) => map.removeLayer(layer));
+    if (mapControls.scale) map.removeControl(mapControls.scale);
+    if (mapControls.north) map.removeControl(mapControls.north);
+
+    track("generation", zoneName);
+    await generateReliefMap(target.feature, zoneName, author, target.label);
+
+    // Palier de prix selon la taille du niveau (tête = région, feuille = commune).
+    const cfg = countryCfg();
+    const lvlKey =
+      target.levelIndex === 0
+        ? "region"
+        : target.levelIndex >= cfg.levels.length - 1
+          ? "commune"
+          : "dept";
+    const exportBtn = document.querySelector(".btn-export");
+    if (exportBtn) {
+      const p = fmtPrice(priceForClient("relief", lvlKey));
       exportBtn.innerText = `PAYEZ ${p} ET TÉLÉCHARGEZ`;
     }
   }, 600);
@@ -2225,10 +2420,40 @@ async function generateLocalisationMap(
    CARTE D'OCCUPATION DU SOL
 ════════════════════════════════ */
 
+// Voisins pour un pays GADM : les autres entités du niveau sélectionné qui
+// touchent la zone d'étude (nom normalisé dans CCRCA pour les étiquettes).
+async function computeNeighborsIntl(targetFeature) {
+  const cfg = countryCfg();
+  const lvl = cfg.levels[intlTargetLevel];
+  if (!lvl) return [];
+  try {
+    const data = await fetchGeo(lvl.file);
+    const selfGid = targetFeature.properties[lvl.gidKey];
+    return data.features
+      .filter((f) => f.properties[lvl.gidKey] !== selfGid)
+      .filter((f) => {
+        try {
+          return turf.booleanIntersects(targetFeature, f);
+        } catch (e) {
+          return false;
+        }
+      })
+      .map((f) => ({
+        ...f,
+        properties: { ...f.properties, CCRCA: f.properties[lvl.nameKey] },
+      }));
+  } catch (e) {
+    return [];
+  }
+}
+
 // Renvoie les entités limitrophes (communes, départements ou régions) qui
 // touchent la zone d'étude, selon le niveau. Le nom voisin est normalisé dans
 // la propriété CCRCA pour qu'addNeighborLabels l'affiche de façon uniforme.
 async function computeNeighbors(targetFeature, zoneName, level) {
+  // Pays GADM : voisins = entités du même niveau qui touchent la zone.
+  if (!isNativeCountry()) return computeNeighborsIntl(targetFeature);
+
   if (level === "commune") {
     return geoData.communes.features.filter((f) => {
       if (f.properties.CCRCA === zoneName) return false;
@@ -2690,8 +2915,16 @@ async function generateReliefMap(targetFeature, zoneName, author, level) {
   document.getElementById("locator-card").style.display = "none";
   document.getElementById("region-card").style.display = "none";
 
+  // level natif ("region"/"dept"/"commune") → libellé FR ; sinon (pays GADM),
+  // level EST déjà le libellé du niveau (ex. "DISTRICT", "SOUS-PRÉFECTURE").
   const levelLabel =
-    level === "region" ? "RÉGION" : level === "dept" ? "DÉPARTEMENT" : "COMMUNE";
+    level === "region"
+      ? "RÉGION"
+      : level === "dept"
+        ? "DÉPARTEMENT"
+        : level === "commune"
+          ? "COMMUNE"
+          : String(level).toUpperCase();
   document.getElementById("display-commune").innerText =
     `RELIEF — ${levelLabel} DE ${zoneName.toUpperCase()}`;
   document.getElementById("display-author").innerText = author;
@@ -2711,11 +2944,11 @@ function buildReliefLegend(classes) {
     .reverse()
     .map(
       ({ c, label }) => `
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
-        <span style="width:18px;height:14px;flex:0 0 auto;
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span style="width:34px;height:24px;flex:0 0 auto;
                      background:rgb(${c[0]},${c[1]},${c[2]});
                      border:1px solid rgba(0,0,0,0.2);border-radius:2px;"></span>
-        <span style="font-size:0.72rem;color:var(--ink);">${label}</span>
+        <span style="font-size:0.82rem;color:var(--ink);">${label}</span>
       </div>`,
     )
     .join("");
