@@ -28,6 +28,9 @@ exports.handler = async (event) => {
   }
 
   const { commune, dept, reg, color, author, client, maptype, level } = body;
+  // Multi-pays : pour les pays GADM, la zone est identifiée par son code GID.
+  const country = typeof body.country === "string" ? body.country : "SN";
+  const gid = typeof body.gid === "string" ? body.gid : null;
 
   // Prix calculé CÔTÉ SERVEUR (jamais reçu du navigateur) selon le type de
   // carte et le niveau. Occupation et relief : paliers dept/région. Sinon 2000.
@@ -70,6 +73,8 @@ exports.handler = async (event) => {
     maptype: mt,
     level: lvl,
     amount,
+    country,
+    gid,
     paid: false,
     expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
   });

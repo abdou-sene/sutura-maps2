@@ -20,7 +20,7 @@ exports.handler = async (event) => {
 
   const { data, error } = await supabase
     .from("exports")
-    .select("paid, paid_at, commune, dept, reg, level, maptype, expires_at, user_color, user_author")
+    .select("paid, paid_at, commune, dept, reg, level, maptype, expires_at, user_color, user_author, country, gid")
     .eq("token", token)
     .maybeSingle();
 
@@ -75,6 +75,8 @@ exports.handler = async (event) => {
       maptype: data.maptype || "localisation",
       color: data.user_color || "#7BA05B",
       author: data.user_author || "Sutura Maps",
+      country: data.country || "SN",
+      gid: data.gid || null,
     }),
   };
 };

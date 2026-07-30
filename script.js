@@ -529,6 +529,31 @@ async function getIntlTarget() {
   };
 }
 
+// Reconstruit une entité d'un pays GADM à partir de son code GID (utilisé au
+// téléchargement après paiement, où l'on n'a plus l'état de la cascade). La
+// profondeur se déduit du GID : "BEN.1_1"→0, "BEN.1.1_1"→1, "CIV.1.1.1.1_1"→3.
+async function getIntlTargetByGid(country, gid) {
+  const cfg = COUNTRIES[country];
+  if (!cfg || !cfg.levels || !gid) return null;
+  const segs = String(gid).split("_")[0].split(".").length;
+  const idx = Math.max(0, Math.min(cfg.levels.length - 1, segs - 2));
+  const lvl = cfg.levels[idx];
+  try {
+    const data = await fetchGeo(lvl.file);
+    const feat = data.features.find((f) => f.properties[lvl.gidKey] === gid);
+    if (!feat) return null;
+    intlTargetLevel = idx;
+    return {
+      feature: feat,
+      name: feat.properties[lvl.nameKey],
+      label: lvl.label.toUpperCase(),
+      levelIndex: idx,
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
 function initFilters() {
   const selReg = document.getElementById("select-reg");
   const selDept = document.getElementById("select-dept"); // ← ajouter
@@ -3001,17 +3026,41 @@ function isMobileDevice() {
 }
 
 async function exportToPNG() {
-  const commune = document.getElementById("select-commune").value;
-  const dept = document.getElementById("select-dept").value;
-  const reg = document.getElementById("select-reg").value;
   const color = document.getElementById("color-picker")?.value || "#7BA05B";
   const author = document.getElementById("author-name")?.value || "Sutura Maps";
   const mobile = isMobileDevice();
+  const country = currentCountry;
 
-  // Niveau et nom de la zone (commune, département ou région).
-  const level = selectedLevel;
-  const zoneName =
-    level === "region" ? reg : level === "dept" ? dept : commune;
+  // Identité de la zone : Sénégal via les menus classiques, pays GADM via le
+  // code GID de l'entité sélectionnée (le nom voyage dans `commune`).
+  let commune, dept, reg, level, zoneName, gid;
+  if (isNativeCountry()) {
+    commune = document.getElementById("select-commune").value;
+    dept = document.getElementById("select-dept").value;
+    reg = document.getElementById("select-reg").value;
+    level = selectedLevel;
+    zoneName = level === "region" ? reg : level === "dept" ? dept : commune;
+    gid = null;
+  } else {
+    const t = await getIntlTarget();
+    if (!t) {
+      showError("Sélection incomplète.");
+      return;
+    }
+    const cfg = countryCfg();
+    zoneName = t.name;
+    gid = intlSelGid[t.levelIndex];
+    // Palier de prix selon la taille du niveau (tête = région, feuille = commune).
+    level =
+      t.levelIndex === 0
+        ? "region"
+        : t.levelIndex >= cfg.levels.length - 1
+          ? "commune"
+          : "dept";
+    commune = zoneName;
+    dept = "";
+    reg = "";
+  }
 
   const btn = document.querySelector(".btn-export");
   const resetBtn = () => {
@@ -3033,6 +3082,8 @@ async function exportToPNG() {
         author,
         level,
         maptype: selectedMapType,
+        country,
+        gid,
         client: mobile ? "mobile" : "desktop",
       }),
     });
@@ -3067,6 +3118,8 @@ async function exportToPNG() {
         reg,
         level,
         maptype: selectedMapType,
+        country,
+        gid,
         palette:
           selectedMapType === "occupation"
             ? occupationPalette || {}
@@ -3342,7 +3395,7 @@ async function handleDownloadToken(token) {
       error,
       color,
       author;
-    let tokMaptype, tokLevel, tokDept, tokReg;
+    let tokMaptype, tokLevel, tokDept, tokReg, tokCountry, tokGid;
 
     for (let i = 0; i < MAX_TRIES; i++) {
       const res = await fetch(`/.netlify/functions/check-token?token=${token}`);
@@ -3356,6 +3409,8 @@ async function handleDownloadToken(token) {
       tokLevel = data.level;
       tokDept = data.dept;
       tokReg = data.reg;
+      tokCountry = data.country;
+      tokGid = data.gid;
 
       if (paid) break;
 
@@ -3422,10 +3477,22 @@ async function handleDownloadToken(token) {
       "commune";
     const zDept = tokDept || pending.dept;
     const zReg = tokReg || pending.reg;
+    const zCountry = tokCountry || pending.country || "SN";
+    const zGid = tokGid || pending.gid || null;
 
-    // Construction de la zone selon le niveau.
+    // Construction de la zone selon le pays et le niveau.
     let targetFeature;
-    if (level === "commune") {
+    let reliefLevelArg = level; // libellé de niveau pour le titre du relief
+    if (zCountry && zCountry !== "SN") {
+      // Pays GADM : on reconstruit l'entité depuis son code GID.
+      currentCountry = zCountry;
+      const t = await getIntlTargetByGid(zCountry, zGid);
+      if (t) {
+        targetFeature = t.feature;
+        commune = t.name;
+        reliefLevelArg = t.label;
+      }
+    } else if (level === "commune") {
       targetFeature = geoData.communes.features.find(
         (f) => f.properties.CCRCA === commune,
       );
@@ -3462,7 +3529,7 @@ async function handleDownloadToken(token) {
         targetFeature,
         commune,
         author || "Sutura Maps",
-        level,
+        reliefLevelArg,
       );
     } else if (mapType === "occupation") {
       const dept = zDept || targetFeature.properties.DEPT;
