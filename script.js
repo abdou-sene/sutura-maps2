@@ -15,6 +15,58 @@ let mapControls = { scale: null, north: null };
 let locatorMap = null;
 let regionMap = null;
 
+/* ── PAYS (multi-pays Afrique de l'Ouest) ───────────────────────────
+   Registre extensible. Chaque pays déclare ses fichiers et les types de
+   carte qu'il supporte. Le relief (MNT) marche partout (tuiles mondiales) ;
+   localisation et occupation ne sont pour l'instant activées que pour le
+   Sénégal. Pour activer un type sur un autre pays, il suffira d'ajouter son
+   nom dans `cartes` une fois les données prêtes.
+   Convention de fichiers pour les nouveaux pays (GADM, noms renommés
+   NAME_1/2/3 → REG/DEPT/CCRCA) :
+     data/countries/<ISO>/meta.json   (noms seuls, pour les menus)
+     data/countries/<ISO>/adm1.geojson (REG)         → niveau région
+     data/countries/<ISO>/adm2.geojson (REG,DEPT)     → niveau département
+     data/countries/<ISO>/adm3.geojson (REG,DEPT,CCRCA) → niveau commune */
+const COUNTRIES = {
+  SN: {
+    nom: "Sénégal",
+    meta: "data/meta.json",
+    geo: {
+      commune: "data/communes.geojson",
+      dept: "data/departements.geojson",
+      region: "data/regions.geojson",
+    },
+    cartes: ["localisation", "occupation", "relief"],
+  },
+  BEN: {
+    nom: "Bénin",
+    meta: "data/countries/BEN/meta.json",
+    geo: {
+      commune: "data/countries/BEN/adm3.geojson",
+      dept: "data/countries/BEN/adm2.geojson",
+      region: "data/countries/BEN/adm1.geojson",
+    },
+    cartes: ["relief"],
+  },
+  CIV: {
+    nom: "Côte d'Ivoire",
+    meta: "data/countries/CIV/meta.json",
+    geo: {
+      commune: "data/countries/CIV/adm3.geojson",
+      dept: "data/countries/CIV/adm2.geojson",
+      region: "data/countries/CIV/adm1.geojson",
+    },
+    cartes: ["relief"],
+  },
+};
+let currentCountry = "SN";
+function countryCfg() {
+  return COUNTRIES[currentCountry] || COUNTRIES.SN;
+}
+function countrySupports(mapType) {
+  return countryCfg().cartes.includes(mapType);
+}
+
 /* ── Cache réseau des GeoJSON ───────────────────────────────────────
    Une seule requête par fichier pour toute la session. Le préchargement
    démarre dès l'étape 2 (pendant que l'utilisateur personnalise), donc à
@@ -134,6 +186,7 @@ function selectMapType(btn) {
     restoreStep2Localisation();
   }
 
+  updateCountryNotice();
   checkNextBtn();
 }
 
@@ -147,6 +200,12 @@ function checkNextBtn() {
   const commune = document.getElementById("select-commune")?.value;
   const btn = document.getElementById("btn-to-step2");
   if (!btn) return;
+
+  // Ce type de carte n'est pas encore disponible pour le pays choisi.
+  if (!countrySupports(selectedMapType)) {
+    btn.disabled = true;
+    return;
+  }
 
   if (commune) selectedLevel = "commune";
   else if (dept) selectedLevel = "dept";
@@ -221,6 +280,13 @@ window.onload = async () => {
     initFilters();
     track("visit");
 
+    // Sélecteur de pays : Sénégal par défaut, changement à la volée.
+    const selCountry = document.getElementById("select-country");
+    if (selCountry) {
+      selCountry.value = currentCountry;
+      selCountry.onchange = () => loadCountry(selCountry.value);
+    }
+
     document.querySelectorAll(".color-swatch").forEach((swatch) => {
       swatch.onclick = () => {
         document
@@ -256,6 +322,69 @@ window.onload = async () => {
 /* ════════════════════════════════
    FILTRAGE DES DONNÉES
 ════════════════════════════════ */
+
+function mapTypeLabel(t) {
+  return t === "occupation"
+    ? "Occupation du sol"
+    : t === "relief"
+      ? "Relief (MNT)"
+      : "Localisation";
+}
+
+// Remet la cascade à zéro (utilisé au changement de pays).
+function resetCascadeSelects() {
+  const selReg = document.getElementById("select-reg");
+  const selDept = document.getElementById("select-dept");
+  const selCom = document.getElementById("select-commune");
+  if (selReg) selReg.innerHTML = '<option value="">-- Région --</option>';
+  if (selDept) {
+    selDept.innerHTML = '<option value="">-- Département --</option>';
+    selDept.disabled = true;
+  }
+  if (selCom) {
+    selCom.innerHTML = '<option value="">-- Commune --</option>';
+    selCom.disabled = true;
+  }
+}
+
+// Affiche/masque la notice selon le pays et le type de carte choisi.
+function updateCountryNotice() {
+  const el = document.getElementById("country-notice");
+  if (!el) return;
+  if (!countrySupports(selectedMapType)) {
+    el.style.display = "block";
+    el.innerHTML =
+      `La carte « ${mapTypeLabel(selectedMapType)} » n'est pas encore ` +
+      `disponible pour <b>${countryCfg().nom}</b>. Pour ce pays, le ` +
+      `<b>relief (MNT)</b> est disponible. Les autres arrivent bientôt.`;
+  } else {
+    el.style.display = "none";
+  }
+}
+
+// Changement de pays : recharge le menu (meta.json du pays) et réévalue
+// l'état des types de carte. Le Sénégal retrouve son comportement d'origine.
+async function loadCountry(iso) {
+  currentCountry = COUNTRIES[iso] ? iso : "SN";
+  const cfg = countryCfg();
+  resetCascadeSelects();
+  selectedLevel = "commune";
+  occupationClipped = null;
+  occupationPalette = {};
+  geoData = { communes: null };
+  for (const k of Object.keys(geoFetchCache)) delete geoFetchCache[k];
+  try {
+    const res = await fetch(cfg.meta);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    metaData = await res.json();
+  } catch (e) {
+    metaData = [];
+    console.warn("[pays] données indisponibles pour", iso, "—", e.message);
+  }
+  initFilters();
+  updateCountryNotice();
+  checkNextBtn();
+}
 
 function initFilters() {
   const selReg = document.getElementById("select-reg");
