@@ -2647,44 +2647,80 @@ const MNT_COLORS = [
 // Couleur dédiée aux zones sous le niveau de la mer (< 0 m).
 const MNT_NEG_COLOR = [80, 140, 170]; // bleu-gris
 
-// Arrondit un pas brut au multiple de 5 supérieur (minimum 5 m).
-function mntNiceStep(rawStep) {
-  return Math.max(5, Math.ceil(rawStep / 5) * 5);
+// Arrondit au multiple de 5 le plus proche (bornes de légende lisibles).
+function _niceRound5(v) {
+  return Math.round(v / 5) * 5;
+}
+// Quantile sur un tableau DÉJÀ TRIÉ (interpolation linéaire).
+function _quantileSorted(sorted, q) {
+  if (!sorted.length) return 0;
+  const pos = (sorted.length - 1) * q;
+  const lo = Math.floor(pos),
+    hi = Math.ceil(pos);
+  return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+}
+// Garantit des bornes strictement croissantes (après arrondi, on peut avoir
+// des doublons ; on décale d'un pas minimal pour ne pas perdre de classe).
+function _ensureIncreasing(breaks, minStep) {
+  const out = [];
+  let prev = -Infinity;
+  for (let b of breaks) {
+    if (b <= prev) b = prev + (minStep || 5);
+    out.push(b);
+    prev = b;
+  }
+  return out;
 }
 
-// Construit le découpage en 5 classes selon la dénivelée.
-//  - Si l'altitude descend sous -1 m, la 1re classe est « < 0 » et les
-//    4 autres couvrent [0, emax].
-//  - Sinon, 5 classes régulières couvrant [emin, emax].
+// Découpage en 5 classes par QUANTILES (chaque classe ≈ même nombre de pixels)
+// avec bornes arrondies au multiple de 5. Corrige deux défauts des intervalles
+// égaux : une classe qui envahit tout le terrain, et la classe de haute
+// altitude quasi vide (donc invisible). Reçoit les altitudes intérieures.
+//  - Si le terrain descend sous -1 m, la 1re classe reste « < 0 ».
 // Retourne { classOf(e)->0..4, colors[5], labels[5] } (ordre bas → haut).
-function mntBuildClasses(emin, emax) {
+function mntBuildClasses(vals) {
+  // Échantillon trié, borné pour la vitesse.
+  let s = vals || [];
+  const CAP = 40000;
+  if (s.length > CAP) {
+    const step = Math.ceil(s.length / CAP);
+    const t = [];
+    for (let i = 0; i < s.length; i += step) t.push(s[i]);
+    s = t;
+  }
+  s = s.slice().sort((a, b) => a - b);
+  const emin = s.length ? s[0] : 0;
   const hasNeg = emin < -1;
 
   if (hasNeg) {
-    const step = mntNiceStep(Math.max(emax, 1) / 4);
+    const pos = s.filter((v) => v >= 0);
+    let b = [0.25, 0.5, 0.75].map((q) => _niceRound5(_quantileSorted(pos, q)));
+    b = _ensureIncreasing(b);
     const labels = [
       "< 0 m",
-      `0 – ${step} m`,
-      `${step} – ${2 * step} m`,
-      `${2 * step} – ${3 * step} m`,
-      `> ${3 * step} m`,
+      `0 – ${b[0]} m`,
+      `${b[0]} – ${b[1]} m`,
+      `${b[1]} – ${b[2]} m`,
+      `> ${b[2]} m`,
     ];
     const colors = [MNT_NEG_COLOR, ...MNT_COLORS.slice(0, 4)];
-    const classOf = (e) => {
-      if (e < 0) return 0;
-      return 1 + Math.min(3, Math.floor(e / step));
-    };
+    const classOf = (e) =>
+      e < 0 ? 0 : e < b[0] ? 1 : e < b[1] ? 2 : e < b[2] ? 3 : 4;
     return { classOf, colors, labels };
   }
 
-  const step = mntNiceStep((emax - emin) / 5);
-  const base = Math.floor(emin / step) * step;
-  const labels = [];
-  for (let i = 0; i < 5; i++) {
-    const lo = base + i * step;
-    labels.push(i < 4 ? `${lo} – ${lo + step} m` : `> ${base + 4 * step} m`);
-  }
-  const classOf = (e) => Math.max(0, Math.min(4, Math.floor((e - base) / step)));
+  let b = [0.2, 0.4, 0.6, 0.8].map((q) => _niceRound5(_quantileSorted(s, q)));
+  b = _ensureIncreasing(b);
+  const lo0 = Math.min(_niceRound5(emin), b[0] - 5);
+  const labels = [
+    `${lo0} – ${b[0]} m`,
+    `${b[0]} – ${b[1]} m`,
+    `${b[1]} – ${b[2]} m`,
+    `${b[2]} – ${b[3]} m`,
+    `> ${b[3]} m`,
+  ];
+  const classOf = (e) =>
+    e < b[0] ? 0 : e < b[1] ? 1 : e < b[2] ? 2 : e < b[3] ? 3 : 4;
   return { classOf, colors: MNT_COLORS.slice(), labels };
 }
 const _m = {
@@ -2853,6 +2889,7 @@ async function generateReliefMap(targetFeature, zoneName, author, level) {
 
   const elev = new Float32Array(OW * OH);
   const inside = new Uint8Array(OW * OH);
+  const vals = []; // altitudes intérieures, pour la classification par quantiles
   let emin = Infinity,
     emax = -Infinity,
     nIn = 0;
@@ -2868,6 +2905,7 @@ async function generateReliefMap(targetFeature, zoneName, author, level) {
       const k = iy * OW + ix;
       elev[k] = e;
       inside[k] = 1;
+      vals.push(e);
       nIn++;
       if (e < emin) emin = e;
       if (e > emax) emax = e;
@@ -2880,8 +2918,8 @@ async function generateReliefMap(targetFeature, zoneName, author, level) {
     return;
   }
 
-  // Découpage en 5 classes discrètes selon la dénivelée réelle.
-  const classes = mntBuildClasses(emin, emax);
+  // Découpage en 5 classes par quantiles (classes équilibrées, sommet visible).
+  const classes = mntBuildClasses(vals);
   const out = document.createElement("canvas");
   out.width = OW;
   out.height = OH;
