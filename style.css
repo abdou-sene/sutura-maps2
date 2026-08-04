@@ -9,14 +9,14 @@
 }
 
 :root {
-  --ink: #0e0c0a;
-  --sand: #f7f3ec;
-  --cream: #ede8df;
-  --terra: #b85c2c;
-  --terra2: #d4784a;
-  --gold: #c9a84c;
-  --muted: #7a7068;
-  --line: rgba(14, 12, 10, 0.1);
+  --ink: #14202a;
+  --sand: #f3f1ee;
+  --cream: #e8e5df;
+  --terra: #123c46;
+  --terra2: #1f5b68;
+  --gold: #e2673f;
+  --muted: #64727a;
+  --line: rgba(20,32,42, 0.1);
   --white: #ffffff;
 }
 
@@ -65,7 +65,7 @@ header h1 {
 }
 
 header span {
-  color: var(--terra2);
+  color: var(--gold);
   font-style: italic;
 }
 
@@ -102,7 +102,7 @@ main {
   padding: 2.5rem;
   border-radius: 2px;
   border: 1px solid var(--line);
-  box-shadow: 0 8px 32px rgba(14, 12, 10, 0.06);
+  box-shadow: 0 8px 32px rgba(20,32,42, 0.06);
   max-width: 520px;
   margin: 0 auto;
 }
@@ -138,7 +138,7 @@ input[type="color"] {
   width: 100%;
   padding: 11px 14px;
   margin: 5px 0;
-  border: 1px solid rgba(14, 12, 10, 0.15);
+  border: 1px solid rgba(20,32,42, 0.15);
   border-radius: 1px;
   background: var(--sand);
   color: var(--ink);
@@ -190,9 +190,9 @@ button {
 }
 
 .btn-next {
-  background: var(--terra);
+  background: var(--gold);
   color: white;
-  border: 1px solid var(--terra);
+  border: 1px solid var(--gold);
 }
 .btn-next:hover:not(:disabled) {
   background: var(--ink);
@@ -210,7 +210,7 @@ button {
 .btn-back {
   background: transparent;
   color: var(--muted);
-  border: 1px solid rgba(14, 12, 10, 0.18);
+  border: 1px solid rgba(20,32,42, 0.18);
 }
 .btn-back:hover {
   border-color: var(--ink);
@@ -323,7 +323,7 @@ button {
   left: 0;
   right: 0;
   background: rgba(255, 255, 255, 0.88);
-  color: #0e0c0a;
+  color: #14202a;
   text-align: center;
   padding: 8px 12px;
   z-index: 1000;
@@ -402,7 +402,7 @@ button {
   gap: 8px;
   flex-shrink: 0;
   z-index: 1000;
-  border-bottom: 1px solid rgba(14, 12, 10, 0.1);
+  border-bottom: 1px solid rgba(20,32,42, 0.1);
 }
 .panel-card-icon {
   font-size: 0.9rem;
@@ -663,7 +663,7 @@ button {
   font-weight: 500;
   letter-spacing: 0.5px;
   z-index: 2000;
-  box-shadow: 0 8px 24px rgba(14, 12, 10, 0.2);
+  box-shadow: 0 8px 24px rgba(20,32,42, 0.2);
   animation: fadeUp 0.3s ease;
 }
 
@@ -686,7 +686,7 @@ button {
 }
 .la-ring {
   position: absolute;
-  border: 1px solid rgba(184, 92, 44, 0.35);
+  border: 1px solid rgba(226,103,63, 0.35);
   border-radius: 50%;
 }
 .la-r1 {
@@ -694,7 +694,7 @@ button {
 }
 .la-r2 {
   inset: 18px;
-  border-color: rgba(184, 92, 44, 0.25);
+  border-color: rgba(226,103,63, 0.25);
 }
 .la-r3 {
   inset: 36px;
@@ -703,7 +703,7 @@ button {
 .la-cross-h,
 .la-cross-v {
   position: absolute;
-  background: rgba(14, 12, 10, 0.08);
+  background: rgba(20,32,42, 0.08);
 }
 .la-cross-h {
   left: -8px;
@@ -723,7 +723,7 @@ button {
   border-radius: 50%;
   background: conic-gradient(
     from 0deg,
-    rgba(184, 92, 44, 0.22),
+    rgba(226,103,63, 0.22),
     transparent 70deg,
     transparent 360deg
   );
@@ -745,7 +745,7 @@ button {
   position: absolute;
   inset: -6px;
   border-radius: 50%;
-  border: 1.5px solid rgba(184, 92, 44, 0.5);
+  border: 1.5px solid rgba(226,103,63, 0.5);
   animation: laHalo 1.6s ease-out infinite;
 }
 @keyframes laSweep {
@@ -973,15 +973,15 @@ button {
 
 .map-type-btn:hover:not(:disabled):not(.active) {
   background: var(--white);
-  border-color: rgba(14, 12, 10, 0.25);
+  border-color: rgba(20,32,42, 0.25);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(14, 12, 10, 0.08);
+  box-shadow: 0 4px 12px rgba(20,32,42, 0.08);
 }
 
 .map-type-btn.active {
   background: var(--ink);
   border-color: var(--ink);
-  box-shadow: 0 4px 16px rgba(14, 12, 10, 0.18);
+  box-shadow: 0 4px 16px rgba(20,32,42, 0.18);
 }
 
 .map-type-btn.active .map-type-label {
@@ -1096,9 +1096,9 @@ button {
 .footer-btns .btn-export {
   font-size: 0.95rem;
   padding: 16px 40px;
-  background: var(--terra);
-  border-color: var(--terra);
-  box-shadow: 0 8px 22px rgba(184, 92, 44, 0.28);
+  background: var(--gold);
+  border-color: var(--gold);
+  box-shadow: 0 8px 22px rgba(226, 103, 63, 0.28);
   animation: sellPulse 2.4s ease-in-out infinite;
 }
 .footer-btns .btn-export:hover {
@@ -1110,9 +1110,9 @@ button {
 @keyframes sellPulse {
   0%,
   100% {
-    box-shadow: 0 8px 22px rgba(184, 92, 44, 0.28);
+    box-shadow: 0 8px 22px rgba(226,103,63, 0.28);
   }
   50% {
-    box-shadow: 0 10px 30px rgba(184, 92, 44, 0.5);
+    box-shadow: 0 10px 30px rgba(226,103,63, 0.5);
   }
 }

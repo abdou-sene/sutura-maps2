@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet" />
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{width:1200px;font-family:"DM Sans",sans-serif;}
+  .row{display:flex;align-items:stretch;height:300px;border-bottom:2px solid #fff;}
+  .left{flex:1.2;padding:38px 46px;display:flex;flex-direction:column;justify-content:center;}
+  .num{font-family:"Barlow Condensed";font-weight:700;font-size:.8rem;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;}
+  .name{font-family:"Cormorant Garamond",serif;font-size:1.5rem;font-weight:600;margin-bottom:14px;}
+  h1{font-family:"Cormorant Garamond",serif;font-size:2.2rem;font-weight:700;line-height:1.05;}
+  h1 em{font-style:italic;font-weight:400;}
+  .ctas{display:flex;gap:10px;margin-top:16px;align-items:center;}
+  .btn{padding:11px 20px;border-radius:3px;font-size:.72rem;font-weight:500;letter-spacing:1px;text-transform:uppercase;}
+  .chip{font-family:"Barlow Condensed";font-weight:600;font-size:.72rem;letter-spacing:1px;text-transform:uppercase;padding:7px 13px;border-radius:3px;}
+  .right{flex:.7;display:flex;flex-direction:column;}
+  .sw{flex:1;display:flex;align-items:center;justify-content:center;font-family:"Barlow Condensed";font-size:.62rem;letter-spacing:1px;}
+
+  /* A — Indigo Teranga */
+  .a{background:#f4f2ec;color:#13293f;}
+  .a .num,.a h1 em{color:#1c3d5a;}
+  .a .btn.p{background:#1c3d5a;color:#fff;}
+  .a .chip{background:#e0a83e;color:#13293f;}
+
+  /* B — Vert Sahel & Or */
+  .b{background:#f5f3ea;color:#16281c;}
+  .b .num,.b h1 em{color:#2e6b3f;}
+  .b .btn.p{background:#2e6b3f;color:#fff;}
+  .b .chip{background:#c9a24a;color:#16281c;}
+
+  /* C — Ardoise & Émeraude */
+  .c{background:#f2f3f4;color:#1e2a32;}
+  .c .num,.c h1 em{color:#0f6e60;}
+  .c .btn.p{background:#0f6e60;color:#fff;}
+  .c .chip{background:#e8a33d;color:#1e2a32;}
+
+  /* D — Bordeaux & Laiton */
+  .d{background:#f6f1ea;color:#2a1417;}
+  .d .num,.d h1 em{color:#7d2233;}
+  .d .btn.p{background:#7d2233;color:#fff;}
+  .d .chip{background:#c08a3e;color:#2a1417;}
+
+  /* E — Nuit & Corail (chaud mais dominante froide) */
+  .e{background:#f3f1ee;color:#14202a;}
+  .e .num,.e h1 em{color:#123c46;}
+  .e .btn.p{background:#123c46;color:#fff;}
+  .e .chip{background:#e2673f;color:#fff;}
+</style>
+</head>
+<body>
+
+  <!-- A -->
+  <div class="row a">
+    <div class="left">
+      <div class="num">Option A</div>
+      <div class="name">Indigo Teranga</div>
+      <h1>Votre carte, <em>en une minute.</em></h1>
+      <div class="ctas"><span class="btn p">Créer ma carte</span><span class="chip">Relief</span></div>
+    </div>
+    <div class="right">
+      <div class="sw" style="background:#13293f;color:#fff">13293F</div>
+      <div class="sw" style="background:#1c3d5a;color:#fff">1C3D5A</div>
+      <div class="sw" style="background:#e0a83e;color:#13293f">E0A83E</div>
+    </div>
+  </div>
+
+  <!-- B -->
+  <div class="row b">
+    <div class="left">
+      <div class="num">Option B</div>
+      <div class="name">Vert Sahel & Or</div>
+      <h1>Votre carte, <em>en une minute.</em></h1>
+      <div class="ctas"><span class="btn p">Créer ma carte</span><span class="chip">Relief</span></div>
+    </div>
+    <div class="right">
+      <div class="sw" style="background:#16281c;color:#fff">16281C</div>
+      <div class="sw" style="background:#2e6b3f;color:#fff">2E6B3F</div>
+      <div class="sw" style="background:#c9a24a;color:#16281c">C9A24A</div>
+    </div>
+  </div>
+
+  <!-- C -->
+  <div class="row c">
+    <div class="left">
+      <div class="num">Option C</div>
+      <div class="name">Ardoise & Émeraude</div>
+      <h1>Votre carte, <em>en une minute.</em></h1>
+      <div class="ctas"><span class="btn p">Créer ma carte</span><span class="chip">Relief</span></div>
+    </div>
+    <div class="right">
+      <div class="sw" style="background:#1e2a32;color:#fff">1E2A32</div>
+      <div class="sw" style="background:#0f6e60;color:#fff">0F6E60</div>
+      <div class="sw" style="background:#e8a33d;color:#1e2a32">E8A33D</div>
+    </div>
+  </div>
+
+  <!-- D -->
+  <div class="row d">
+    <div class="left">
+      <div class="num">Option D</div>
+      <div class="name">Bordeaux & Laiton</div>
+      <h1>Votre carte, <em>en une minute.</em></h1>
+      <div class="ctas"><span class="btn p">Créer ma carte</span><span class="chip">Relief</span></div>
+    </div>
+    <div class="right">
+      <div class="sw" style="background:#2a1417;color:#fff">2A1417</div>
+      <div class="sw" style="background:#7d2233;color:#fff">7D2233</div>
+      <div class="sw" style="background:#c08a3e;color:#2a1417">C08A3E</div>
+    </div>
+  </div>
+
+  <!-- E -->
+  <div class="row e">
+    <div class="left">
+      <div class="num">Option E</div>
+      <div class="name">Nuit & Corail</div>
+      <h1>Votre carte, <em>en une minute.</em></h1>
+      <div class="ctas"><span class="btn p">Créer ma carte</span><span class="chip">Relief</span></div>
+    </div>
+    <div class="right">
+      <div class="sw" style="background:#14202a;color:#fff">14202A</div>
+      <div class="sw" style="background:#123c46;color:#fff">123C46</div>
+      <div class="sw" style="background:#e2673f;color:#fff">E2673F</div>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -885,7 +885,7 @@ function buildOccupationLegend(classes, palette) {
     font-size:0.68rem;font-weight:600;letter-spacing:1.5px;
     text-transform:uppercase;color:var(--muted);
     margin-bottom:8px;padding-bottom:6px;
-    border-bottom:1px solid rgba(14,12,10,0.1);
+    border-bottom:1px solid rgba(20,32,42,0.1);
   `;
   body.appendChild(subtitle);
 
@@ -1347,9 +1347,9 @@ function addLiveWatermark() {
       <defs>
         <pattern id="wm" x="0" y="0" width="180" height="120" patternUnits="userSpaceOnUse" patternTransform="rotate(-25)">
           <text x="0" y="30" font-family="DM Sans" font-size="13" font-weight="600"
-                fill="rgba(14,12,10,0.28)" letter-spacing="1">© Sutura Maps</text>
+                fill="rgba(20,32,42,0.28)" letter-spacing="1">© Sutura Maps</text>
           <text x="0" y="55" font-family="DM Sans" font-size="9" font-weight="300"
-                fill="rgba(14,12,10,0.18)" letter-spacing="1">Non payé</text>
+                fill="rgba(20,32,42,0.18)" letter-spacing="1">Non payé</text>
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill="url(#wm)"/>
@@ -3019,7 +3019,7 @@ function buildReliefLegend(classes) {
     <p style="font-size:0.68rem;font-weight:600;letter-spacing:1.5px;
               text-transform:uppercase;color:var(--muted);
               margin-bottom:10px;padding-bottom:6px;
-              border-bottom:1px solid rgba(14,12,10,0.1);">
+              border-bottom:1px solid rgba(20,32,42,0.1);">
       Altitude (mètres)
     </p>
     ${rows}`;
@@ -3216,47 +3216,47 @@ function buildPaymentOverlay(commune) {
   const ov = document.createElement("div");
   ov.id = "pay-overlay";
   ov.style.cssText =
-    "position:fixed;inset:0;z-index:99999;background:rgba(14,12,10,.82);" +
+    "position:fixed;inset:0;z-index:99999;background:rgba(20,32,42,.82);" +
     "display:flex;align-items:center;justify-content:center;padding:20px;";
   ov.innerHTML = `
-    <div style="width:460px;max-width:94vw;background:#f7f3ec;border-radius:3px;
+    <div style="width:460px;max-width:94vw;background:#f3f1ee;border-radius:3px;
                 padding:42px 38px 30px;text-align:center;
                 box-shadow:0 40px 100px rgba(0,0,0,.55);font-family:'DM Sans',sans-serif;">
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:0.82rem;font-weight:700;
-                  letter-spacing:5px;text-transform:uppercase;color:#b85c2c;margin-bottom:20px;">
+                  letter-spacing:5px;text-transform:uppercase;color:#123c46;margin-bottom:20px;">
         Paiement en cours
       </div>
       <div style="width:60px;height:60px;margin:0 auto 22px;border-radius:50%;
-                  border:3px solid #e4ddd1;border-top-color:#b85c2c;border-right-color:#b85c2c;
+                  border:3px solid #e4ddd1;border-top-color:#123c46;border-right-color:#123c46;
                   animation:spinRing 0.9s linear infinite;"></div>
       <h2 style="font-family:'Cormorant Garamond',serif;font-size:1.9rem;font-weight:700;
-                 color:#0e0c0a;margin-bottom:12px;">Payez sur votre téléphone</h2>
-      <p style="font-size:0.9rem;font-weight:300;line-height:1.6;color:#7a7068;margin-bottom:18px;">
-        Réglez avec <strong style="color:#0e0c0a;font-weight:500;">Wave, Orange ou MaxIt</strong>
+                 color:#14202a;margin-bottom:12px;">Payez sur votre téléphone</h2>
+      <p style="font-size:0.9rem;font-weight:300;line-height:1.6;color:#64727a;margin-bottom:18px;">
+        Réglez avec <strong style="color:#14202a;font-weight:500;">Wave, Orange ou MaxIt</strong>
         dans l'onglet ouvert. Le téléchargement se lancera
-        <strong style="color:#0e0c0a;font-weight:500;">ici, sur cet ordinateur</strong>,
+        <strong style="color:#14202a;font-weight:500;">ici, sur cet ordinateur</strong>,
         dès la confirmation.
       </p>
       <div id="pay-status" style="font-size:0.74rem;letter-spacing:1.5px;text-transform:uppercase;
-                  color:#b85c2c;font-weight:500;margin-bottom:18px;">Vérification automatique…</div>
-      <div style="display:inline-block;background:#0e0c0a;color:#c9a84c;
+                  color:#123c46;font-weight:500;margin-bottom:18px;">Vérification automatique…</div>
+      <div style="display:inline-block;background:#14202a;color:#e2673f;
                   font-family:'Cormorant Garamond',serif;font-size:1.05rem;font-weight:600;
                   letter-spacing:2px;padding:9px 20px;border-radius:2px;margin-bottom:24px;">
         ${zoneLabel} · ${priceText}
       </div>
-      <button id="pay-check-now" style="display:block;width:100%;background:#b85c2c;color:#fff;
+      <button id="pay-check-now" style="display:block;width:100%;background:#123c46;color:#fff;
                   font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:500;
                   letter-spacing:1.4px;text-transform:uppercase;padding:14px;border:none;
                   border-radius:1px;cursor:pointer;margin-bottom:14px;">
         J'ai payé — vérifier maintenant
       </button>
-      <a id="pay-wa" href="#" style="font-size:0.78rem;color:#7a7068;text-decoration:none;cursor:pointer;">
-        Un souci ? <u style="color:#b85c2c;">Écrivez-nous sur WhatsApp</u>
+      <a id="pay-wa" href="#" style="font-size:0.78rem;color:#64727a;text-decoration:none;cursor:pointer;">
+        Un souci ? <u style="color:#123c46;">Écrivez-nous sur WhatsApp</u>
       </a>
-      <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(14,12,10,.1);
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(20,32,42,.1);
                   font-size:0.72rem;color:#9a9088;line-height:1.5;">
         Votre carte reste téléchargeable pendant 1&nbsp;heure, même si vous fermez cette page.<br>
-        <strong style="color:#b85c2c;font-weight:500;">Satisfait ou remboursé sous 24&nbsp;h</strong>,
+        <strong style="color:#123c46;font-weight:500;">Satisfait ou remboursé sous 24&nbsp;h</strong>,
         par le même mobile money.
       </div>
       <div style="margin-top:14px;">
@@ -3344,20 +3344,20 @@ function showPaymentDoneInTab(token) {
     <div style="min-height:100vh;display:flex;flex-direction:column;
                 align-items:center;justify-content:center;gap:1.1rem;
                 text-align:center;padding:2rem;font-family:'DM Sans',sans-serif;
-                background:#f7f3ec;color:#0e0c0a;">
+                background:#f3f1ee;color:#14202a;">
       <div style="font-size:3rem">✅</div>
       <p style="font-family:'Cormorant Garamond',serif;font-size:1.9rem;font-weight:700;">
         Paiement confirmé
       </p>
-      <p style="font-size:0.9rem;color:#7a7068;max-width:380px;line-height:1.6;">
+      <p style="font-size:0.9rem;color:#64727a;max-width:380px;line-height:1.6;">
         Votre téléchargement se lance dans l'onglet
-        <strong style="color:#0e0c0a;">Sutura Maps</strong> resté ouvert.
+        <strong style="color:#14202a;">Sutura Maps</strong> resté ouvert.
       </p>
-      <p style="font-size:0.82rem;color:#7a7068;max-width:380px;line-height:1.6;margin-top:0.4rem;">
+      <p style="font-size:0.82rem;color:#64727a;max-width:380px;line-height:1.6;margin-top:0.4rem;">
         Il ne s'est pas lancé, ou vous avez fermé l'onglet ?
       </p>
       <a href="${dlUrl}"
-         style="display:inline-block;background:#b85c2c;color:#fff;
+         style="display:inline-block;background:#123c46;color:#fff;
                 padding:14px 30px;font-size:0.82rem;font-weight:500;
                 letter-spacing:1.5px;text-transform:uppercase;
                 text-decoration:none;border-radius:2px;">
@@ -3679,7 +3679,7 @@ function doExport(withWatermark = true) {
         if (withWatermark) {
           ctx.save();
           ctx.font = "300 22px DM Sans";
-          ctx.fillStyle = "rgba(14,12,10,0.07)";
+          ctx.fillStyle = "rgba(20,32,42,0.07)";
           ctx.rotate(-Math.PI / 6);
           for (let y = -canvas.height; y < canvas.height * 2; y += 420) {
             for (let x = -canvas.width; x < canvas.width * 2; x += 520) {

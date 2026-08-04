@@ -83,25 +83,25 @@
     const ov = document.createElement("div");
     ov.id = "ios-steps";
     ov.style.cssText =
-      "position:fixed;inset:0;z-index:99999;background:rgba(14,12,10,.82);" +
+      "position:fixed;inset:0;z-index:99999;background:rgba(20,32,42,.82);" +
       "display:flex;align-items:center;justify-content:center;padding:20px;";
     ov.innerHTML = `
-      <div style="background:#f7f3ec;max-width:340px;width:100%;padding:26px 22px;
+      <div style="background:#f3f1ee;max-width:340px;width:100%;padding:26px 22px;
                   border-radius:2px;text-align:center;font-family:'DM Sans',sans-serif;">
         <div style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;
-                    font-weight:700;color:#0e0c0a;margin-bottom:6px;">
+                    font-weight:700;color:#14202a;margin-bottom:6px;">
           Installer Sutura Maps
         </div>
-        <p style="font-size:0.86rem;color:#7a7068;line-height:1.5;margin-bottom:18px;">
+        <p style="font-size:0.86rem;color:#64727a;line-height:1.5;margin-bottom:18px;">
           Sur iPhone, deux gestes suffisent. Rien à télécharger.
         </p>
-        <div style="text-align:left;font-size:0.9rem;color:#0e0c0a;line-height:1.7;">
+        <div style="text-align:left;font-size:0.9rem;color:#14202a;line-height:1.7;">
           <div>1. Touche le bouton <b>Partager</b> en bas de Safari.</div>
           <div>2. Choisis <b>« Sur l'écran d'accueil »</b>.</div>
         </div>
         <button onclick="document.getElementById('ios-steps').remove()"
                 style="margin-top:20px;width:100%;padding:12px;border:none;
-                       background:#0e0c0a;color:#f7f3ec;font-size:0.8rem;
+                       background:#14202a;color:#f3f1ee;font-size:0.8rem;
                        letter-spacing:1.2px;text-transform:uppercase;cursor:pointer;">
           J'ai compris
         </button>

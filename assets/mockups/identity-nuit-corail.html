@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ── PALETTE NUIT & CORAIL (confiance + efficacité) ── */
+  :root{
+    --ink:#14202a;        /* nuit (texte foncé) */
+    --brand:#123c46;      /* teal nuit — confiance (titres, liens, accents) */
+    --brand2:#1f5b68;     /* teal clair */
+    --accent:#e2673f;     /* corail — efficacité (bouton d'action) */
+    --accent2:#ef8a5f;    /* corail clair (hover) */
+    --sand:#f3f1ee;       /* ivoire */
+    --cream:#e8e5df;      /* fond secondaire */
+    --muted:#64727a;      /* gris ardoise */
+    --line:rgba(20,32,42,0.12);
+    --white:#ffffff;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:1100px;height:720px;}
+  body{background:var(--sand);font-family:"DM Sans",sans-serif;color:var(--ink);padding:54px 60px;}
+
+  .bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:40px;}
+  .brand{font-family:"Cormorant Garamond",serif;font-size:1.7rem;font-weight:600;letter-spacing:1px;}
+  .brand em{font-style:italic;color:var(--brand);}
+  .tag{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:.8rem;letter-spacing:3px;text-transform:uppercase;color:var(--accent);}
+
+  .hero{display:flex;gap:48px;align-items:flex-start;}
+  .left{flex:1.3;}
+  .eyebrow{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:.85rem;letter-spacing:4px;text-transform:uppercase;color:var(--brand);margin-bottom:14px;}
+  h1{font-family:"Cormorant Garamond",serif;font-size:3.4rem;font-weight:700;line-height:1.05;}
+  h1 em{font-style:italic;font-weight:400;color:var(--brand);}
+  .sub{font-size:1rem;color:var(--muted);line-height:1.7;margin-top:16px;max-width:460px;}
+  .ctas{display:flex;gap:12px;margin-top:26px;align-items:center;}
+  .btn{padding:14px 26px;border-radius:3px;font-family:"DM Sans";font-size:.8rem;font-weight:500;letter-spacing:1px;text-transform:uppercase;}
+  .btn.p{background:var(--accent);color:#fff;border:1px solid var(--accent);box-shadow:0 8px 20px rgba(226,103,63,.30);}
+  .btn.g{background:transparent;color:var(--brand);border:1px solid var(--brand);}
+  .free{margin-top:18px;font-size:.8rem;color:var(--muted);}
+  .free b{color:var(--ink);}
+
+  .right{flex:1;}
+  .card{background:var(--white);border:1px solid var(--line);border-radius:4px;box-shadow:0 18px 44px rgba(20,32,42,.10);padding:26px;}
+  .card h3{font-family:"Cormorant Garamond",serif;font-size:1.2rem;margin-bottom:16px;}
+  .feats{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .feat .ic{width:52px;height:52px;border-radius:15px;background:linear-gradient(150deg,var(--cream),var(--white));
+            border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 3px 10px rgba(20,32,42,.06);
+            display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:10px;}
+  .feat .t{font-family:"Cormorant Garamond",serif;font-size:1rem;font-weight:600;}
+  .feat .d{font-size:.76rem;color:var(--muted);line-height:1.5;margin-top:2px;}
+
+  .chips{display:flex;gap:10px;margin-top:26px;}
+  .chip{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:.82rem;letter-spacing:1px;text-transform:uppercase;padding:8px 16px;border-radius:3px;border:1.5px solid var(--brand);color:var(--brand);}
+  .chip.on{background:var(--brand);color:var(--sand);}
+  .chip.acc{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+  .swatches{display:flex;gap:0;margin-top:34px;border-radius:4px;overflow:hidden;border:1px solid var(--line);}
+  .sw{flex:1;height:44px;display:flex;align-items:flex-end;justify-content:center;font-size:.6rem;font-family:"Barlow Condensed";letter-spacing:1px;padding-bottom:4px;color:#fff;}
+</style>
+</head>
+<body>
+  <div class="bar">
+    <span class="brand">Sutura <em>Maps</em></span>
+    <span class="tag">Nuit & Corail · aperçu</span>
+  </div>
+
+  <div class="hero">
+    <div class="left">
+      <div class="eyebrow">Sénégal · Afrique de l'Ouest</div>
+      <h1>Votre carte professionnelle.<br><em>En une minute.</em></h1>
+      <p class="sub">Ce qui vous prenait une journée sur QGIS, vous l'avez ici en une minute. À partir de données officielles.</p>
+      <div class="ctas">
+        <span class="btn p">Créer ma carte</span>
+        <span class="btn g">Voir comment</span>
+      </div>
+      <p class="free">Voir votre carte est <b>gratuit</b>. 2 000 FCFA pour la version HD.</p>
+      <div class="chips">
+        <span class="chip on">Localisation</span>
+        <span class="chip">Occupation</span>
+        <span class="chip acc">Relief</span>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="card">
+        <h3>Ce que vous obtenez</h3>
+        <div class="feats">
+          <div class="feat"><div class="ic">🗺️</div><div class="t">Génération auto</div><div class="d">Trois sélections, la carte apparaît.</div></div>
+          <div class="feat"><div class="ic">🌿</div><div class="t">Trois types</div><div class="d">Localisation, occupation, relief.</div></div>
+          <div class="feat"><div class="ic">🏘️</div><div class="t">Données officielles</div><div class="d">Sources citées sur la carte.</div></div>
+          <div class="feat"><div class="ic">📤</div><div class="t">Export HD</div><div class="d">PNG sans filigrane.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="swatches">
+    <div class="sw" style="background:#14202a">NUIT 14202A</div>
+    <div class="sw" style="background:#123c46">TEAL 123C46</div>
+    <div class="sw" style="background:#1f5b68">TEAL 1F5B68</div>
+    <div class="sw" style="background:#e2673f">CORAIL E2673F</div>
+    <div class="sw" style="background:#64727a">ARDOISE 64727A</div>
+    <div class="sw" style="background:#f3f1ee;color:#14202a">IVOIRE F3F1EE</div>
+  </div>
+</body>
+</html>
