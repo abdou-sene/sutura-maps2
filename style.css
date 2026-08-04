@@ -100,9 +100,9 @@ main {
 .card {
   background: var(--white);
   padding: 2.5rem;
-  border-radius: 2px;
+  border-radius: 20px;
   border: 1px solid var(--line);
-  box-shadow: 0 8px 32px rgba(20,32,42, 0.06);
+  box-shadow: 0 18px 44px rgba(20, 32, 42, 0.08);
   max-width: 520px;
   margin: 0 auto;
 }
@@ -138,8 +138,8 @@ input[type="color"] {
   width: 100%;
   padding: 11px 14px;
   margin: 5px 0;
-  border: 1px solid rgba(20,32,42, 0.15);
-  border-radius: 1px;
+  border: 1px solid rgba(20, 32, 42, 0.15);
+  border-radius: 12px;
   background: var(--sand);
   color: var(--ink);
   font-family: "DM Sans", sans-serif;
@@ -175,7 +175,7 @@ input[type="color"] {
 button {
   padding: 11px 24px;
   border: none;
-  border-radius: 1px;
+  border-radius: 12px;
   cursor: pointer;
   font-family: "DM Sans", sans-serif;
   font-size: 0.78rem;
@@ -892,7 +892,7 @@ button {
 .color-swatch {
   width: 28px;
   height: 28px;
-  border-radius: 2px;
+  border-radius: 8px;
   cursor: pointer;
   border: 2px solid transparent;
   transition:
@@ -960,10 +960,10 @@ button {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 14px 8px;
+  padding: 16px 8px;
   background: var(--sand);
   border: 1px solid var(--line);
-  border-radius: 2px;
+  border-radius: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
@@ -1026,20 +1026,21 @@ button {
   text-transform: uppercase;
   color: var(--gold);
   background: var(--ink);
-  padding: 2px 5px;
-  border-radius: 1px;
+  padding: 2px 6px;
+  border-radius: 6px;
 }
 
-/* Indicateur actif — barre en bas */
+/* Indicateur actif — petit trait corail centré (respecte les coins arrondis) */
 .map-type-btn.active::after {
   content: "";
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--terra);
-  border-radius: 0 0 2px 2px;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 3px;
+  background: var(--gold);
+  border-radius: 3px;
 }
 
 /* ── BLOC DE VENTE (étape 3, sous la carte) ──
@@ -1096,6 +1097,7 @@ button {
 .footer-btns .btn-export {
   font-size: 0.95rem;
   padding: 16px 40px;
+  border-radius: 14px;
   background: var(--gold);
   border-color: var(--gold);
   box-shadow: 0 8px 22px rgba(226, 103, 63, 0.28);
