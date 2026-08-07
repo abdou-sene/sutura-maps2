@@ -356,7 +356,7 @@ button {
 }
 
 .panel-card:first-child {
-  flex: 1.2;
+  flex: 1.6; /* la légende : priorité pour afficher toutes les couches */
 }
 .panel-card:last-child {
   border-bottom: none;
@@ -373,17 +373,17 @@ button {
   overflow: hidden; /* la carte (height:95%) ne déborde plus sur le bloc infos */
 }
 #info-card {
-  flex: 0.62;
+  flex: 0.46;
   background: #ffffff; /* fond opaque : la carte du dessus ne transparaît plus */
   border-top: 1px solid #dee2e6;
   position: relative;
 }
 #info-card .panel-card-body {
   /* Bloc encadré, centré, façon cartouche. */
-  margin: 8px 14px;
-  padding: 8px 10px;
+  margin: 4px 14px;
+  padding: 5px 10px;
   border: 1px solid #2c3e50;
-  border-radius: 2px;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -427,8 +427,8 @@ button {
   display: flex;
   align-items: center;
   gap: 5px;
-  margin-bottom: 4px;
-  font-size: 0.9rem;
+  margin-bottom: 2px;
+  font-size: 0.86rem;
   color: #000000;
 }
 
@@ -494,8 +494,8 @@ button {
   display: flex;
   justify-content: center;
   align-items: baseline;
-  padding: 1px 0;
-  font-size: 0.78rem;
+  padding: 0;
+  font-size: 0.76rem;
   gap: 5px;
 }
 
@@ -513,6 +513,10 @@ button {
 }
 .info-label::after {
   content: " :";
+}
+/* Date (mois année) capitalisée : « août 2026 » → « Août 2026 ». */
+#display-date {
+  text-transform: capitalize;
 }
 
 /* ── PIED DE PANNEAU ── */
@@ -537,7 +541,7 @@ button {
 #region-map {
   width: 100%;
   height: 95%;
-  background: #e8f4f8;
+  background: #ffffff;
   flex-shrink: 0;
 }
 

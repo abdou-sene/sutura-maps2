@@ -842,10 +842,7 @@ function restoreLocalisationLegend() {
     <span class="legend-point" style="background:#555555;border-color:#fff"></span>
     <span class="legend-label">Village</span>
   </div>
-  <div class="legend-item" id="legend-routes">
-    <span class="legend-line road-line"></span>
-    <span class="legend-label">Route</span>
-  </div>
+  <div id="legend-roads-block" style="display:none"></div>
   <div class="legend-item" id="legend-cours-eau">
     <span class="legend-line water-line"></span>
     <span class="legend-label">Cours d'eau</span>
@@ -904,6 +901,96 @@ function buildOccupationLegend(classes, palette) {
 /* ════════════════════════════════
    FONCTIONS DE CHARGEMENT COUCHES
 ════════════════════════════════ */
+
+/* ── ROUTES CLASSÉES PAR TYPE ──────────────────────────────────────
+   Hiérarchie visuelle : l'autoroute est la plus large et la plus foncée,
+   la départementale la plus fine. Ordre du tableau = ordre de DESSIN
+   (départementale en dessous, autoroute au-dessus). */
+const ROAD_CLASSES = [
+  { type: "Route départementale", label: "Route départementale", color: "#caa64f", weight: 1.1 },
+  { type: "Route régionale", label: "Route régionale", color: "#e8873c", weight: 1.9 },
+  { type: "Route nationale", label: "Route nationale", color: "#d0392b", weight: 2.6 },
+  { type: "Autoroute", label: "Autoroute", color: "#8e1f16", weight: 3.6 },
+];
+
+// Dessine les routes qui touchent la zone, une couche par classe (z-order),
+// et renvoie l'ensemble des types réellement présents (pour la légende).
+async function addRoads(url, communeFeature) {
+  const present = new Set();
+  try {
+    const data = await fetchGeo(url);
+    const tb = turf.bbox(communeFeature);
+    const filtered = data.features.filter((f) => {
+      try {
+        const fb = turf.bbox(f);
+        if (fb[2] < tb[0] || fb[0] > tb[2] || fb[3] < tb[1] || fb[1] > tb[3])
+          return false;
+        return turf.booleanIntersects(f, communeFeature);
+      } catch (e) {
+        return false;
+      }
+    });
+    if (!filtered.length) return present;
+
+    for (const cls of ROAD_CLASSES) {
+      const feats = filtered.filter((f) => (f.properties?.type || "") === cls.type);
+      if (!feats.length) continue;
+      present.add(cls.type);
+      L.geoJSON(
+        { type: "FeatureCollection", features: feats },
+        {
+          style: {
+            color: cls.color,
+            weight: cls.weight,
+            opacity: 0.9,
+            lineCap: "round",
+            lineJoin: "round",
+          },
+          interactive: false,
+        },
+      ).addTo(map);
+    }
+
+    // Routes au type inconnu : style générique discret (robustesse).
+    const known = new Set(ROAD_CLASSES.map((c) => c.type));
+    const others = filtered.filter((f) => !known.has(f.properties?.type || ""));
+    if (others.length) {
+      L.geoJSON(
+        { type: "FeatureCollection", features: others },
+        { style: { color: "#caa64f", weight: 1, opacity: 0.85 }, interactive: false },
+      ).addTo(map);
+    }
+  } catch (e) {
+    console.error("addRoads error:", e);
+  }
+  return present;
+}
+
+// Remplit le bloc de légende des routes, du plus important (autoroute) au
+// moins important (départementale), en n'affichant que les classes présentes.
+function buildRoadLegend(present) {
+  const block = document.getElementById("legend-roads-block");
+  if (!block) return;
+  if (!present || !present.size) {
+    block.style.display = "none";
+    block.innerHTML = "";
+    return;
+  }
+  block.style.display = "block";
+  const rows = [...ROAD_CLASSES]
+    .reverse()
+    .filter((c) => present.has(c.type))
+    .map(
+      (c) => `
+      <div class="legend-item">
+        <span class="legend-line" style="background:${c.color};
+              height:${Math.max(2, Math.round(c.weight))}px;border-radius:2px;"></span>
+        <span class="legend-label">${c.label}</span>
+      </div>`,
+    )
+    .join("");
+  block.innerHTML = rows;
+}
 
 async function addLayer(url, style, communeFeature) {
   try {
@@ -1730,9 +1817,10 @@ function buildLocatorMap(targetFeature, userColor, level = "commune") {
           interactive: false,
         }).addTo(locatorMap);
         const ctx = regionDepts.length ? regionDepts : data.features;
+        locatorMap.invalidateSize(false);
         locatorMap.fitBounds(
           L.geoJSON({ type: "FeatureCollection", features: ctx }).getBounds(),
-          { padding: [0, 0], animate: false },
+          { padding: [4, 8], animate: false },
         );
         return;
       }
@@ -1780,7 +1868,8 @@ function buildLocatorMap(targetFeature, userColor, level = "commune") {
             type: "FeatureCollection",
             features: data.features,
           }).getBounds();
-      locatorMap.fitBounds(bounds, { padding: [0, 0], animate: false });
+      locatorMap.invalidateSize(false);
+      locatorMap.fitBounds(bounds, { padding: [4, 8], animate: false });
     })
     .catch((e) => console.error("buildLocatorMap error:", e));
 }
@@ -1842,7 +1931,10 @@ function buildRegionMap(targetFeature, userColor) {
         type: "FeatureCollection",
         features: data.features,
       }).getBounds();
-      regionMap.fitBounds(bounds, { padding: [0, 0], animate: false });
+      // On recalcule la taille réelle du conteneur AVANT le fitBounds (sinon le
+      // zoom est estimé sur une taille erronée et le bas du Sénégal est rogné).
+      regionMap.invalidateSize(false);
+      regionMap.fitBounds(bounds, { padding: [4, 8], animate: false });
     })
     .catch((e) => console.error("buildRegionMap error:", e));
 }
@@ -2373,15 +2465,11 @@ async function generateLocalisationMap(
     { color: "#3498db", weight: 2, opacity: 0.6 },
     filterFeature,
   );
-  const hasRoutes = await addLayer(
-    "data/routes.geojson",
-    { color: "#e74c3c", weight: 1.5, opacity: 0.8 },
-    filterFeature,
-  );
+  // Routes classées par type (autoroute, nationale, régionale, départementale).
+  const roadTypes = await addRoads("data/routes.geojson", filterFeature);
+  buildRoadLegend(roadTypes);
   const elCE = document.getElementById("legend-cours-eau");
-  const elRO = document.getElementById("legend-routes");
   if (elCE) elCE.style.display = hasCours ? "flex" : "none";
-  if (elRO) elRO.style.display = hasRoutes ? "flex" : "none";
 
   // ── Points selon le niveau ──
   // Polygone complet (pas le simplifié) : la simplification pouvait raboter des

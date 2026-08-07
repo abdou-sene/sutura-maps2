@@ -242,7 +242,6 @@
             <!-- Carton 1 : Légende -->
             <div class="panel-card" id="legend-card">
               <div class="panel-card-header">
-                <span class="panel-card-icon">&#9776;</span>
                 LÉGENDE
               </div>
               <div class="panel-card-body">
@@ -260,10 +259,7 @@
                   ></span>
                   <span>Village</span>
                 </div>
-                <div class="legend-item" id="legend-routes">
-                  <span class="legend-line road-line"></span>
-                  <span>Route</span>
-                </div>
+                <div id="legend-roads-block" style="display: none"></div>
                 <div class="legend-item" id="legend-cours-eau">
                   <span class="legend-line water-line"></span>
                   <span>Cours d'eau</span>
@@ -314,11 +310,10 @@
                 </div>
                 <div class="info-row">
                   <span class="info-label">Auteur</span>
-                  <span class="info-value" id="display-author">—</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">Date</span>
-                  <span class="info-value" id="display-date">—</span>
+                  <span class="info-value"
+                    ><span id="display-author">—</span>,
+                    <span id="display-date">—</span></span
+                  >
                 </div>
               </div>
             </div>
