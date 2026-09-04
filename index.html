@@ -52,12 +52,7 @@
 
     <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/favicon-180.png" />
-    <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#14202a" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="Sutura Maps" />
-    <link rel="stylesheet" href="pwa.css" />
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
@@ -565,17 +560,6 @@
       </div>
     </footer>
 
-    <!-- Barre d'installation PWA -->
-    <div id="install-bar">
-      <img src="assets/brand/favicon-512.png" alt="" />
-      <div class="ib-text">
-        <div class="ib-title">C'est plus rapide avec l'app</div>
-        <div class="ib-sub">Installation en 2 secondes. Sans Play Store, sans inscription.</div>
-      </div>
-      <button class="ib-btn" onclick="suturaInstall()">Installer</button>
-      <button class="ib-close" onclick="suturaDismissInstall()" aria-label="Fermer">✕</button>
-    </div>
-
     <script>
       // Accordéon FAQ
       document.querySelectorAll(".faq-btn").forEach((btn) => {
@@ -604,6 +588,5 @@
         });
       })();
     </script>
-    <script src="pwa.js"></script>
   </body>
 </html>

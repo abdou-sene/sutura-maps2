@@ -1421,30 +1421,42 @@ function addGraticule(map) {
 ════════════════════════════════ */
 
 function addLiveWatermark() {
-  const mapArea = document.getElementById("map-area");
+  // Filigrane d'aperçu : couvre TOUT le cadre (carte + légende + cartons), pas
+  // seulement la zone carte, pour qu'une capture d'écran soit inutilisable dans
+  // un document. Le PNG payé reste propre : doExport() masque ce filigrane
+  // (#live-watermark) avant la capture, puis le réaffiche.
+  const container = document.getElementById("export-container");
+  if (!container) return;
+  if (getComputedStyle(container).position === "static") {
+    container.style.position = "relative";
+  }
   const old = document.getElementById("live-watermark");
   if (old) old.remove();
 
   const wm = document.createElement("div");
   wm.id = "live-watermark";
-  wm.style.cssText = `position:absolute;inset:0;z-index:999;pointer-events:none;overflow:hidden;`;
+  wm.style.cssText = `position:absolute;inset:0;z-index:1500;pointer-events:none;overflow:hidden;`;
   wm.innerHTML = `
-    <!-- Sutura rek -->
     <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0">
       <defs>
-        <pattern id="wm" x="0" y="0" width="180" height="120" patternUnits="userSpaceOnUse" patternTransform="rotate(-25)">
-          <text x="0" y="30" font-family="DM Sans" font-size="13" font-weight="600"
-                fill="rgba(20,32,42,0.28)" letter-spacing="1">© Sutura Maps</text>
-          <text x="0" y="55" font-family="DM Sans" font-size="9" font-weight="300"
-                fill="rgba(20,32,42,0.18)" letter-spacing="1">Non payé</text>
+        <!-- Trame fine et dense : marque toute la surface -->
+        <pattern id="wm-fine" x="0" y="0" width="150" height="94" patternUnits="userSpaceOnUse" patternTransform="rotate(-25)">
+          <text x="0" y="30" font-family="DM Sans" font-size="14" font-weight="700"
+                fill="rgba(20,32,42,0.20)" letter-spacing="1">SUTURA MAPS</text>
+          <text x="0" y="52" font-family="DM Sans" font-size="11" font-weight="600"
+                fill="rgba(184,92,44,0.24)" letter-spacing="3">NON PAYÉ</text>
+        </pattern>
+        <!-- Grand rappel « APERÇU » en fond -->
+        <pattern id="wm-big" x="0" y="0" width="540" height="380" patternUnits="userSpaceOnUse" patternTransform="rotate(-25)">
+          <text x="0" y="120" font-family="DM Sans" font-size="48" font-weight="800"
+                fill="rgba(184,92,44,0.07)" letter-spacing="8">APERÇU</text>
         </pattern>
       </defs>
-      <rect width="100%" height="100%" fill="url(#wm)"/>
+      <rect width="100%" height="100%" fill="url(#wm-fine)"/>
+      <rect width="100%" height="100%" fill="url(#wm-big)"/>
     </svg>
-
-
   `;
-  mapArea.appendChild(wm);
+  container.appendChild(wm);
 }
 
 /* ════════════════════════════════
@@ -3260,8 +3272,14 @@ async function exportToPNG() {
       return;
     }
 
-    // Ordinateur : on garde la page.
-    window.open(data.payment_url, "_blank", "noopener");
+    // Ordinateur : on ouvre le paiement dans un nouvel onglet. Si le navigateur
+    // bloque le popup, on bascule dans le même onglet (le retour est géré par
+    // ?token= au chargement) pour ne jamais laisser l'utilisateur sans rien.
+    const win = window.open(data.payment_url, "_blank", "noopener");
+    if (!win) {
+      window.location.href = data.payment_url;
+      return;
+    }
     resetBtn();
     startDesktopPaymentWatch(data.token, zoneName);
   } catch (e) {
