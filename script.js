@@ -1354,11 +1354,33 @@ function addGraticule(map) {
   labels.id = "grat-labels";
   if (area) area.appendChild(labels);
 
-  // Décalage des marges en pixels (7 mm rendus par le navigateur).
+  // Décalage des marges en pixels. offsetLeft = marge de 7 mm (rendue par le
+  // navigateur) ; on la réutilise comme épaisseur de bande sur les 4 côtés.
   const canvasEl = map.getContainer();
-  const offX = canvasEl.offsetLeft;
-  const offY = canvasEl.offsetTop;
+  const offX = canvasEl.offsetLeft; // = 7 mm
+  const offY = canvasEl.offsetTop; // = titre (30 px) + 7 mm
   const size = map.getSize();
+  const band = offX; // épaisseur d'une bande de coordonnées (7 mm)
+  const topBandY = offY - band; // bande haute, juste sous le titre
+  const bottomBandY = offY + size.y; // bande basse
+  const rightBandX = offX + size.x; // bande droite
+
+  // Étiquette horizontale (longitude) centrée sur x, dans une bande haute/basse.
+  const addHoriz = (xPx, bandY, txt) => {
+    const d = document.createElement("div");
+    d.className = "grat-lab";
+    d.style.cssText = `left:${offX + xPx}px;top:${bandY}px;height:${band}px;width:0;`;
+    d.innerHTML = `<span>${txt}</span>`;
+    labels.appendChild(d);
+  };
+  // Étiquette verticale (latitude) centrée sur y, dans une bande gauche/droite.
+  const addVert = (yPx, bandX, txt) => {
+    const d = document.createElement("div");
+    d.className = "grat-lab vert";
+    d.style.cssText = `top:${offY + yPx}px;left:${bandX}px;width:${band}px;height:0;`;
+    d.innerHTML = `<span>${txt}</span>`;
+    labels.appendChild(d);
+  };
 
   for (
     let x = Math.ceil(minX / interval) * interval;
@@ -1373,14 +1395,12 @@ function addGraticule(map) {
       style,
     ).addTo(map);
 
-    // Longitude : au-dessus du cadre, dans la marge haute.
+    // Longitude : en haut ET en bas du cadre.
     const pt = map.latLngToContainerPoint([maxY, x]);
     if (pt.x >= 0 && pt.x <= size.x) {
-      const d = document.createElement("div");
-      d.className = "grat-top";
-      d.style.left = offX + pt.x + "px";
-      d.innerHTML = `<span>${toDMS(x, false)}</span>`;
-      labels.appendChild(d);
+      const txt = toDMS(x, false);
+      addHoriz(pt.x, topBandY, txt);
+      addHoriz(pt.x, bottomBandY, txt);
     }
   }
 
@@ -1397,14 +1417,12 @@ function addGraticule(map) {
       style,
     ).addTo(map);
 
-    // Latitude : à gauche du cadre, verticale ascendante, dans la marge gauche.
+    // Latitude : à gauche ET à droite du cadre, verticale ascendante.
     const pt = map.latLngToContainerPoint([y, minX]);
     if (pt.y >= 0 && pt.y <= size.y) {
-      const d = document.createElement("div");
-      d.className = "grat-left";
-      d.style.top = offY + pt.y + "px";
-      d.innerHTML = `<span>${toDMS(y, true)}</span>`;
-      labels.appendChild(d);
+      const txt = toDMS(y, true);
+      addVert(pt.y, 0, txt);
+      addVert(pt.y, rightBandX, txt);
     }
   }
 
@@ -1437,24 +1455,24 @@ function addLiveWatermark() {
   wm.id = "live-watermark";
   wm.style.cssText = `position:absolute;inset:0;z-index:1500;pointer-events:none;overflow:hidden;`;
   wm.innerHTML = `
-    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0">
-      <defs>
-        <!-- Trame fine et dense : marque toute la surface -->
-        <pattern id="wm-fine" x="0" y="0" width="150" height="94" patternUnits="userSpaceOnUse" patternTransform="rotate(-25)">
-          <text x="0" y="30" font-family="DM Sans" font-size="14" font-weight="700"
-                fill="rgba(20,32,42,0.20)" letter-spacing="1">SUTURA MAPS</text>
-          <text x="0" y="52" font-family="DM Sans" font-size="11" font-weight="600"
-                fill="rgba(184,92,44,0.24)" letter-spacing="3">NON PAYÉ</text>
-        </pattern>
-        <!-- Grand rappel « APERÇU » en fond -->
-        <pattern id="wm-big" x="0" y="0" width="540" height="380" patternUnits="userSpaceOnUse" patternTransform="rotate(-25)">
-          <text x="0" y="120" font-family="DM Sans" font-size="48" font-weight="800"
-                fill="rgba(184,92,44,0.07)" letter-spacing="8">APERÇU</text>
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#wm-fine)"/>
-      <rect width="100%" height="100%" fill="url(#wm-big)"/>
-    </svg>
+    <!-- Un seul grand mot en diagonale, centré, qui couvre toute la carte et
+         la légende : la capture est inutilisable, la carte reste lisible. -->
+    <div style="position:absolute;left:50%;top:50%;
+                transform:translate(-50%,-50%) rotate(-28deg);
+                text-align:center;white-space:nowrap;">
+      <div style="font-family:'Cormorant Garamond',serif;font-weight:700;
+                  font-size:150px;letter-spacing:6px;line-height:0.95;
+                  color:rgba(20,32,42,0.16);">SUTURA MAPS</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-weight:700;
+                  font-size:74px;letter-spacing:16px;margin-top:4px;
+                  color:rgba(184,92,44,0.22);">NON PAYÉ</div>
+    </div>
+    <div style="position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
+                background:rgba(14,12,10,0.88);color:#f7f3ec;font-family:'DM Sans',sans-serif;
+                font-size:12px;font-weight:500;letter-spacing:.3px;padding:7px 14px;
+                border-radius:20px;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.3);">
+      Aperçu filigrané &middot; la carte payée est <b>sans filigrane</b>
+    </div>
   `;
   container.appendChild(wm);
 }
@@ -2445,9 +2463,11 @@ async function generateLocalisationMap(
   if (elOC) elOC.style.display = hasOcean ? "flex" : "none";
 
   // ── Zone d'étude ──
+  // Contour en NOIR (convention cartographique au Sénégal) ; seul le
+  // remplissage prend la couleur choisie par l'utilisateur.
   const studyAreaLayer = L.geoJSON(targetFeature, {
     style: {
-      color: userColor,
+      color: "#000000",
       fillColor: userColor,
       fillOpacity: 0.5,
       weight: 4,
@@ -3347,8 +3367,13 @@ function buildPaymentOverlay(commune) {
                   color:#123c46;font-weight:500;margin-bottom:18px;">Vérification automatique…</div>
       <div style="display:inline-block;background:#14202a;color:#e2673f;
                   font-family:'Cormorant Garamond',serif;font-size:1.05rem;font-weight:600;
-                  letter-spacing:2px;padding:9px 20px;border-radius:2px;margin-bottom:24px;">
+                  letter-spacing:2px;padding:9px 20px;border-radius:2px;margin-bottom:16px;">
         ${zoneLabel} · ${priceText}
+      </div>
+      <div style="background:#e9f3ec;border:1px solid #bfe0c8;border-radius:2px;
+                  padding:11px 14px;margin-bottom:22px;font-size:0.82rem;line-height:1.5;color:#1c5a30;">
+        Après le paiement, tu reçois la carte propre,
+        <strong>sans filigrane</strong>.
       </div>
       <button id="pay-check-now" style="display:block;width:100%;background:#123c46;color:#fff;
                   font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:500;

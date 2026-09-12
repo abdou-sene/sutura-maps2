@@ -265,77 +265,74 @@ button {
   background: #ffffff;
 }
 
-/* La carte est rognée de 7 mm en haut et à gauche : ces marges blanches
-   accueillent les coordonnées, placées à l'extérieur du cadre. */
+/* Gabarit : bande titre (30 px) en haut, puis une marge de 7 mm sur les
+   QUATRE côtés pour les coordonnées. La carte est donc rognée de
+   (30 px + 7 mm) en haut, et de 7 mm à gauche, à droite et en bas. */
 #map-canvas {
   position: absolute;
-  top: 7mm;
+  top: calc(30px + 7mm);
   left: 7mm;
-  right: 0;
-  bottom: 0;
+  right: 7mm;
+  bottom: 7mm;
   width: auto;
   height: auto;
   z-index: 1;
   background: #e8f4f8;
 }
 
-/* Étiquettes de la grille, dans les marges */
+/* Étiquettes de la grille, dans les marges (positionnées en JS) */
 #grat-labels {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 500;
 }
-.grat-top {
+.grat-lab {
   position: absolute;
-  top: 0;
-  height: 7mm;
-  width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.grat-left {
-  position: absolute;
-  left: 0;
-  width: 7mm;
-  height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.grat-top span,
-.grat-left span {
+.grat-lab span {
   font:
     300 10px "DM Sans",
     sans-serif;
-  color: #333333;
+  color: #000000;
   white-space: nowrap;
 }
-/* Latitudes à gauche : verticales, lecture ascendante (bas vers haut) */
-.grat-left span {
+/* Latitudes (gauche/droite) : verticales, lecture ascendante */
+.grat-lab.vert span {
   transform: rotate(-90deg);
 }
 
 #map-title-bar {
   position: absolute;
-  bottom: 0;
+  top: 0;
   left: 0;
   right: 0;
-  background: rgba(255, 255, 255, 0.88);
+  height: 30px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid rgba(20, 32, 42, 0.15);
   color: #14202a;
-  text-align: center;
-  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
   z-index: 1000;
   pointer-events: none;
 }
 
 #map-title-bar h3 {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.82rem;
   font-weight: 700;
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 #side-panel {

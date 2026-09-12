@@ -317,16 +317,31 @@
         <!-- Réassurance en une ligne, pile au moment du clic. -->
         <div class="sell-block">
           <div class="sell-title">
-            Télécharge la version haute définition, propre et sans filigrane.
+            Après le paiement, tu télécharges la carte propre,
+            <strong>sans filigrane</strong>.
           </div>
         </div>
 
+        <!-- Le bouton reste TOUJOURS visible : il vient avant la comparaison. -->
         <div class="btn-group footer-btns">
           <button class="btn-back" onclick="handleNextBtn()">Modifier</button>
           <button class="btn-export" onclick="exportToPNG()">
-            JE TÉLÉCHARGE MA CARTE HD
+            JE TÉLÉCHARGE MA CARTE
           </button>
         </div>
+
+        <!-- Comparaison avant/après : sous le bouton, en complément. -->
+        <img
+          src="assets/avant-apres.png"
+          alt="Avant paiement : carte filigranée. Après paiement : carte propre, sans filigrane."
+          style="
+            display: block;
+            width: 100%;
+            max-width: 720px;
+            margin: 16px auto 4px;
+            border-radius: 3px;
+          "
+        />
       </section>
     </main>
     <!-- Logo / cartouche bas de panneau -->
