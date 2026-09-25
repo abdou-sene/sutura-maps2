@@ -58,6 +58,47 @@ let currentCountry = "SN";
 // Promesses de rendu des mini-cartes (cartons) : l'export attend qu'elles
 // soient dessinées avant de capturer, sinon les cartons sortent vides.
 let panelMapsReady = [];
+
+// Positions manuelles des étiquettes déplacées par l'utilisateur, par zone.
+// Sur mobile, le paiement recharge la page et régénère la carte : on réapplique
+// alors ces positions pour que le PNG téléchargé reflète les déplacements.
+let labelOverrides = {}; // { "kind|NOM": [lat, lng] }
+let labelOverrideKey = null; // identité de la zone à laquelle elles se rapportent
+function lblMapKey(maptype, level, zoneName) {
+  return `${maptype}|${level}|${(zoneName || "").toString().toUpperCase()}`;
+}
+function lblSetKey(key, load) {
+  labelOverrideKey = key;
+  if (load) {
+    try {
+      const d = JSON.parse(localStorage.getItem("sutura_labelpos") || "null");
+      labelOverrides = d && d.key === key && d.ov ? d.ov : {};
+    } catch (e) {
+      labelOverrides = {};
+    }
+  } else {
+    labelOverrides = {};
+  }
+}
+function lblRecord(kind, name, latlng) {
+  if (!name || !latlng) return;
+  labelOverrides[`${kind}|${name.toString().toUpperCase()}`] = [
+    latlng.lat,
+    latlng.lng,
+  ];
+  try {
+    localStorage.setItem(
+      "sutura_labelpos",
+      JSON.stringify({ key: labelOverrideKey, ov: labelOverrides }),
+    );
+  } catch (e) {
+    /* stockage indisponible : les déplacements ne survivront pas au rechargement */
+  }
+}
+function lblOverride(kind, name) {
+  const v = name && labelOverrides[`${kind}|${name.toString().toUpperCase()}`];
+  return v ? L.latLng(v[0], v[1]) : null;
+}
 function countryCfg() {
   return COUNTRIES[currentCountry] || COUNTRIES.SN;
 }
@@ -1155,9 +1196,11 @@ async function addPoints(
     localiteLayer.addTo(map);
 
     // Placement intelligent : le chef-lieu d'abord et toujours visible, puis
-    // on teste les 8 directions autour de chaque point et on masque ce qui ne
-    // rentre nulle part (priorité aux noms courts).
-    setTimeout(() => placeLocaliteLabels(localiteLayer), 80);
+    // on teste plusieurs positions autour de chaque point (priorité aux noms
+    // courts). ATTENDU (pas un setTimeout détaché) pour que l'export ne parte
+    // pas avant que les étiquettes soient posées.
+    await new Promise((r) => setTimeout(r, 80));
+    placeLocaliteLabels(localiteLayer);
 
     const counter = document.getElementById("localite-count");
     if (counter) counter.innerText = features.length;
@@ -1326,7 +1369,9 @@ function placeLocaliteLabels(group) {
       iconSize: null,
       iconAnchor: [0, 0],
     });
-    const mk = L.marker(topLeft, {
+    // Position de départ : l'override manuel s'il existe, sinon l'auto-placement.
+    const ovLL = lblOverride("localite", s.name);
+    const mk = L.marker(ovLL || topLeft, {
       icon,
       draggable: true,
       autoPan: false,
@@ -1390,6 +1435,8 @@ function placeLocaliteLabels(group) {
           weight: orig.weight,
         });
       if (pointLayer.setRadius) pointLayer.setRadius(orig.radius);
+      // Mémorise la position pour la régénération après paiement (mobile).
+      lblRecord("localite", s.name, mk.getLatLng());
       if (!leader) return;
       if (gapPx() > 16) {
         // Label éloigné : on garde une ligne de rappel discrète (visible aussi
@@ -1406,6 +1453,17 @@ function placeLocaliteLabels(group) {
         leader = null;
       }
     });
+
+    // Étiquette repositionnée manuellement (override) et éloignée de son point :
+    // on retrace d'emblée le fil de rappel discret, pour qu'il soit dans le PNG.
+    if (ovLL && gapPx() > 16) {
+      leader = L.polyline([pointLayer.getLatLng(), labelCenter()], {
+        color: "#555555",
+        weight: 0.8,
+        opacity: 0.9,
+        interactive: false,
+      }).addTo(map);
+    }
     placed.push(inflate(chosenBox));
   });
 }
@@ -1575,7 +1633,8 @@ function createNeighborMarker(latlng, name, anchorX) {
     iconSize: null,
     iconAnchor: [anchorX, 7],
   });
-  const marker = L.marker(latlng, {
+  // Si l'utilisateur avait déplacé cette étiquette, on repart de sa position.
+  const marker = L.marker(lblOverride("neighbor", name) || latlng, {
     icon,
     draggable: true,
     autoPan: false,
@@ -1583,7 +1642,10 @@ function createNeighborMarker(latlng, name, anchorX) {
   }).addTo(map);
   marker.on("mousedown", (e) => L.DomEvent.stopPropagation(e));
   marker.on("dragstart", () => map.dragging.disable());
-  marker.on("dragend", () => map.dragging.disable());
+  marker.on("dragend", () => {
+    map.dragging.disable();
+    lblRecord("neighbor", name, marker.getLatLng());
+  });
   return marker;
 }
 
@@ -2184,6 +2246,10 @@ async function generateFinalMap() {
   const level = selectedLevel;
   const zoneName =
     level === "region" ? reg : level === "dept" ? dept : comName;
+
+  // Nouvelle génération : placement automatique propre (les déplacements
+  // éventuels seront enregistrés au fur et à mesure des drags).
+  lblSetKey(lblMapKey(selectedMapType, level, zoneName), false);
 
   goToStep("loading");
   document.getElementById("loading-commune").innerText = (
@@ -3781,6 +3847,11 @@ async function handleDownloadToken(token) {
 
     // Supprimer l'écran d'attente
     main.removeChild(waitDiv);
+
+    // Recharger les déplacements d'étiquettes faits AVANT le paiement : sur
+    // mobile la page s'est rechargée, on régénère la carte et on réapplique
+    // ces positions pour que le PNG reflète les ajustements de l'utilisateur.
+    lblSetKey(lblMapKey(mapType, level, commune), true);
 
     // Générer la carte en step 3
     goToStep(3);
