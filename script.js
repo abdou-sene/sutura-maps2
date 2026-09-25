@@ -1239,26 +1239,29 @@ function placeLocaliteLabels(group) {
   // Géométrie d'une boîte selon la direction, alignée sur la logique Leaflet.
   // En diagonale, le coin du label touche le point (pas de décalage vertical
   // supplémentaire) pour qu'il reste visuellement rattaché à son point.
-  function boxFor(p, ax, ay, w, h) {
+  function boxFor(p, ax, ay, w, h, gap) {
     switch (p) {
       case "R":
-        return [ax + g, ay - h / 2, "right", [g, 0]];
+        return [ax + gap, ay - h / 2];
       case "L":
-        return [ax - g - w, ay - h / 2, "left", [-g, 0]];
+        return [ax - gap - w, ay - h / 2];
       case "T":
-        return [ax - w / 2, ay - g - h, "top", [0, -g]];
+        return [ax - w / 2, ay - gap - h];
       case "B":
-        return [ax - w / 2, ay + g, "bottom", [0, g]];
+        return [ax - w / 2, ay + gap];
       case "TR":
-        return [ax + g, ay - h, "right", [g, -h / 2]];
+        return [ax + gap, ay - h];
       case "BR":
-        return [ax + g, ay, "right", [g, h / 2]];
+        return [ax + gap, ay];
       case "TL":
-        return [ax - g - w, ay - h, "left", [-g, -h / 2]];
+        return [ax - gap - w, ay - h];
       case "BL":
-        return [ax - g - w, ay, "left", [-g, h / 2]];
+        return [ax - gap - w, ay];
     }
   }
+  // Distances croissantes autour du point : on cherche d'abord collé, puis un
+  // peu plus loin, avant de se rabattre sur le meilleur emplacement dispo.
+  const GAPS = [g, g + 12, g + 28, g + 48];
   const hit = (a, b) => !(a.r < b.l || a.l > b.r || a.b < b.t || a.t > b.b);
   const inBounds = (l, t, w, h) =>
     l >= 0 && t >= 0 && l + w <= mapSize.x && t + h <= mapSize.y;
@@ -1273,43 +1276,41 @@ function placeLocaliteLabels(group) {
 
   sized.forEach((s) => {
     const pt = map.latLngToContainerPoint(s.layer.getLatLng());
-    let chosen = null,
-      chosenBox = null,
-      fallback = null,
-      fallbackScore = Infinity;
+    let chosenBox = null;
+    let best = null,
+      bestScore = Infinity;
 
-    for (const p of PRESETS) {
-      const [bx, by, dir, off] = boxFor(p, pt.x, pt.y, s.w, s.h);
-      const box = { l: bx, t: by, r: bx + s.w, b: by + s.h };
-      const within = inBounds(bx, by, s.w, s.h);
-      const collides = placed.some((pb) => hit(box, pb));
+    search: for (const gap of GAPS) {
+      for (const p of PRESETS) {
+        const [bx, by] = boxFor(p, pt.x, pt.y, s.w, s.h, gap);
+        const box = { l: bx, t: by, r: bx + s.w, b: by + s.h };
+        const within = inBounds(bx, by, s.w, s.h);
+        const collides = placed.some((pb) => hit(box, pb));
 
-      if (within && !collides) {
-        chosen = { dir, off };
-        chosenBox = box;
-        break;
-      }
-      // Pour le chef-lieu : on retient la position la moins chevauchante.
-      if (s.chef) {
+        if (within && !collides) {
+          chosenBox = box;
+          break search;
+        }
+        // Repli (TOUTES les étiquettes) : on retient la position la moins
+        // chevauchante, en privilégiant celles qui restent dans le cadre.
         let area = 0;
         placed.forEach((pb) => {
           const ox = Math.max(0, Math.min(box.r, pb.r) - Math.max(box.l, pb.l));
           const oy = Math.max(0, Math.min(box.b, pb.b) - Math.max(box.t, pb.t));
           area += ox * oy;
         });
-        const score = area + (within ? 0 : 1e6);
-        if (score < fallbackScore) {
-          fallbackScore = score;
-          fallback = { dir, off, box };
+        const score = area + (within ? 0 : 1e5);
+        if (score < bestScore) {
+          bestScore = score;
+          best = box;
         }
       }
     }
 
-    if (!chosen && s.chef && fallback) {
-      chosen = { dir: fallback.dir, off: fallback.off };
-      chosenBox = fallback.box;
-    }
-    if (!chosen) return; // village/quartier sans place : masqué
+    // Aucune place totalement libre : on pose quand même au meilleur endroit.
+    // Rien n'est masqué ; l'utilisateur ajuste à la main si besoin (draggable).
+    if (!chosenBox) chosenBox = best;
+    if (!chosenBox) return; // sécurité : aucun point
 
     // Étiquette déplaçable : divIcon draggable posé au coin haut-gauche du
     // label calculé (au lieu d'un tooltip figé). Même rendu (classes CSS
@@ -1331,9 +1332,80 @@ function placeLocaliteLabels(group) {
       autoPan: false,
       zIndexOffset: 400,
     }).addTo(map);
+
+    // Pendant le déplacement : point associé mis en évidence (rouge, plus gros)
+    // et ligne de rappel point→CENTRE de l'étiquette. Au relâcher, si le label
+    // est resté proche, tout disparaît ; s'il a été éloigné, une ligne de
+    // rappel DISCRÈTE et permanente reste (et sera dans le PNG exporté).
+    const pointLayer = s.layer;
+    const lw = s.w,
+      lh = s.h;
+    const orig = {
+      fill: pointLayer.options.fillColor,
+      color: pointLayer.options.color,
+      weight: pointLayer.options.weight,
+      radius: pointLayer.options.radius,
+    };
+    // Centre du label (le marqueur est ancré en haut-gauche).
+    const labelCenter = () => {
+      const p = map.latLngToContainerPoint(mk.getLatLng());
+      return map.containerPointToLatLng([p.x + lw / 2, p.y + lh / 2]);
+    };
+    // Écart (px) entre le point et la boîte du label ; 0 si le point est dessus.
+    const gapPx = () => {
+      const pp = map.latLngToContainerPoint(pointLayer.getLatLng());
+      const tl = map.latLngToContainerPoint(mk.getLatLng());
+      const dx = Math.max(tl.x - pp.x, 0, pp.x - (tl.x + lw));
+      const dy = Math.max(tl.y - pp.y, 0, pp.y - (tl.y + lh));
+      return Math.hypot(dx, dy);
+    };
+    let leader = null;
     mk.on("mousedown", (e) => L.DomEvent.stopPropagation(e));
-    mk.on("dragstart", () => map.dragging.disable());
-    mk.on("dragend", () => map.dragging.disable());
+    mk.on("dragstart", () => {
+      map.dragging.disable();
+      if (leader) {
+        map.removeLayer(leader);
+        leader = null;
+      } // repart d'un rappel propre
+      if (pointLayer.setStyle)
+        pointLayer.setStyle({ fillColor: "#ff2d2d", color: "#ffd54a", weight: 3 });
+      if (pointLayer.setRadius) pointLayer.setRadius((orig.radius || 4) + 3);
+      if (pointLayer.bringToFront) pointLayer.bringToFront();
+      leader = L.polyline([pointLayer.getLatLng(), labelCenter()], {
+        color: "#ff2d2d",
+        weight: 1.5,
+        dashArray: "4 4",
+        interactive: false,
+      }).addTo(map);
+    });
+    mk.on("drag", () => {
+      if (leader) leader.setLatLngs([pointLayer.getLatLng(), labelCenter()]);
+    });
+    mk.on("dragend", () => {
+      map.dragging.disable();
+      if (pointLayer.setStyle)
+        pointLayer.setStyle({
+          fillColor: orig.fill,
+          color: orig.color,
+          weight: orig.weight,
+        });
+      if (pointLayer.setRadius) pointLayer.setRadius(orig.radius);
+      if (!leader) return;
+      if (gapPx() > 16) {
+        // Label éloigné : on garde une ligne de rappel discrète (visible aussi
+        // à l'export).
+        leader.setStyle({
+          color: "#555555",
+          weight: 0.8,
+          dashArray: null,
+          opacity: 0.9,
+        });
+        leader.setLatLngs([pointLayer.getLatLng(), labelCenter()]);
+      } else {
+        map.removeLayer(leader);
+        leader = null;
+      }
+    });
     placed.push(inflate(chosenBox));
   });
 }
