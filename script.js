@@ -55,6 +55,9 @@ const COUNTRIES = {
   },
 };
 let currentCountry = "SN";
+// Promesses de rendu des mini-cartes (cartons) : l'export attend qu'elles
+// soient dessinées avant de capturer, sinon les cartons sortent vides.
+let panelMapsReady = [];
 function countryCfg() {
   return COUNTRIES[currentCountry] || COUNTRIES.SN;
 }
@@ -1308,17 +1311,29 @@ function placeLocaliteLabels(group) {
     }
     if (!chosen) return; // village/quartier sans place : masqué
 
-    s.layer
-      .bindTooltip(s.html, {
-        permanent: true,
-        direction: chosen.dir,
-        offset: chosen.off,
-        className:
-          "leaflet-tooltip-localite" +
-          (s.chef ? " chef-lieu" : "") +
-          (s.two ? " twoline" : ""),
-      })
-      .openTooltip();
+    // Étiquette déplaçable : divIcon draggable posé au coin haut-gauche du
+    // label calculé (au lieu d'un tooltip figé). Même rendu (classes CSS
+    // identiques), mais l'utilisateur peut l'ajuster à la main.
+    const cls =
+      "leaflet-tooltip-localite leaflet-localite-drag" +
+      (s.chef ? " chef-lieu" : "") +
+      (s.two ? " twoline" : "");
+    const topLeft = map.containerPointToLatLng([chosenBox.l, chosenBox.t]);
+    const icon = L.divIcon({
+      className: cls,
+      html: s.html,
+      iconSize: null,
+      iconAnchor: [0, 0],
+    });
+    const mk = L.marker(topLeft, {
+      icon,
+      draggable: true,
+      autoPan: false,
+      zIndexOffset: 400,
+    }).addTo(map);
+    mk.on("mousedown", (e) => L.DomEvent.stopPropagation(e));
+    mk.on("dragstart", () => map.dragging.disable());
+    mk.on("dragend", () => map.dragging.disable());
     placed.push(inflate(chosenBox));
   });
 }
@@ -1815,7 +1830,7 @@ function buildLocatorMap(targetFeature, userColor, level = "commune") {
   const dept = targetFeature.properties.DEPT;
   const reg = targetFeature.properties.REG;
 
-  fetchGeo("data/departements.geojson")
+  return fetchGeo("data/departements.geojson")
     .then((data) => {
       if (level === "dept") {
         // Département situé dans sa région : on montre les départements de la
@@ -1921,7 +1936,7 @@ function buildRegionMap(targetFeature, userColor) {
     zoomSnap: 0.25,
   });
   const reg = targetFeature.properties.REG;
-  fetchGeo("data/regions.geojson")
+  return fetchGeo("data/regions.geojson")
     .then((data) => {
       const targetReg = data.features.find((f) => f.properties.REG === reg);
       const otherRegs = data.features.filter((f) => f.properties.REG !== reg);
@@ -2536,8 +2551,10 @@ async function generateLocalisationMap(
       `RÉGION ${reg || ""} AU SÉNÉGAL`;
     locatorCard.style.display = "flex";
     regionCard.style.display = "flex";
-    buildLocatorMap(targetFeature, userColor, "commune");
-    buildRegionMap(targetFeature, userColor);
+    panelMapsReady = [
+      buildLocatorMap(targetFeature, userColor, "commune"),
+      buildRegionMap(targetFeature, userColor),
+    ];
   } else if (level === "dept") {
     document.getElementById("display-commune").innerText =
       `LOCALISATION DU DÉPARTEMENT DE ${zoneName.toUpperCase()}`;
@@ -2547,15 +2564,17 @@ async function generateLocalisationMap(
       `RÉGION ${reg || ""} AU SÉNÉGAL`;
     locatorCard.style.display = "flex";
     regionCard.style.display = "flex";
-    buildLocatorMap(targetFeature, userColor, "dept");
-    buildRegionMap(targetFeature, userColor);
+    panelMapsReady = [
+      buildLocatorMap(targetFeature, userColor, "dept"),
+      buildRegionMap(targetFeature, userColor),
+    ];
   } else {
     document.getElementById("display-commune").innerText =
       `LOCALISATION DE LA RÉGION DE ${zoneName.toUpperCase()}`;
     locatorCard.style.display = "none";
     regionCard.style.display = "flex";
     document.getElementById("region-card-header").innerText = "SÉNÉGAL";
-    buildRegionMap(targetFeature, userColor);
+    panelMapsReady = [buildRegionMap(targetFeature, userColor)];
   }
 
   addLiveWatermark();
@@ -3770,12 +3789,21 @@ async function handleDownloadToken(token) {
   }
 }
 
-function doExport(withWatermark = true) {
+async function doExport(withWatermark = true) {
   const btn = document.querySelector(".btn-export");
   const originalText = btn.innerText;
   btn.disabled = true;
   btn.innerText = "⏳ Génération...";
   btn.style.opacity = "0.7";
+
+  // Attendre que les mini-cartes (cartons) aient fini de se dessiner, sinon la
+  // capture les fige vides. Puis laisser deux frames pour le rendu Leaflet.
+  try {
+    await Promise.allSettled(panelMapsReady);
+  } catch (e) {
+    /* on capture quand même */
+  }
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
   const liveWm = document.getElementById("live-watermark");
   if (liveWm) liveWm.style.display = "none";

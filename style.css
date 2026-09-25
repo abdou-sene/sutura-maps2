@@ -609,6 +609,13 @@ button {
 .leaflet-tooltip-localite::before {
   display: none !important;
 }
+/* Étiquettes de localités déplaçables à la main */
+.leaflet-localite-drag {
+  cursor: grab;
+}
+.leaflet-localite-drag:active {
+  cursor: grabbing;
+}
 .leaflet-tooltip-localite.chef-lieu {
   font-size: 0.88rem;
   font-weight: 700;
