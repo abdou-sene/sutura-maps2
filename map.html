@@ -314,6 +314,21 @@
           </aside>
         </div>
 
+        <!-- Outil d'ajustement des étiquettes (hors carte, pas dans l'export). -->
+        <div class="label-tool">
+          <button
+            id="toggle-labels"
+            type="button"
+            onclick="toggleLabelEditMode()"
+          >
+            ✎ Ajuster les étiquettes
+          </button>
+          <span class="label-tool-hint" id="label-tool-hint" hidden>
+            Clique un point pour afficher son nom, une étiquette pour la
+            masquer. Glisse pour déplacer.
+          </span>
+        </div>
+
         <!-- Réassurance en une ligne, pile au moment du clic. -->
         <div class="sell-block">
           <div class="sell-title">

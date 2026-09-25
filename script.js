@@ -80,25 +80,41 @@ function lblSetKey(key, load) {
     labelOverrides = {};
   }
 }
-function lblRecord(kind, name, latlng) {
-  if (!name || !latlng) return;
-  labelOverrides[`${kind}|${name.toString().toUpperCase()}`] = [
-    latlng.lat,
-    latlng.lng,
-  ];
+// Un override par étiquette : { p:[lat,lng] (position manuelle), h:bool (masquée) }
+function lblKey(kind, name) {
+  return `${kind}|${(name || "").toString().toUpperCase()}`;
+}
+function lblPersist() {
   try {
     localStorage.setItem(
       "sutura_labelpos",
       JSON.stringify({ key: labelOverrideKey, ov: labelOverrides }),
     );
   } catch (e) {
-    /* stockage indisponible : les déplacements ne survivront pas au rechargement */
+    /* stockage indisponible : l'état ne survivra pas au rechargement */
   }
 }
-function lblOverride(kind, name) {
-  const v = name && labelOverrides[`${kind}|${name.toString().toUpperCase()}`];
-  return v ? L.latLng(v[0], v[1]) : null;
+function lblSet(kind, name, patch) {
+  if (!name) return;
+  const k = lblKey(kind, name);
+  labelOverrides[k] = { ...(labelOverrides[k] || {}), ...patch };
+  lblPersist();
 }
+function lblGet(kind, name) {
+  return name ? labelOverrides[lblKey(kind, name)] || null : null;
+}
+function lblPos(kind, name) {
+  const o = lblGet(kind, name);
+  return o && o.p ? L.latLng(o.p[0], o.p[1]) : null;
+}
+function lblHidden(kind, name) {
+  const o = lblGet(kind, name);
+  return !!(o && o.h);
+}
+
+// Mode d'édition des étiquettes de localités (bouton hors carte) + registre.
+let labelEditMode = false;
+let localiteRegistry = [];
 function countryCfg() {
   return COUNTRIES[currentCountry] || COUNTRIES.SN;
 }
@@ -1185,8 +1201,11 @@ async function addPoints(
           const nm = feature.properties?.nom;
           if (!nm || /H[1-9]/.test(nm)) return;
           const type = (feature.properties.popPlace_1 || "").trim();
+          // On retire la partie entre parenthèses (ex. « Banta (Sinthiang
+          // Wandou) » → « Banta ») pour alléger les étiquettes longues.
+          const clean = nm.replace(/\s*\([^)]*\)/g, "").trim() || nm;
           layer.__label = {
-            name: nm,
+            name: clean,
             chef:
               level === "region" || CHEF_LIEUX.some((c) => type.includes(c)),
           };
@@ -1302,9 +1321,10 @@ function placeLocaliteLabels(group) {
         return [ax - gap - w, ay];
     }
   }
-  // Distances croissantes autour du point : on cherche d'abord collé, puis un
-  // peu plus loin, avant de se rabattre sur le meilleur emplacement dispo.
-  const GAPS = [g, g + 12, g + 28, g + 48];
+  // Placement BASIQUE : collé au point, puis un cran plus loin. Si rien ne
+  // rentre, l'étiquette est masquée par défaut (sauf chef-lieu) — l'utilisateur
+  // peut la révéler via l'outil « Étiquettes ».
+  const GAPS = [g, g + 10];
   const hit = (a, b) => !(a.r < b.l || a.l > b.r || a.b < b.t || a.t > b.b);
   const inBounds = (l, t, w, h) =>
     l >= 0 && t >= 0 && l + w <= mapSize.x && t + h <= mapSize.y;
@@ -1317,10 +1337,11 @@ function placeLocaliteLabels(group) {
     b: b.b + PAD,
   });
 
+  localiteRegistry = [];
   sized.forEach((s) => {
     const pt = map.latLngToContainerPoint(s.layer.getLatLng());
-    let chosenBox = null;
-    let best = null,
+    let freeBox = null,
+      best = null,
       bestScore = Infinity;
 
     search: for (const gap of GAPS) {
@@ -1329,13 +1350,10 @@ function placeLocaliteLabels(group) {
         const box = { l: bx, t: by, r: bx + s.w, b: by + s.h };
         const within = inBounds(bx, by, s.w, s.h);
         const collides = placed.some((pb) => hit(box, pb));
-
         if (within && !collides) {
-          chosenBox = box;
+          freeBox = box;
           break search;
         }
-        // Repli (TOUTES les étiquettes) : on retient la position la moins
-        // chevauchante, en privilégiant celles qui restent dans le cadre.
         let area = 0;
         placed.forEach((pb) => {
           const ox = Math.max(0, Math.min(box.r, pb.r) - Math.max(box.l, pb.l));
@@ -1350,122 +1368,179 @@ function placeLocaliteLabels(group) {
       }
     }
 
-    // Aucune place totalement libre : on pose quand même au meilleur endroit.
-    // Rien n'est masqué ; l'utilisateur ajuste à la main si besoin (draggable).
-    if (!chosenBox) chosenBox = best;
-    if (!chosenBox) return; // sécurité : aucun point
-
-    // Étiquette déplaçable : divIcon draggable posé au coin haut-gauche du
-    // label calculé (au lieu d'un tooltip figé). Même rendu (classes CSS
-    // identiques), mais l'utilisateur peut l'ajuster à la main.
-    const cls =
-      "leaflet-tooltip-localite leaflet-localite-drag" +
-      (s.chef ? " chef-lieu" : "") +
-      (s.two ? " twoline" : "");
-    const topLeft = map.containerPointToLatLng([chosenBox.l, chosenBox.t]);
-    const icon = L.divIcon({
-      className: cls,
-      html: s.html,
-      iconSize: null,
-      iconAnchor: [0, 0],
+    const autoBox = freeBox || best;
+    if (!autoBox) return;
+    const item = {
+      s,
+      pointLayer: s.layer,
+      autoTopLeft: map.containerPointToLatLng([autoBox.l, autoBox.t]),
+      marker: null,
+      leader: null,
+      shown: false,
+    };
+    localiteRegistry.push(item);
+    s.layer.__item = item;
+    // En mode édition : clic sur le point → bascule l'affichage de l'étiquette.
+    s.layer.on("click", () => {
+      if (labelEditMode) toggleLocaliteLabel(item);
     });
-    // Position de départ : l'override manuel s'il existe, sinon l'auto-placement.
-    const ovLL = lblOverride("localite", s.name);
-    const mk = L.marker(ovLL || topLeft, {
-      icon,
-      draggable: true,
-      autoPan: false,
-      zIndexOffset: 400,
+
+    // Visibilité par défaut : masquée si l'utilisateur l'a masquée ; sinon
+    // affichée si elle a une position manuelle, si elle rentre, ou si chef-lieu.
+    if (lblHidden("localite", s.name)) return;
+    if (lblPos("localite", s.name) || freeBox || s.chef) {
+      showLocaliteLabel(item, false);
+      placed.push(inflate(autoBox));
+    }
+  });
+}
+
+// Crée (ou recrée) l'étiquette déplaçable d'une localité. persist=true quand
+// l'action vient de l'utilisateur (efface l'état « masqué »).
+function showLocaliteLabel(item, persist) {
+  if (item.marker) return;
+  const s = item.s;
+  const pointLayer = item.pointLayer;
+  const lw = s.w,
+    lh = s.h;
+  const cls =
+    "leaflet-tooltip-localite leaflet-localite-drag" +
+    (s.chef ? " chef-lieu" : "") +
+    (s.two ? " twoline" : "");
+  const icon = L.divIcon({
+    className: cls,
+    html: s.html,
+    iconSize: null,
+    iconAnchor: [0, 0],
+  });
+  const startLL = lblPos("localite", s.name) || item.autoTopLeft;
+  const mk = L.marker(startLL, {
+    icon,
+    draggable: true,
+    autoPan: false,
+    zIndexOffset: 400,
+  }).addTo(map);
+  item.marker = mk;
+  item.shown = true;
+
+  const orig = {
+    fill: pointLayer.options.fillColor,
+    color: pointLayer.options.color,
+    weight: pointLayer.options.weight,
+    radius: pointLayer.options.radius,
+  };
+  const labelCenter = () => {
+    const p = map.latLngToContainerPoint(mk.getLatLng());
+    return map.containerPointToLatLng([p.x + lw / 2, p.y + lh / 2]);
+  };
+  const gapPx = () => {
+    const pp = map.latLngToContainerPoint(pointLayer.getLatLng());
+    const tl = map.latLngToContainerPoint(mk.getLatLng());
+    const dx = Math.max(tl.x - pp.x, 0, pp.x - (tl.x + lw));
+    const dy = Math.max(tl.y - pp.y, 0, pp.y - (tl.y + lh));
+    return Math.hypot(dx, dy);
+  };
+
+  mk.on("mousedown", (e) => L.DomEvent.stopPropagation(e));
+  // En mode édition : un simple clic (sans glisser) masque l'étiquette.
+  mk.on("click", () => {
+    if (labelEditMode) hideLocaliteLabel(item, true);
+  });
+  mk.on("dragstart", () => {
+    map.dragging.disable();
+    if (item.leader) {
+      map.removeLayer(item.leader);
+      item.leader = null;
+    }
+    if (pointLayer.setStyle)
+      pointLayer.setStyle({ fillColor: "#ff2d2d", color: "#ffd54a", weight: 3 });
+    if (pointLayer.setRadius) pointLayer.setRadius((orig.radius || 4) + 3);
+    if (pointLayer.bringToFront) pointLayer.bringToFront();
+    item.leader = L.polyline([pointLayer.getLatLng(), labelCenter()], {
+      color: "#ff2d2d",
+      weight: 1.5,
+      dashArray: "4 4",
+      interactive: false,
     }).addTo(map);
-
-    // Pendant le déplacement : point associé mis en évidence (rouge, plus gros)
-    // et ligne de rappel point→CENTRE de l'étiquette. Au relâcher, si le label
-    // est resté proche, tout disparaît ; s'il a été éloigné, une ligne de
-    // rappel DISCRÈTE et permanente reste (et sera dans le PNG exporté).
-    const pointLayer = s.layer;
-    const lw = s.w,
-      lh = s.h;
-    const orig = {
-      fill: pointLayer.options.fillColor,
-      color: pointLayer.options.color,
-      weight: pointLayer.options.weight,
-      radius: pointLayer.options.radius,
-    };
-    // Centre du label (le marqueur est ancré en haut-gauche).
-    const labelCenter = () => {
-      const p = map.latLngToContainerPoint(mk.getLatLng());
-      return map.containerPointToLatLng([p.x + lw / 2, p.y + lh / 2]);
-    };
-    // Écart (px) entre le point et la boîte du label ; 0 si le point est dessus.
-    const gapPx = () => {
-      const pp = map.latLngToContainerPoint(pointLayer.getLatLng());
-      const tl = map.latLngToContainerPoint(mk.getLatLng());
-      const dx = Math.max(tl.x - pp.x, 0, pp.x - (tl.x + lw));
-      const dy = Math.max(tl.y - pp.y, 0, pp.y - (tl.y + lh));
-      return Math.hypot(dx, dy);
-    };
-    let leader = null;
-    mk.on("mousedown", (e) => L.DomEvent.stopPropagation(e));
-    mk.on("dragstart", () => {
-      map.dragging.disable();
-      if (leader) {
-        map.removeLayer(leader);
-        leader = null;
-      } // repart d'un rappel propre
-      if (pointLayer.setStyle)
-        pointLayer.setStyle({ fillColor: "#ff2d2d", color: "#ffd54a", weight: 3 });
-      if (pointLayer.setRadius) pointLayer.setRadius((orig.radius || 4) + 3);
-      if (pointLayer.bringToFront) pointLayer.bringToFront();
-      leader = L.polyline([pointLayer.getLatLng(), labelCenter()], {
-        color: "#ff2d2d",
-        weight: 1.5,
-        dashArray: "4 4",
-        interactive: false,
-      }).addTo(map);
-    });
-    mk.on("drag", () => {
-      if (leader) leader.setLatLngs([pointLayer.getLatLng(), labelCenter()]);
-    });
-    mk.on("dragend", () => {
-      map.dragging.disable();
-      if (pointLayer.setStyle)
-        pointLayer.setStyle({
-          fillColor: orig.fill,
-          color: orig.color,
-          weight: orig.weight,
-        });
-      if (pointLayer.setRadius) pointLayer.setRadius(orig.radius);
-      // Mémorise la position pour la régénération après paiement (mobile).
-      lblRecord("localite", s.name, mk.getLatLng());
-      if (!leader) return;
-      if (gapPx() > 16) {
-        // Label éloigné : on garde une ligne de rappel discrète (visible aussi
-        // à l'export).
-        leader.setStyle({
-          color: "#555555",
-          weight: 0.8,
-          dashArray: null,
-          opacity: 0.9,
-        });
-        leader.setLatLngs([pointLayer.getLatLng(), labelCenter()]);
-      } else {
-        map.removeLayer(leader);
-        leader = null;
-      }
-    });
-
-    // Étiquette repositionnée manuellement (override) et éloignée de son point :
-    // on retrace d'emblée le fil de rappel discret, pour qu'il soit dans le PNG.
-    if (ovLL && gapPx() > 16) {
-      leader = L.polyline([pointLayer.getLatLng(), labelCenter()], {
+  });
+  mk.on("drag", () => {
+    if (item.leader)
+      item.leader.setLatLngs([pointLayer.getLatLng(), labelCenter()]);
+  });
+  mk.on("dragend", () => {
+    map.dragging.disable();
+    if (pointLayer.setStyle)
+      pointLayer.setStyle({
+        fillColor: orig.fill,
+        color: orig.color,
+        weight: orig.weight,
+      });
+    if (pointLayer.setRadius) pointLayer.setRadius(orig.radius);
+    const ll = mk.getLatLng();
+    lblSet("localite", s.name, { p: [ll.lat, ll.lng] });
+    if (!item.leader) return;
+    if (gapPx() > 16) {
+      item.leader.setStyle({
         color: "#555555",
         weight: 0.8,
+        dashArray: null,
         opacity: 0.9,
-        interactive: false,
-      }).addTo(map);
+      });
+      item.leader.setLatLngs([pointLayer.getLatLng(), labelCenter()]);
+    } else {
+      map.removeLayer(item.leader);
+      item.leader = null;
     }
-    placed.push(inflate(chosenBox));
   });
+
+  // Étiquette repositionnée manuellement et éloignée : fil de rappel discret,
+  // visible aussi dans le PNG.
+  if (lblPos("localite", s.name) && gapPx() > 16) {
+    item.leader = L.polyline([pointLayer.getLatLng(), labelCenter()], {
+      color: "#555555",
+      weight: 0.8,
+      opacity: 0.9,
+      interactive: false,
+    }).addTo(map);
+  }
+  if (persist) lblSet("localite", s.name, { h: false });
+}
+
+function hideLocaliteLabel(item, persist) {
+  if (item.marker) {
+    map.removeLayer(item.marker);
+    item.marker = null;
+  }
+  if (item.leader) {
+    map.removeLayer(item.leader);
+    item.leader = null;
+  }
+  item.shown = false;
+  if (persist) lblSet("localite", item.s.name, { h: true });
+}
+
+function toggleLocaliteLabel(item) {
+  if (item.shown) hideLocaliteLabel(item, true);
+  else showLocaliteLabel(item, true);
+}
+
+// Bouton « Ajuster les étiquettes » : active/désactive le mode où l'on clique
+// un point pour afficher son nom, ou une étiquette pour la masquer.
+function setLabelEditMode(on) {
+  labelEditMode = !!on;
+  const btn = document.getElementById("toggle-labels");
+  const hint = document.getElementById("label-tool-hint");
+  document.body.classList.toggle("label-edit", labelEditMode);
+  if (btn) {
+    btn.classList.toggle("active", labelEditMode);
+    btn.innerText = labelEditMode
+      ? "✓ Terminer l'ajustement"
+      : "✎ Ajuster les étiquettes";
+  }
+  if (hint) hint.hidden = !labelEditMode;
+}
+function toggleLabelEditMode() {
+  setLabelEditMode(!labelEditMode);
 }
 
 /* ════════════════════════════════
@@ -1634,7 +1709,7 @@ function createNeighborMarker(latlng, name, anchorX) {
     iconAnchor: [anchorX, 7],
   });
   // Si l'utilisateur avait déplacé cette étiquette, on repart de sa position.
-  const marker = L.marker(lblOverride("neighbor", name) || latlng, {
+  const marker = L.marker(lblPos("neighbor", name) || latlng, {
     icon,
     draggable: true,
     autoPan: false,
@@ -1644,7 +1719,8 @@ function createNeighborMarker(latlng, name, anchorX) {
   marker.on("dragstart", () => map.dragging.disable());
   marker.on("dragend", () => {
     map.dragging.disable();
-    lblRecord("neighbor", name, marker.getLatLng());
+    const ll = marker.getLatLng();
+    lblSet("neighbor", name, { p: [ll.lat, ll.lng] });
   });
   return marker;
 }
@@ -2250,6 +2326,9 @@ async function generateFinalMap() {
   // Nouvelle génération : placement automatique propre (les déplacements
   // éventuels seront enregistrés au fur et à mesure des drags).
   lblSetKey(lblMapKey(selectedMapType, level, zoneName), false);
+  setLabelEditMode(false);
+  const _lt = document.querySelector(".label-tool");
+  if (_lt) _lt.style.display = selectedMapType === "localisation" ? "flex" : "none";
 
   goToStep("loading");
   document.getElementById("loading-commune").innerText = (

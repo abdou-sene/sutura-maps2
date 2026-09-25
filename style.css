@@ -616,6 +616,40 @@ button {
 .leaflet-localite-drag:active {
   cursor: grabbing;
 }
+
+/* Outil « Ajuster les étiquettes » (hors carte) */
+.label-tool {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  max-width: 1000px;
+  margin: 12px auto 0;
+}
+.label-tool button {
+  background: #ffffff;
+  border: 1px solid rgba(20, 32, 42, 0.2);
+  color: #14202a;
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.3px;
+  padding: 8px 14px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.label-tool button.active {
+  background: #123c46;
+  color: #ffffff;
+  border-color: #123c46;
+}
+.label-tool-hint {
+  font-size: 0.75rem;
+  color: #7a7068;
+}
+/* En mode édition, le curseur invite à cliquer points/étiquettes. */
+body.label-edit #map-canvas {
+  cursor: crosshair;
+}
 .leaflet-tooltip-localite.chef-lieu {
   font-size: 0.88rem;
   font-weight: 700;
