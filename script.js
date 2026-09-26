@@ -1545,7 +1545,7 @@ function setLabelEditMode(on) {
     const pl = item.pointLayer;
     if (!pl || !pl.setRadius) return;
     if (pl.__r0 == null) pl.__r0 = pl.options.radius;
-    pl.setRadius(labelEditMode ? pl.__r0 + 10 : pl.__r0);
+    pl.setRadius(labelEditMode ? pl.__r0 + 4 : pl.__r0);
   });
 }
 function toggleLabelEditMode() {
