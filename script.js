@@ -1538,9 +1538,33 @@ function setLabelEditMode(on) {
       : "✎ Ajuster les étiquettes";
   }
   if (hint) hint.hidden = !labelEditMode;
+
+  // Zone de clic élargie en mode édition : on agrandit les points (leur rayon
+  // = leur surface cliquable). À la sortie, ils reprennent leur taille.
+  localiteRegistry.forEach((item) => {
+    const pl = item.pointLayer;
+    if (!pl || !pl.setRadius) return;
+    if (pl.__r0 == null) pl.__r0 = pl.options.radius;
+    pl.setRadius(labelEditMode ? pl.__r0 + 10 : pl.__r0);
+  });
 }
 function toggleLabelEditMode() {
   setLabelEditMode(!labelEditMode);
+}
+
+// Réduit la taille du titre jusqu'à ce qu'il tienne en entier dans sa barre
+// (les noms longs ne sont plus tronqués par « … »).
+function fitMapTitle() {
+  const h3 = document.getElementById("display-commune");
+  if (!h3) return;
+  h3.style.fontSize = "";
+  let px = 13; // ~0.82rem par défaut
+  h3.style.fontSize = px + "px";
+  let guard = 0;
+  while (h3.scrollWidth > h3.clientWidth && px > 8 && guard++ < 20) {
+    px -= 0.5;
+    h3.style.fontSize = px + "px";
+  }
 }
 
 /* ════════════════════════════════
@@ -2403,11 +2427,13 @@ async function generateFinalMap() {
       );
     }
 
+    fitMapTitle(); // titre complet dans l'aperçu
+
     // Le bouton affiche le prix réel du niveau/type choisi.
     const exportBtn = document.querySelector(".btn-export");
     if (exportBtn) {
       const p = fmtPrice(priceForClient(selectedMapType, level));
-      exportBtn.innerText = `JE TÉLÉCHARGE MA CARTE HD · ${p}`;
+      exportBtn.innerText = `JE TÉLÉCHARGE MA CARTE · ${p}`;
     }
   }, 600);
 }
@@ -2739,12 +2765,14 @@ async function generateLocalisationMap(
   // Polygone complet (pas le simplifié) : la simplification pouvait raboter des
   // pointes (ex. Dakar Plateau) et écarter un point pourtant à l'intérieur.
   const pointNames = level === "region" ? regionChefLieuNames(reg) : null;
-  await addPoints("data/localites.geojson", targetFeature, level, pointNames);
 
+  // fitBounds AVANT le placement des étiquettes : celui-ci calcule des
+  // positions en pixels, il lui faut la vue finale (sinon labels hors champ).
   map.fitBounds(studyAreaLayer.getBounds(), {
     padding: [10, 35, 60, 35],
     animate: false,
   });
+  await addPoints("data/localites.geojson", targetFeature, level, pointNames);
   addGraticule(map);
   addMapControls();
   if (neighbors.length) placeNeighborLabels(neighbors, filterFeature);
@@ -3425,6 +3453,18 @@ async function exportToPNG() {
   const mobile = isMobileDevice();
   const country = currentCountry;
 
+  // Ordinateur : on ouvre l'onglet de paiement IMMÉDIATEMENT (dans le geste de
+  // clic) pour ne pas être bloqué par le navigateur ; on y injecte l'URL une
+  // fois la commande créée. L'onglet d'origine gère alors le téléchargement.
+  let payWin = null;
+  if (!mobile) {
+    try {
+      payWin = window.open("about:blank", "_blank");
+    } catch (e) {
+      payWin = null;
+    }
+  }
+
   // Identité de la zone : Sénégal via les menus classiques, pays GADM via le
   // code GID de l'entité sélectionnée (le nom voyage dans `commune`).
   let commune, dept, reg, level, zoneName, gid;
@@ -3485,6 +3525,7 @@ async function exportToPNG() {
     const data = await res.json();
 
     if (!data.payment_url) {
+      if (payWin && !payWin.closed) payWin.close();
       showError(data.error || "Erreur initialisation paiement");
       resetBtn();
       return;
@@ -3528,17 +3569,18 @@ async function exportToPNG() {
       return;
     }
 
-    // Ordinateur : on ouvre le paiement dans un nouvel onglet. Si le navigateur
-    // bloque le popup, on bascule dans le même onglet (le retour est géré par
-    // ?token= au chargement) pour ne jamais laisser l'utilisateur sans rien.
-    const win = window.open(data.payment_url, "_blank", "noopener");
-    if (!win) {
-      window.location.href = data.payment_url;
+    // Ordinateur : on charge le paiement dans l'onglet déjà ouvert au clic ;
+    // l'onglet d'origine surveille et lance le téléchargement automatiquement.
+    if (payWin && !payWin.closed) {
+      payWin.location.href = data.payment_url;
+      resetBtn();
+      startDesktopPaymentWatch(data.token, zoneName);
       return;
     }
-    resetBtn();
-    startDesktopPaymentWatch(data.token, zoneName);
+    // Onglet bloqué malgré tout : repli même onglet (retour géré par ?token).
+    window.location.href = data.payment_url;
   } catch (e) {
+    if (payWin && !payWin.closed) payWin.close();
     console.error("exportToPNG error:", e);
     showError("Erreur réseau. Réessayez.");
     resetBtn();
@@ -4018,6 +4060,10 @@ async function doExport(withWatermark = true) {
   btn.innerText = "⏳ Génération...";
   btn.style.opacity = "0.7";
 
+  // Sécurité : si l'utilisateur n'a pas cliqué « Terminer », on quitte le mode
+  // édition avant de capturer (sinon les points restent agrandis dans le PNG).
+  setLabelEditMode(false);
+
   // Attendre que les mini-cartes (cartons) aient fini de se dessiner, sinon la
   // capture les fige vides. Puis laisser deux frames pour le rendu Leaflet.
   try {
@@ -4026,6 +4072,7 @@ async function doExport(withWatermark = true) {
     /* on capture quand même */
   }
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  fitMapTitle(); // titre complet, non tronqué, dans le PNG
 
   const liveWm = document.getElementById("live-watermark");
   if (liveWm) liveWm.style.display = "none";

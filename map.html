@@ -220,6 +220,20 @@
       </section>
 
       <section id="step-3" class="step">
+          <!-- Outil d'ajustement des étiquettes (hors carte, pas dans l'export). -->
+        <div class="label-tool">
+          <button
+            id="toggle-labels"
+            type="button"
+            onclick="toggleLabelEditMode()"
+          >
+            ✎ Ajuster les étiquettes
+          </button>
+          <span class="label-tool-hint" id="label-tool-hint" hidden>
+            Clique un point pour afficher son nom, une étiquette pour la
+            masquer. Glisse pour déplacer.
+          </span>
+        </div>
         <!-- Conteneur exportable : carte (70%) + panneau latéral (30%) -->
         <div id="export-container">
           <!-- Zone carte -->
@@ -314,28 +328,7 @@
           </aside>
         </div>
 
-        <!-- Outil d'ajustement des étiquettes (hors carte, pas dans l'export). -->
-        <div class="label-tool">
-          <button
-            id="toggle-labels"
-            type="button"
-            onclick="toggleLabelEditMode()"
-          >
-            ✎ Ajuster les étiquettes
-          </button>
-          <span class="label-tool-hint" id="label-tool-hint" hidden>
-            Clique un point pour afficher son nom, une étiquette pour la
-            masquer. Glisse pour déplacer.
-          </span>
-        </div>
-
-        <!-- Réassurance en une ligne, pile au moment du clic. -->
-        <div class="sell-block">
-          <div class="sell-title">
-            Après le paiement, tu télécharges la carte propre,
-            <strong>sans filigrane</strong>.
-          </div>
-        </div>
+      
 
         <!-- Le bouton reste TOUJOURS visible : il vient avant la comparaison. -->
         <div class="btn-group footer-btns">
@@ -345,18 +338,7 @@
           </button>
         </div>
 
-        <!-- Comparaison avant/après : sous le bouton, en complément. -->
-        <img
-          src="assets/avant-apres.png"
-          alt="Avant paiement : carte filigranée. Après paiement : carte propre, sans filigrane."
-          style="
-            display: block;
-            width: 100%;
-            max-width: 720px;
-            margin: 16px auto 4px;
-            border-radius: 3px;
-          "
-        />
+    
       </section>
     </main>
     <!-- Logo / cartouche bas de panneau -->
