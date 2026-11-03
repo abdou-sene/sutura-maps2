@@ -2025,10 +2025,27 @@ function renderFicheTeaser() {
   box.style.display = "block";
 }
 
+// Logos des moyens de paiement sous le bouton, selon le pays de la carte.
+const PAY_LOGOS = {
+  SN: ["wave", "orange-money", "maxit"],
+  CIV: ["wave", "orange-money", "mtn", "moov"],
+  BEN: ["mtn", "moov"],
+};
+const PAY_NAMES = { wave: "Wave", "orange-money": "Orange Money", maxit: "MaxIt", mtn: "MTN Money", moov: "Moov Money" };
+function renderPayLogos() {
+  const box = document.getElementById("pt-brands");
+  if (!box) return;
+  const list = PAY_LOGOS[currentCountry] || PAY_LOGOS.SN;
+  box.innerHTML = list
+    .map((k) => `<img src="assets/pay/${k}.png" alt="${PAY_NAMES[k]}" title="${PAY_NAMES[k]}" />`)
+    .join("");
+}
+
 // Nombre réel de cartes livrées, affiché près du bouton (une fois par visite,
-// et seulement s'il est assez parlant).
+// et seulement s'il est assez parlant). Les logos, eux, suivent le pays.
 let trustCountLoaded = false;
 async function loadTrustCount() {
+  renderPayLogos();
   if (trustCountLoaded) return;
   trustCountLoaded = true;
   try {

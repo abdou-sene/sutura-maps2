@@ -1171,18 +1171,15 @@ body.label-edit #map-canvas {
 }
 .pt-brands {
   display: inline-flex;
+  align-items: center;
   gap: 6px;
 }
-.pt-brands b {
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 4px 9px;
-  border-radius: 999px;
-  color: #fff;
+.pt-brands img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(20, 32, 42, 0.18);
 }
-.pt-wave { background: #1dc4ff; }
-.pt-om { background: #ff7900; }
-.pt-mx { background: #14202a; }
 .pt-item {
   display: inline-flex;
   align-items: center;
