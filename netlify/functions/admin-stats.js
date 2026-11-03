@@ -33,6 +33,28 @@ exports.handler = async (event) => {
       .limit(200),
   ]);
 
+  // Tunnel détaillé après la génération : où les gens décrochent-ils ?
+  const FUNNEL = [
+    "pay_click",
+    "payment_return",
+    "paid_confirmed",
+    "download_auto",
+    "download_click",
+    "download_share",
+    "download_error",
+    "inapp_browser",
+  ];
+  const funnelCounts = await Promise.all(
+    FUNNEL.map((ev) =>
+      supabase
+        .from("analytics")
+        .select("id", { count: "exact", head: true })
+        .eq("event", ev),
+    ),
+  );
+  const funnel = {};
+  FUNNEL.forEach((ev, i) => (funnel[ev] = funnelCounts[i].count || 0));
+
   const rows = exports_.data || [];
   const paid = rows.filter((e) => e.paid);
   const amountOf = (e) => e.amount || 2000;
@@ -76,6 +98,7 @@ exports.handler = async (event) => {
         paid_7d: paid7d.length,
         revenue_7d: revenue7d,
       },
+      funnel,
       top_zones: topZones,
       by_type: byType,
       orders: rows,

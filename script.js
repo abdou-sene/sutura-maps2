@@ -350,6 +350,7 @@ window.onload = async () => {
     metaData = await res.json();
     initFilters();
     track("visit");
+    showInAppBanner();
 
     // Sélecteur de pays : Sénégal par défaut, changement à la volée.
     const selCountry = document.getElementById("select-country");
@@ -3448,6 +3449,7 @@ function isMobileDevice() {
 }
 
 async function exportToPNG() {
+  track("pay_click", selectedMapType);
   const color = document.getElementById("color-picker")?.value || "#7BA05B";
   const author = document.getElementById("author-name")?.value || "Sutura Maps";
   const mobile = isMobileDevice();
@@ -3664,7 +3666,7 @@ function buildPaymentOverlay(commune) {
       </a>
       <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(20,32,42,.1);
                   font-size:0.72rem;color:#9a9088;line-height:1.5;">
-        Votre carte reste téléchargeable pendant 1&nbsp;heure, même si vous fermez cette page.<br>
+        Votre carte reste téléchargeable pendant 7&nbsp;jours, même si vous fermez cette page.<br>
         <strong style="color:#123c46;font-weight:500;">Satisfait ou remboursé sous 24&nbsp;h</strong>,
         par le même mobile money.
       </div>
@@ -3691,6 +3693,7 @@ function buildPaymentOverlay(commune) {
 }
 
 async function startDesktopPaymentWatch(token, commune) {
+  lastPaidToken = token;
   buildPaymentOverlay(commune);
   const statusEl = () => document.getElementById("pay-status");
   const MAX = 90; // ~6 min à 4 s
@@ -3743,6 +3746,7 @@ function finishDesktopDownload() {
   const ov = document.getElementById("pay-overlay");
   if (ov) ov.remove();
   localStorage.removeItem("sutura_pending");
+  track("paid_confirmed", "desktop", lastPaidToken);
   doExport(false);
 }
 
@@ -3774,7 +3778,7 @@ function showPaymentDoneInTab(token) {
       </a>
       <p style="font-size:0.72rem;color:#9a9088;max-width:380px;line-height:1.6;">
         Ce lien fonctionne sur ordinateur comme sur téléphone, et reste
-        valable 1&nbsp;heure, même si la carte a déjà été téléchargée.
+        valable 7&nbsp;jours, même si la carte a déjà été téléchargée.
       </p>
     </div>`;
 }
@@ -3804,6 +3808,8 @@ async function resumePendingDownload() {
 }
 
 async function handleDownloadToken(token) {
+  lastPaidToken = token;
+  track("payment_return", null, token);
   // Masquer les steps
   document
     .querySelectorAll(".step")
@@ -3881,7 +3887,7 @@ async function handleDownloadToken(token) {
           ${
             isRealError
               ? "Contactez-nous sur WhatsApp avec votre code de paiement, on règle ça."
-              : "Déjà payé ? Votre carte reste téléchargeable pendant 1&nbsp;heure. Cliquez pour la récupérer."
+              : "Déjà payé ? Votre carte reste téléchargeable pendant 7&nbsp;jours. Cliquez pour la récupérer."
           }
         </p>
         <a href="map.html?token=${token}" style="display:inline-block;margin-top:0.5rem;
@@ -3901,6 +3907,7 @@ async function handleDownloadToken(token) {
 
     document.getElementById("dl-status").innerText =
       "Paiement confirmé — chargement de la carte…";
+    track("paid_confirmed", "mobile", token);
 
     // Charger communes.geojson si besoin
     if (!geoData.communes) {
@@ -4053,6 +4060,199 @@ async function handleDownloadToken(token) {
   }
 }
 
+/* ════════════════════════════════
+   LIVRAISON DE LA CARTE PAYÉE
+   Un clic automatique sur un lien de téléchargement échoue souvent en
+   silence : navigateurs intégrés (Facebook, Instagram, TikTok…), iPhone, ou
+   déclenchement sans geste de l'utilisateur. On tente le téléchargement
+   automatique, puis on affiche TOUJOURS une fenêtre « Ta carte est prête »
+   avec un vrai bouton, le partage direct, l'image elle-même (appui long pour
+   l'enregistrer) et le lien de re-téléchargement.
+════════════════════════════════ */
+
+const IS_IOS =
+  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+let lastPaidToken = null;
+
+// Nom de l'application si on est dans son navigateur intégré, sinon null.
+function detectInApp() {
+  const ua = navigator.userAgent || "";
+  if (/FBAN|FBAV|FB_IAB/i.test(ua)) return "Facebook";
+  if (/Instagram/i.test(ua)) return "Instagram";
+  if (/WhatsApp/i.test(ua)) return "WhatsApp";
+  if (/musical_ly|TikTok|BytedanceWebview|trill/i.test(ua)) return "TikTok";
+  if (/Snapchat/i.test(ua)) return "Snapchat";
+  if (/LinkedInApp/i.test(ua)) return "LinkedIn";
+  if (/Android.*; wv\)/i.test(ua)) return "une application";
+  return null;
+}
+
+// Bandeau en haut de page dans un navigateur intégré : propose d'ouvrir la
+// page dans le vrai navigateur, où le téléchargement fonctionne.
+function showInAppBanner() {
+  const app = detectInApp();
+  if (!app || document.getElementById("inapp-banner")) return;
+  track("inapp_browser", app);
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  const intent =
+    "intent://" + location.host + location.pathname + location.search +
+    "#Intent;scheme=https;package=com.android.chrome;end";
+  const bar = document.createElement("div");
+  bar.id = "inapp-banner";
+  bar.style.cssText =
+    "position:sticky;top:0;z-index:99998;background:#14202a;color:#f3f1ee;" +
+    "padding:12px 16px;font-family:'DM Sans',sans-serif;font-size:.85rem;" +
+    "line-height:1.45;display:flex;gap:12px;align-items:center;" +
+    "flex-wrap:wrap;justify-content:center;text-align:center;";
+  bar.innerHTML =
+    `<span>Tu es dans le navigateur de <b>${app}</b>, qui bloque souvent ` +
+    `les téléchargements. Ouvre la page dans ${isAndroid ? "Chrome" : "Safari"} ` +
+    `pour récupérer ta carte sans souci.</span>` +
+    (isAndroid
+      ? `<a href="${intent}" style="background:#e2673f;color:#fff;padding:8px 14px;` +
+        `border-radius:10px;font-weight:600;text-decoration:none;white-space:nowrap;">` +
+        `Ouvrir dans Chrome</a>`
+      : `<span style="opacity:.75">Menu ··· puis « Ouvrir dans Safari »</span>`) +
+    `<span id="inapp-close" style="cursor:pointer;padding:4px 8px;opacity:.7;">✕</span>`;
+  bar.querySelector("#inapp-close").onclick = () => bar.remove();
+  document.body.prepend(bar);
+}
+
+// Nom de fichier lisible, quel que soit le pays : Carte_<zone>.png
+function mapFileName() {
+  const title = document.getElementById("display-commune")?.innerText || "";
+  const zone =
+    title
+      .replace(/^.*?\b(DE|D')\s+/i, "")
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^A-Za-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "Sutura_Maps";
+  return `Carte_${zone}.png`;
+}
+
+function triggerDownload(url, filename) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function deliverPaidMap(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  // Tentative automatique, sauf dans un navigateur intégré (elle y échoue et
+  // peut même quitter la page) : là, c'est la fenêtre qui fait le travail.
+  if (!detectInApp()) {
+    try {
+      triggerDownload(url, filename);
+      track("download_auto", null, lastPaidToken);
+    } catch (e) {
+      /* la fenêtre ci-dessous prend le relais */
+    }
+  }
+  showMapReadySheet(blob, url, filename);
+}
+
+function showMapReadySheet(blob, url, filename) {
+  const old = document.getElementById("ready-sheet");
+  if (old) old.remove();
+
+  let file = null;
+  let canShare = false;
+  try {
+    file = new File([blob], filename, { type: "image/png" });
+    canShare = !!(navigator.canShare && navigator.canShare({ files: [file] }));
+  } catch (e) {
+    canShare = false;
+  }
+  const relink = lastPaidToken
+    ? `${location.origin}/map.html?token=${lastPaidToken}`
+    : null;
+  const showHint = IS_IOS || !!detectInApp();
+
+  const ov = document.createElement("div");
+  ov.id = "ready-sheet";
+  ov.style.cssText =
+    "position:fixed;inset:0;z-index:99999;background:rgba(20,32,42,.82);" +
+    "display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto;";
+  ov.innerHTML = `
+    <div style="background:#f3f1ee;border-radius:20px;max-width:520px;width:100%;
+                margin:auto;padding:24px 22px;text-align:center;font-family:'DM Sans',sans-serif;
+                color:#14202a;box-shadow:0 24px 60px rgba(0,0,0,.35);">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:700;
+                  line-height:1.1;margin-bottom:4px;">Ta carte est prête</div>
+      <p style="font-size:.85rem;color:#64727a;margin-bottom:14px;">
+        Haute définition, sans filigrane. Merci pour ta confiance.</p>
+      <img src="${url}" alt="Ta carte Sutura Maps"
+           style="width:100%;border-radius:12px;border:1px solid rgba(20,32,42,.12);
+                  margin-bottom:14px;display:block;" />
+      ${
+        showHint
+          ? `<p style="font-size:.8rem;background:#fff;border-radius:10px;padding:10px 12px;
+                      margin-bottom:12px;line-height:1.5;">
+               Sur téléphone, le plus sûr : <b>appuie longuement sur l'image</b>,
+               puis « Enregistrer l'image ».</p>`
+          : ""
+      }
+      <a id="rs-dl" href="${url}" download="${filename}"
+         style="display:block;background:#e2673f;color:#fff;padding:14px;border-radius:14px;
+                font-weight:600;text-decoration:none;margin-bottom:10px;">
+        Télécharger ma carte</a>
+      ${
+        canShare
+          ? `<a id="rs-share" href="#"
+                style="display:block;background:#14202a;color:#fff;padding:14px;border-radius:14px;
+                       font-weight:600;text-decoration:none;margin-bottom:10px;">
+               Envoyer sur WhatsApp ou ailleurs</a>`
+          : ""
+      }
+      ${
+        relink
+          ? `<p style="font-size:.75rem;color:#64727a;line-height:1.5;margin-top:6px;">
+               Ton lien de re-téléchargement reste valable <b>7 jours</b>.
+               <a id="rs-copy" href="#" style="color:#e2673f;text-decoration:underline;">
+               Copier mon lien</a></p>`
+          : ""
+      }
+      <a id="rs-close" href="#" style="display:inline-block;margin-top:8px;font-size:.8rem;
+         color:#64727a;text-decoration:underline;">Fermer</a>
+    </div>`;
+  document.body.appendChild(ov);
+
+  ov.querySelector("#rs-dl").addEventListener("click", () =>
+    track("download_click", null, lastPaidToken),
+  );
+  const share = ov.querySelector("#rs-share");
+  if (share) {
+    share.addEventListener("click", (e) => {
+      e.preventDefault();
+      navigator
+        .share({ files: [file], title: "Ma carte Sutura Maps" })
+        .then(() => track("download_share", null, lastPaidToken))
+        .catch(() => {});
+    });
+  }
+  const copy = ov.querySelector("#rs-copy");
+  if (copy) {
+    copy.addEventListener("click", (e) => {
+      e.preventDefault();
+      const done = () => (copy.innerText = "Lien copié");
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(relink).then(done, () => prompt("Ton lien :", relink));
+      } else {
+        prompt("Ton lien :", relink);
+      }
+    });
+  }
+  ov.querySelector("#rs-close").addEventListener("click", (e) => {
+    e.preventDefault();
+    ov.remove();
+  });
+}
+
 async function doExport(withWatermark = true) {
   const btn = document.querySelector(".btn-export");
   const originalText = btn.innerText;
@@ -4117,26 +4317,31 @@ async function doExport(withWatermark = true) {
           ctx.restore();
         }
 
-        btn.innerText = "✅ Téléchargement...";
-        const commune = document.getElementById("select-commune").value;
-        const dept = document.getElementById("select-dept").value;
-        const reg = document.getElementById("select-reg").value;
-        const link = document.createElement("a");
-        link.download = `Carte_${commune || dept || reg}_${new Date().getTime()}.png`;
-        link.href = canvas.toDataURL("image/png");
-        link.click();
-
-        setTimeout(() => {
-          btn.disabled = false;
-          btn.innerText = originalText;
-          btn.style.opacity = "1";
-        }, 2000);
+        btn.innerText = "✅ Carte prête";
+        const filename = mapFileName();
+        // Un vrai fichier (Blob) plutôt qu'une data URL de plusieurs Mo, que
+        // beaucoup de navigateurs mobiles refusent de télécharger.
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            triggerDownload(canvas.toDataURL("image/png"), filename);
+          } else if (withWatermark) {
+            triggerDownload(URL.createObjectURL(blob), filename);
+          } else {
+            deliverPaidMap(blob, filename);
+          }
+          setTimeout(() => {
+            btn.disabled = false;
+            btn.innerText = originalText;
+            btn.style.opacity = "1";
+          }, 2000);
+        }, "image/png");
       };
       img.src = dataUrl;
     })
     .catch((e) => {
       if (liveWm) liveWm.style.display = "block";
       console.error("Export error:", e);
+      track("download_error", String(e && e.message ? e.message : e).slice(0, 80), lastPaidToken);
       btn.disabled = false;
       btn.innerText = "❌ Erreur — Réessayer";
       btn.style.opacity = "1";

@@ -339,6 +339,16 @@
           </div>
         </div>
 
+        <!-- TUNNEL APRÈS GÉNÉRATION (mesuré depuis la mise à jour livraison) -->
+        <div class="panel" style="margin-bottom: 1.5rem">
+          <h3>Tunnel paiement → téléchargement</h3>
+          <div id="funnel-bars"></div>
+          <p style="font-size: 0.72rem; color: var(--muted); margin-top: 0.6rem">
+            Comptés à partir de la mise à jour « livraison ». Les visites et
+            générations plus anciennes n'ont pas ces étapes.
+          </p>
+        </div>
+
         <!-- PANELS -->
         <div class="panels">
           <div class="panel">
@@ -433,7 +443,20 @@
         document.getElementById("login-screen").style.display = "none";
         document.getElementById("admin-screen").style.display = "block";
 
-        const { stats, top_zones, by_type, orders } = await res.json();
+        const { stats, funnel, top_zones, by_type, orders } = await res.json();
+        if (funnel) {
+          renderBars("funnel-bars", [
+            ["Clic sur « Payer »", funnel.pay_click],
+            ["Lien Bictorys reçu", stats.payment_inits],
+            ["Retour après paiement (mobile)", funnel.payment_return],
+            ["Paiement confirmé", funnel.paid_confirmed],
+            ["Téléchargement auto tenté", funnel.download_auto],
+            ["Clic « Télécharger ma carte »", funnel.download_click],
+            ["Partagée (WhatsApp…)", funnel.download_share],
+            ["Erreur d'export", funnel.download_error],
+            ["Visiteur dans un navigateur intégré", funnel.inapp_browser],
+          ]);
+        }
         ORDERS = orders || [];
 
         const fmt = (n) => (n || 0).toLocaleString("fr-FR");
@@ -466,7 +489,7 @@
           el.innerHTML = '<div class="empty-s">Aucune vente pour l\'instant</div>';
           return;
         }
-        const max = Math.max(...pairs.map(([, n]) => n));
+        const max = Math.max(1, ...pairs.map(([, n]) => n || 0));
         el.innerHTML = pairs
           .map(
             ([label, n]) => `

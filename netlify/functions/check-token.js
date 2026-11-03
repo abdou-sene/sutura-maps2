@@ -4,8 +4,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY,
 );
 
-// Fenêtre de téléchargement après paiement (1 heure).
-const DOWNLOAD_WINDOW_MS = 60 * 60 * 1000;
+// Fenêtre de re-téléchargement après paiement (7 jours).
+const DOWNLOAD_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 exports.handler = async (event) => {
   const headers = { "Access-Control-Allow-Origin": "*" };
@@ -47,7 +47,7 @@ exports.handler = async (event) => {
     return { statusCode: 200, headers, body: JSON.stringify({ paid: false }) };
   }
 
-  // Payé : téléchargeable pendant 1 heure après le paiement, autant de fois
+  // Payé : téléchargeable pendant 7 jours après le paiement, autant de fois
   // que nécessaire (re-téléchargement jusqu'à expiration).
   if (data.paid_at) {
     const limit = new Date(data.paid_at).getTime() + DOWNLOAD_WINDOW_MS;
@@ -57,7 +57,7 @@ exports.handler = async (event) => {
         headers,
         body: JSON.stringify({
           paid: false,
-          error: "Lien de téléchargement expiré (1 heure dépassée)",
+          error: "Lien de téléchargement expiré (7 jours dépassés)",
         }),
       };
     }
