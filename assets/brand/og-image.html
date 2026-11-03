@@ -1,0 +1,89 @@
+<!doctype html>
+<!-- Source de assets/og-image.png (aperçu des liens partagés), 1200×630.
+     Rendu : chrome --headless --screenshot --window-size=1200,630 og-image.html -->
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,500;9..40,600&family=Instrument+Serif:ital@1&display=block"
+      rel="stylesheet"
+    />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1200px; height: 630px; overflow: hidden; }
+      body {
+        position: relative;
+        background: radial-gradient(120% 90% at 85% 40%, #123c46 0%, #0d2830 45%, #0b171d 100%);
+        color: #fff;
+        font-family: "DM Sans", sans-serif;
+      }
+      .contours { position: absolute; inset: 0; opacity: 0.16; }
+      .left { position: absolute; left: 68px; top: 64px; width: 560px; }
+      .brand { display: flex; align-items: center; gap: 12px; font-family: "Bricolage Grotesque"; font-weight: 700; font-size: 26px; }
+      .brand img { width: 40px; height: 40px; border-radius: 10px; }
+      .brand span { color: #35c9d6; }
+      h1 {
+        margin-top: 54px;
+        font-family: "Bricolage Grotesque";
+        font-weight: 800;
+        font-size: 66px;
+        line-height: 1.02;
+        letter-spacing: -1.5px;
+      }
+      h1 em { font-family: "Instrument Serif"; font-weight: 400; font-style: italic; color: #ef8a5f; letter-spacing: 0; font-size: 74px; }
+      .types { display: flex; gap: 10px; margin-top: 30px; }
+      .types b {
+        font-weight: 600; font-size: 18px; padding: 9px 16px; border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.16);
+      }
+      .foot { position: absolute; left: 68px; bottom: 58px; display: flex; align-items: center; gap: 18px; }
+      .price { background: #e2673f; font-weight: 600; font-size: 22px; padding: 12px 22px; border-radius: 16px; box-shadow: 0 10px 30px rgba(226, 103, 63, 0.35); }
+      .pay { display: flex; gap: 6px; }
+      .pay img { width: 38px; height: 38px; border-radius: 50%; box-shadow: 0 0 0 2px #0d2830; }
+      .url { font-size: 18px; color: rgba(255, 255, 255, 0.6); font-weight: 500; }
+
+      .card {
+        position: absolute; background: #fff; padding: 7px; border-radius: 14px;
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      }
+      .card img { display: block; width: 100%; border-radius: 9px; }
+      .c1 { width: 430px; right: -40px; top: 26px; transform: rotate(6deg); }
+      .c2 { width: 430px; right: 150px; top: 330px; transform: rotate(-5deg); }
+      .c3 { width: 470px; right: 44px; top: 150px; transform: rotate(-1deg); }
+      .tag {
+        position: absolute; right: 70px; top: 120px; transform: rotate(-1deg);
+        background: #fff; color: #14202a; font-weight: 600; font-size: 15px;
+        padding: 8px 14px; border-radius: 999px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        display: flex; align-items: center; gap: 8px; z-index: 5;
+      }
+      .tag i { width: 9px; height: 9px; border-radius: 50%; background: #22c55e; }
+    </style>
+  </head>
+  <body>
+    <svg class="contours" viewBox="0 0 1200 630" fill="none" stroke="#7fe0ea" stroke-width="1.2">
+      <path d="M-50 520 C 200 460, 360 560, 620 500 S 1000 380, 1260 430" />
+      <path d="M-50 560 C 220 500, 380 600, 640 540 S 1020 420, 1260 470" />
+      <path d="M-50 600 C 240 540, 400 640, 660 580 S 1040 460, 1260 510" />
+      <path d="M-50 90 C 180 40, 330 140, 560 80 S 900 -10, 1260 40" />
+      <path d="M-50 130 C 200 80, 350 180, 580 120 S 920 30, 1260 80" />
+    </svg>
+
+    <div class="left">
+      <div class="brand"><img src="mark-sm-512.png" alt="" />Sutura <span>Maps</span></div>
+      <h1>La carte de ta zone,<br /><em>prête en une minute.</em></h1>
+      <div class="types"><b>Localisation</b><b>Occupation du sol</b><b>Relief</b></div>
+    </div>
+    <div class="foot">
+      <div class="price">2 000 FCFA</div>
+      <div class="pay">
+        <img src="../pay/wave.png" alt="" /><img src="../pay/orange-money.png" alt="" /><img src="../pay/maxit.png" alt="" />
+      </div>
+      <div class="url">sutura-maps.com</div>
+    </div>
+
+    <div class="card c1"><img src="../gallery/mnt-reg-sud-comoe.png" alt="" /></div>
+    <div class="card c2"><img src="../gallery/ocsol-dept-ranerou.png" alt="" /></div>
+    <div class="card c3"><img src="../gallery/loc-ida-mouride.png" alt="" /></div>
+    <div class="tag"><i></i>Aperçu gratuit</div>
+  </body>
+</html>
