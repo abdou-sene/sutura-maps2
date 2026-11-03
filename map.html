@@ -256,14 +256,14 @@
                 <div class="legend-item" id="legend-chef-lieu">
                   <span
                     class="legend-point"
-                    style="background: #e74c3c; border-color: #fff"
+                    style="background: #d7372b; border-color: #fff"
                   ></span>
                   <span>Chef-lieu</span>
                 </div>
                 <div class="legend-item" id="legend-autres">
                   <span
                     class="legend-point"
-                    style="background: #555555; border-color: #fff"
+                    style="background: #3d4348; border-color: #fff"
                   ></span>
                   <span>Village</span>
                 </div>
@@ -337,6 +337,23 @@
             JE TÉLÉCHARGE MA CARTE
           </button>
         </div>
+
+        <!-- Confiance au moment de payer : moyens de paiement, sécurité, garantie. -->
+        <div class="pay-trust">
+          <span class="pt-brands"><b class="pt-wave">Wave</b><b class="pt-om">Orange Money</b><b class="pt-mx">MaxIt</b></span>
+          <span class="pt-item">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+            Paiement sécurisé
+          </span>
+          <span class="pt-item">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+            Remboursé sous 24 h
+          </span>
+          <span class="pt-item pt-count" id="pt-count" hidden></span>
+        </div>
+
+        <!-- Aperçu de la fiche de présentation livrée avec la carte. -->
+        <div id="fiche-teaser" class="fiche-teaser" style="display: none"></div>
 
     
       </section>

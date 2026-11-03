@@ -1,9 +1,56 @@
-async function track(event, commune = null, token = null) {
+// Contexte anonyme joint à chaque événement : un identifiant de visiteur
+// (persistant), une session (30 min d'inactivité, conservée au retour du
+// paiement), l'appareil et la source de la visite.
+function trackContext() {
+  const rid = () =>
+    Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  let vid = null;
+  let sess = null;
+  try {
+    vid = localStorage.getItem("sutura_vid");
+    if (!vid) localStorage.setItem("sutura_vid", (vid = rid()));
+    sess = JSON.parse(localStorage.getItem("sutura_sess") || "null");
+  } catch (e) {}
+  const now = Date.now();
+  if (!sess || now - sess.last > 30 * 60 * 1000) {
+    const p = new URLSearchParams(location.search);
+    let source = p.get("utm_source") || p.get("src");
+    if (!source && document.referrer) {
+      try {
+        const h = new URL(document.referrer).hostname.replace(/^www\./, "");
+        if (h !== location.hostname.replace(/^www\./, "")) source = h;
+      } catch (e) {}
+    }
+    const app = typeof detectInApp === "function" ? detectInApp() : null;
+    if (!source && app) source = app;
+    sess = { id: rid(), source: source || "direct" };
+  }
+  sess.last = now;
+  try {
+    localStorage.setItem("sutura_sess", JSON.stringify(sess));
+  } catch (e) {}
+  const ua = navigator.userAgent || "";
+  const device = /iPad|Tablet/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua))
+    ? "tablette"
+    : /Mobi|Android|iPhone/i.test(ua)
+      ? "mobile"
+      : "ordinateur";
+  let country = null;
+  try {
+    country = currentCountry;
+  } catch (e) {}
+  return { visitor_id: vid || sess.id, session_id: sess.id, device, source: sess.source, country };
+}
+
+async function track(event, commune = null, token = null, meta = null) {
   try {
     await fetch("/.netlify/functions/track", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event, commune, token }),
+      // keepalive : l'événement part même si la page change juste après
+      // (redirection vers le paiement).
+      keepalive: true,
+      body: JSON.stringify({ event, commune, token, meta, ...trackContext() }),
     });
   } catch (e) {}
 }
@@ -242,6 +289,7 @@ function selectMapType(btn) {
     .forEach((b) => b.classList.remove("active"));
   btn.classList.add("active");
   selectedMapType = btn.dataset.type;
+  track("maptype_select", selectedMapType);
   occupationClipped = null;
   occupationPalette = {};
   // Localisation et relief partagent l'étape 2 simple (couleur ignorée pour
@@ -301,6 +349,17 @@ async function handleNextBtn() {
   // à la génération, tout est déjà téléchargé.
   prefetchGeoData();
 
+  // Zone choisie (étape 1 validée).
+  if (isNativeCountry()) {
+    const v = (id) => document.getElementById(id)?.value || "";
+    track("zone_select", v("select-commune") || v("select-dept") || v("select-reg"), null, {
+      level: selectedLevel,
+      maptype: selectedMapType,
+    });
+  } else {
+    track("zone_select", countryCfg().nom, null, { maptype: selectedMapType });
+  }
+
   if (selectedMapType !== "occupation") {
     // Localisation et relief : étape 2 simple, aucune donnée serveur.
     goToStep(2);
@@ -356,7 +415,10 @@ window.onload = async () => {
     const selCountry = document.getElementById("select-country");
     if (selCountry) {
       selCountry.value = currentCountry;
-      selCountry.onchange = () => loadCountry(selCountry.value);
+      selCountry.onchange = () => {
+        track("country_select", selCountry.value);
+        loadCountry(selCountry.value);
+      };
     }
 
     document.querySelectorAll(".color-swatch").forEach((swatch) => {
@@ -892,7 +954,7 @@ function restoreLocalisationLegend() {
   if (!body) return;
   body.innerHTML = `
   <div class="legend-item" id="legend-chef-lieu">
-    <span class="legend-point" style="background:#e74c3c;border-color:#fff"></span>
+    <span class="legend-point" style="background:#d7372b;border-color:#fff"></span>
     <span class="legend-label">Chef-lieu</span>
   </div>
   <div class="legend-item" id="legend-quartiers">
@@ -900,7 +962,7 @@ function restoreLocalisationLegend() {
     <span class="legend-label">Quartier</span>
   </div>
   <div class="legend-item" id="legend-autres">
-    <span class="legend-point" style="background:#555555;border-color:#fff"></span>
+    <span class="legend-point" style="background:#3d4348;border-color:#fff"></span>
     <span class="legend-label">Village</span>
   </div>
   <div id="legend-roads-block" style="display:none"></div>
@@ -1168,6 +1230,22 @@ async function addPoints(
       );
     });
 
+    // Chiffres pour la fiche de présentation (niveau commune).
+    if (fiche && level === "commune") {
+      const typeOf = (f) => (f.properties.popPlace_1 || "").trim();
+      const chefs = features
+        .filter((f) => CHEF_LIEUX.some((c) => typeOf(f).includes(c)))
+        // Le plus officiel d'abord (capitale > chef-lieu de dept > de commune).
+        .sort((a, b) => CHEF_LIEUX.indexOf(typeOf(b)) - CHEF_LIEUX.indexOf(typeOf(a)));
+      fiche.points = {
+        chef: chefs[0] ? chefs[0].properties.nom.replace(/\s*\([^)]*\)/g, "") : null,
+        quartiers: features.filter((f) => typeOf(f) === "Quartier").length,
+        villages: features.filter(
+          (f) => typeOf(f) !== "Quartier" && !CHEF_LIEUX.some((c) => typeOf(f).includes(c)),
+        ).length,
+      };
+    }
+
     const elQU = document.getElementById("legend-quartiers");
     const elCL = document.getElementById("legend-chef-lieu");
     const elAU = document.getElementById("legend-autres");
@@ -1186,15 +1264,16 @@ async function addPoints(
           const isChefLieu =
             level === "region" || CHEF_LIEUX.some((c) => type.includes(c));
           const isQuartier = type === "Quartier";
+          // Mêmes couleurs que la légende (restoreLocalisationLegend).
           return L.circleMarker(latlng, {
-            radius: isChefLieu ? 6 : 4,
+            radius: isChefLieu ? 6.5 : 3.8,
             fillColor: isChefLieu
-              ? "#e74c3c"
+              ? "#d7372b"
               : isQuartier
-                ? "#ae22eb"
-                : "#555555",
+                ? "#8e44ad"
+                : "#3d4348",
             color: "#fff",
-            weight: 1.5,
+            weight: isChefLieu ? 2 : 1.3,
             fillOpacity: 1,
           });
         },
@@ -1555,17 +1634,68 @@ function toggleLabelEditMode() {
 
 // Réduit la taille du titre jusqu'à ce qu'il tienne en entier dans sa barre
 // (les noms longs ne sont plus tronqués par « … »).
+// On mesure la largeur réelle du texte et on garde 15 % de marge : à l'export,
+// dom-to-image peut utiliser une police de secours plus large.
 function fitMapTitle() {
   const h3 = document.getElementById("display-commune");
-  if (!h3) return;
-  h3.style.fontSize = "";
+  const bar = document.getElementById("map-title-bar");
+  if (!h3 || !bar || !bar.clientWidth) return;
+  const avail = (bar.clientWidth - 24) * 0.85;
+  const range = document.createRange();
+  range.selectNodeContents(h3);
+  const textWidth = () => range.getBoundingClientRect().width;
   let px = 13; // ~0.82rem par défaut
+  let ls = 1.5;
   h3.style.fontSize = px + "px";
+  h3.style.letterSpacing = ls + "px";
   let guard = 0;
-  while (h3.scrollWidth > h3.clientWidth && px > 8 && guard++ < 20) {
-    px -= 0.5;
+  while (textWidth() > avail && guard++ < 40) {
+    if (px > 9) px -= 0.5;
+    else if (ls > 0.3) ls = Math.max(0.3, ls - 0.3);
+    else if (px > 7) px -= 0.5;
+    else break;
     h3.style.fontSize = px + "px";
+    h3.style.letterSpacing = ls + "px";
   }
+}
+// Réajuste le titre à chaque changement de texte (tous les types de carte,
+// Sénégal et international), au chargement des polices et au redimensionnement.
+(function watchMapTitle() {
+  const h3 = document.getElementById("display-commune");
+  if (!h3) return;
+  new MutationObserver(() => fitMapTitle()).observe(h3, {
+    childList: true,
+    characterData: true,
+    subtree: true,
+  });
+  window.addEventListener("resize", fitMapTitle);
+  if (document.fonts && document.fonts.ready)
+    document.fonts.ready.then(fitMapTitle);
+})();
+
+// Cadre un carton sur sa zone. Si le conteneur n'a pas encore de taille
+// (carton masqué, mise en page mobile en cours), Leaflet cadrerait sur 0 px et
+// le carton resterait vide : on recadre dès que le conteneur prend sa taille.
+function fitPanelMap(m, bounds) {
+  if (!m) return;
+  m._suturaBounds = bounds;
+  const el = m.getContainer();
+  const apply = () => {
+    if (!m._suturaBounds || !el.clientWidth || !el.clientHeight) return;
+    m.invalidateSize(false);
+    m.fitBounds(m._suturaBounds, { padding: [4, 8], animate: false });
+  };
+  apply();
+  if (!m._suturaRO && window.ResizeObserver) {
+    m._suturaRO = new ResizeObserver(apply);
+    m._suturaRO.observe(el);
+    m.on("unload", () => m._suturaRO.disconnect());
+  }
+}
+function refitPanelMaps() {
+  [locatorMap, regionMap].forEach((m) => {
+    if (m && m._suturaBounds) fitPanelMap(m, m._suturaBounds);
+  });
 }
 
 /* ════════════════════════════════
@@ -1683,6 +1813,235 @@ function addGraticule(map) {
    SUTURA MAPS LIVE
 ════════════════════════════════ */
 
+/* ════════════════════════════════
+   FICHE DE PRÉSENTATION DE LA ZONE
+   Texte prêt à coller dans un mémoire, livré avec la carte payée. Les
+   générateurs remplissent `fiche` au fil du dessin ; buildFicheText() rédige.
+════════════════════════════════ */
+
+let fiche = null;
+
+function ficheReset(type, zoneName, level, feature, ctx = {}) {
+  fiche = { type, zoneName, level, feature, ...ctx };
+}
+
+// Accents absents des données sources (régions et départements du Sénégal).
+const FICHE_ACCENTS = {
+  THIES: "Thiès", MBACKE: "Mbacké", LINGUERE: "Linguère", KEBEMER: "Kébémer",
+  KEDOUGOU: "Kédougou", SEDHIOU: "Sédhiou", GUEDIAWAYE: "Guédiawaye",
+  VELINGARA: "Vélingara", "MEDINA YORO FOULAH": "Médina Yoro Foulah",
+  RANEROU: "Ranérou", GUINGUINEO: "Guinguinéo", SALEMATA: "Salémata",
+  "SAINT LOUIS": "Saint-Louis", "SAINT-LOUIS": "Saint-Louis",
+  "NIORO DU RIP": "Nioro du Rip", "MALEM HODDAR": "Malem Hoddar",
+  "KEUR MASSAR": "Keur Massar",
+};
+// "DANKH SENE" → "Dankh Sene", "KEUR MASSAR-NORD" → "Keur Massar-Nord".
+function ficheName(s) {
+  const key = String(s || "").trim().toUpperCase();
+  if (FICHE_ACCENTS[key]) return FICHE_ACCENTS[key];
+  return key
+    .toLowerCase()
+    .replace(/(^|[\s\-'’(])(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
+}
+// « de » ou « d' » selon la première lettre.
+function ficheDe(name) {
+  return /^[aeiouyhâàéèêîïôûAEIOUYHÂÀÉÈÊÎÏÔÛ]/.test(name) ? `d'${name}` : `de ${name}`;
+}
+function ficheNum(n) {
+  return n.toLocaleString("fr-FR", { maximumFractionDigits: n < 100 ? 1 : 0 });
+}
+
+// Nom de l'unité administrative et son genre.
+function ficheUnit() {
+  const f = fiche;
+  if (f.intlLabel) {
+    const lbl = f.intlLabel.toLowerCase();
+    return { noun: lbl, fem: /^(commune|région|préfecture|sous-préfecture|province)/.test(lbl) };
+  }
+  if (f.level === "region") return { noun: "région", fem: true };
+  if (f.level === "dept") return { noun: "département", fem: false };
+  return { noun: "commune", fem: true };
+}
+
+// Voisins regroupés par direction (8 secteurs), vus depuis le centre de la zone.
+function ficheLimits(neighbors) {
+  const DIRS = ["au nord", "au nord-est", "à l'est", "au sud-est", "au sud", "au sud-ouest", "à l'ouest", "au nord-ouest"];
+  const groups = DIRS.map(() => []);
+  let c0;
+  try {
+    c0 = turf.centroid(fiche.feature);
+  } catch (e) {
+    return "";
+  }
+  const bb = turf.bbox(fiche.feature);
+  const dx = (bb[2] - bb[0]) * 0.1, dy = (bb[3] - bb[1]) * 0.1;
+  const box = [bb[0] - dx, bb[1] - dy, bb[2] + dx, bb[3] + dy];
+  const seen = new Set();
+  neighbors.forEach((n) => {
+    const name = ficheName(n.properties?.CCRCA);
+    if (!name || seen.has(name)) return;
+    seen.add(name);
+    let p;
+    try {
+      // Partie du voisin proche de la zone : un grand voisin n'est pas situé
+      // par son centre lointain mais par sa portion frontalière.
+      p = turf.centroid(turf.bboxClip(n, box));
+    } catch (e) {
+      try { p = turf.centroid(n); } catch (e2) { return; }
+    }
+    const b = (turf.bearing(c0, p) + 360) % 360;
+    groups[Math.round(b / 45) % 8].push(name);
+  });
+  const u = ficheUnit();
+  const kind = u.noun;
+  const plural = kind + "s";
+  const art = u.fem ? "la" : "le";
+  const parts = [];
+  groups.forEach((names, i) => {
+    if (!names.length) return;
+    const list =
+      names.length === 1
+        ? `${art} ${kind} ${ficheDe(names[0])}`
+        : `les ${plural} ${names.slice(0, -1).map(ficheDe).join(", ")} et ${ficheDe(names[names.length - 1])}`;
+    parts.push(`${DIRS[i]} par ${list}`);
+  });
+  if (!parts.length) return "";
+  const joined = parts.length === 1 ? parts[0] : parts.slice(0, -1).join(", ") + " et " + parts[parts.length - 1];
+  return `${u.fem ? "Elle" : "Il"} est limité${u.fem ? "e" : ""} ${joined}.`;
+}
+
+function buildFicheText() {
+  const f = fiche;
+  if (!f || !f.feature) return "";
+  const u = ficheUnit();
+  const Il = u.fem ? "Elle" : "Il";
+  const e = u.fem ? "e" : "";
+  const zone = ficheName(f.zoneName);
+  const Art = u.fem ? "La" : "Le";
+  const out = [];
+
+  // 1. Situation et superficie.
+  let situ;
+  if (f.intlLabel) {
+    const COUNTRY = { BEN: "au Bénin", CIV: "en Côte d'Ivoire", SN: "au Sénégal" };
+    const pays = COUNTRY[f.country] || `en ${f.countryName || ""}`;
+    situ = `${Art} ${u.noun} ${ficheDe(zone)} est situé${e} ${pays}.`;
+    if (f.parent) situ = `${Art} ${u.noun} ${ficheDe(zone)} est situé${e} dans ${f.parent}, ${pays}.`;
+  } else if (f.level === "commune") {
+    situ = `La commune ${ficheDe(zone)} est située dans le département ${ficheDe(ficheName(f.dept))}, région ${ficheDe(ficheName(f.reg))}, au Sénégal.`;
+  } else if (f.level === "dept") {
+    situ = `Le département ${ficheDe(zone)} est situé dans la région ${ficheDe(ficheName(f.reg))}, au Sénégal.`;
+  } else {
+    situ = `La région ${ficheDe(zone)} est l'une des 14 régions du Sénégal.`;
+  }
+  let area = 0;
+  try {
+    area = turf.area(f.feature) / 1e6;
+  } catch (err) {}
+  if (area) situ += ` ${Il} couvre une superficie d'environ ${ficheNum(area)} km².`;
+  out.push(situ);
+
+  // 2. Limites.
+  if (f.neighbors && f.neighbors.length) {
+    let lim = ficheLimits(f.neighbors);
+    if (lim && f.hasOcean) lim = lim.slice(0, -1) + ", et bordé" + e + " par l'océan Atlantique.";
+    if (lim) out.push(lim);
+  }
+
+  // 3. Selon le type de carte.
+  if (f.type === "localisation") {
+    const s = [];
+    if (f.level === "commune" && f.points) {
+      if (f.points.chef) s.push(`Son chef-lieu est ${ficheName(f.points.chef)}.`);
+      const bits = [];
+      if (f.points.villages) bits.push(`${f.points.villages} village${f.points.villages > 1 ? "s" : ""}`);
+      if (f.points.quartiers) bits.push(`${f.points.quartiers} quartier${f.points.quartiers > 1 ? "s" : ""}`);
+      if (bits.length) s.push(`Le territoire compte ${bits.join(" et ")}.`);
+    } else if (f.level === "dept" && f.subCount) {
+      s.push(`Il compte ${f.subCount} communes.`);
+    } else if (f.level === "region" && f.subCount) {
+      s.push(`Elle compte ${f.subCount} départements.`);
+    }
+    if (f.roads && f.roads.size) {
+      const ADJ = { "Route nationale": "nationales", "Route régionale": "régionales", "Route départementale": "départementales" };
+      // Du plus important au moins important.
+      const adj = ["Route nationale", "Route régionale", "Route départementale"]
+        .filter((t) => f.roads.has(t))
+        .map((t) => ADJ[t]);
+      const r = [];
+      if (f.roads.has("Autoroute")) r.push("une autoroute");
+      if (adj.length) r.push(`des routes ${adj.length > 1 ? adj.slice(0, -1).join(", ") + " et " + adj[adj.length - 1] : adj[0]}`);
+      if (r.length) s.push(`Le territoire est desservi par ${r.join(" et ")}${f.cours ? ", et traversé par des cours d'eau" : ""}.`);
+    } else if (f.cours) {
+      s.push(`Le territoire est traversé par des cours d'eau.`);
+    }
+    if (s.length) out.push(s.join(" "));
+  } else if (f.type === "occupation" && f.occ && f.occ.length) {
+    const [a, b, c] = f.occ;
+    let t = `La classe d'occupation du sol dominante est « ${a.nom} », qui couvre ${a.pct} % de la superficie.`;
+    if (b) t += ` Viennent ensuite « ${b.nom} » (${b.pct} %)${c ? ` et « ${c.nom} » (${c.pct} %)` : ""}.`;
+    const rest = f.occ.slice(3);
+    if (rest.length) {
+      const r = Math.round(rest.reduce((s, x) => s + x.pctRaw, 0) * 10) / 10;
+      t += ` Les autres classes (${rest.map((x) => x.nom.toLowerCase()).join(", ")}) représentent ensemble ${ficheNum(r)} %.`;
+    }
+    out.push(t);
+  } else if (f.type === "relief" && f.relief) {
+    const { min, max, mean } = f.relief;
+    const d = max - min;
+    const kind = d < 30 ? "globalement plat" : d < 100 ? "peu accidenté" : d < 300 ? "modérément contrasté" : "contrasté";
+    out.push(
+      `L'altitude varie de ${Math.round(min)} m à ${Math.round(max)} m, pour une moyenne d'environ ${Math.round(mean)} m. ` +
+        `Avec un dénivelé de ${Math.round(d)} m, le relief est ${kind}.`,
+    );
+  }
+
+  const SRC = {
+    localisation: "DTGC",
+    occupation: "ANAT, CSE, ANSD (2020)",
+    relief: "SRTM, NASA (30 m)",
+  };
+  out.push(`Source : Sutura Maps, d'après ${SRC[f.type] || "données officielles"}.`);
+  return out.join("\n\n");
+}
+
+// Aperçu de la fiche avant paiement : 1re phrase lisible, le reste flouté.
+// Le texte flouté est brouillé : il ne se lit pas non plus dans la page.
+function renderFicheTeaser() {
+  const box = document.getElementById("fiche-teaser");
+  if (!box) return;
+  const text = buildFicheText();
+  if (!text) {
+    box.style.display = "none";
+    return;
+  }
+  const first = text.split(/(?<=\.)\s/)[0];
+  const rest = text.slice(first.length).replace(/\p{L}/gu, () => "abcdefghilmnoprstu"[Math.floor(Math.random() * 18)]);
+  const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+  box.innerHTML = `
+    <div class="ft-head"><span class="ft-badge">Inclus</span>Fiche de présentation de la zone</div>
+    <p class="ft-text">${esc(first)} <span class="ft-blur">${esc(rest).replace(/\n\n/g, " ")}</span></p>
+    <div class="ft-lock">Débloquée avec ta carte</div>`;
+  box.style.display = "block";
+}
+
+// Nombre réel de cartes livrées, affiché près du bouton (une fois par visite,
+// et seulement s'il est assez parlant).
+let trustCountLoaded = false;
+async function loadTrustCount() {
+  if (trustCountLoaded) return;
+  trustCountLoaded = true;
+  try {
+    const res = await fetch("/.netlify/functions/public-stats");
+    const { delivered } = await res.json();
+    const el = document.getElementById("pt-count");
+    if (el && delivered >= 10) {
+      el.textContent = `${delivered.toLocaleString("fr-FR")} cartes déjà livrées`;
+      el.hidden = false;
+    }
+  } catch (e) {}
+}
+
 function addLiveWatermark() {
   // Filigrane d'aperçu : couvre TOUT le cadre (carte + légende + cartons), pas
   // seulement la zone carte, pour qu'une capture d'écran soit inutilisable dans
@@ -1696,22 +2055,20 @@ function addLiveWatermark() {
   const old = document.getElementById("live-watermark");
   if (old) old.remove();
 
+  // Motif répété en mosaïque sur toute la surface (carte, légende, cartons) :
+  // aucune zone propre à recadrer, mais la carte reste lisible pour la juger.
+  const tile =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="170">` +
+    `<g transform="rotate(-26 150 85)" font-family="DM Sans,Arial,sans-serif" font-weight="700" text-anchor="middle">` +
+    `<text x="150" y="80" font-size="22" letter-spacing="3" fill="rgba(20,32,42,0.15)">SUTURA MAPS</text>` +
+    `<text x="150" y="104" font-size="13" letter-spacing="5" fill="rgba(184,92,44,0.26)">NON PAYÉ</text>` +
+    `</g></svg>`;
   const wm = document.createElement("div");
   wm.id = "live-watermark";
-  wm.style.cssText = `position:absolute;inset:0;z-index:1500;pointer-events:none;overflow:hidden;`;
+  wm.style.cssText =
+    `position:absolute;inset:0;z-index:1500;pointer-events:none;overflow:hidden;` +
+    `background-image:url(data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(tile)))});background-repeat:repeat;`;
   wm.innerHTML = `
-    <!-- Un seul grand mot en diagonale, centré, qui couvre toute la carte et
-         la légende : la capture est inutilisable, la carte reste lisible. -->
-    <div style="position:absolute;left:50%;top:50%;
-                transform:translate(-50%,-50%) rotate(-28deg);
-                text-align:center;white-space:nowrap;">
-      <div style="font-family:'Cormorant Garamond',serif;font-weight:700;
-                  font-size:150px;letter-spacing:6px;line-height:0.95;
-                  color:rgba(20,32,42,0.16);">SUTURA MAPS</div>
-      <div style="font-family:'Cormorant Garamond',serif;font-weight:700;
-                  font-size:74px;letter-spacing:16px;margin-top:4px;
-                  color:rgba(184,92,44,0.22);">NON PAYÉ</div>
-    </div>
     <div style="position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
                 background:rgba(14,12,10,0.88);color:#f7f3ec;font-family:'DM Sans',sans-serif;
                 font-size:12px;font-weight:500;letter-spacing:.3px;padding:7px 14px;
@@ -1893,11 +2250,12 @@ function largestPolygonCoords(feature) {
 
 // Fond gris des voisins (ordre z : à dessiner AVANT la donnée/le raster).
 function drawNeighborFill(neighbors, neighborStyle) {
+  // Voisins en blanc plein, contour gris fin : fond de carte blanc et net.
   const style = neighborStyle || {
-    color: "#777879",
+    color: "#8d949a",
     fillColor: "#ffffff",
-    fillOpacity: 0.7,
-    weight: 2,
+    fillOpacity: 1,
+    weight: 1.3,
   };
   L.geoJSON(neighbors, { style, interactive: false }).addTo(map);
 }
@@ -2062,11 +2420,16 @@ function buildLocatorMap(targetFeature, userColor, level = "commune") {
     // remplit le carton sans déborder ni masquer le bas de la carte.
     zoomSnap: 0.25,
   });
+  // Vue de départ (Sénégal) : la carte est utilisable avant la fin du chargement.
+  locatorMap.setView([14.4, -14.4], 5);
   const dept = targetFeature.properties.DEPT;
   const reg = targetFeature.properties.REG;
+  const m = locatorMap;
 
   return fetchGeo("data/departements.geojson")
     .then((data) => {
+      // Une autre génération a remplacé ce carton entre-temps : on abandonne.
+      if (m !== locatorMap) return;
       if (level === "dept") {
         // Département situé dans sa région : on montre les départements de la
         // région, le département cible en couleur, cadré sur la région.
@@ -2097,10 +2460,9 @@ function buildLocatorMap(targetFeature, userColor, level = "commune") {
           interactive: false,
         }).addTo(locatorMap);
         const ctx = regionDepts.length ? regionDepts : data.features;
-        locatorMap.invalidateSize(false);
-        locatorMap.fitBounds(
+        fitPanelMap(
+          m,
           L.geoJSON({ type: "FeatureCollection", features: ctx }).getBounds(),
-          { padding: [4, 8], animate: false },
         );
         return;
       }
@@ -2148,10 +2510,12 @@ function buildLocatorMap(targetFeature, userColor, level = "commune") {
             type: "FeatureCollection",
             features: data.features,
           }).getBounds();
-      locatorMap.invalidateSize(false);
-      locatorMap.fitBounds(bounds, { padding: [4, 8], animate: false });
+      fitPanelMap(m, bounds);
     })
-    .catch((e) => console.error("buildLocatorMap error:", e));
+    .catch((e) => {
+      console.error("buildLocatorMap error:", e);
+      track("carton_error", "locator");
+    });
 }
 
 function buildRegionMap(targetFeature, userColor) {
@@ -2170,9 +2534,12 @@ function buildRegionMap(targetFeature, userColor) {
     // Zoom par quarts (11.25, 11.5…), arrondi vers le bas : pas de débordement.
     zoomSnap: 0.25,
   });
+  regionMap.setView([14.4, -14.4], 5);
   const reg = targetFeature.properties.REG;
+  const m = regionMap;
   return fetchGeo("data/regions.geojson")
     .then((data) => {
+      if (m !== regionMap) return;
       const targetReg = data.features.find((f) => f.properties.REG === reg);
       const otherRegs = data.features.filter((f) => f.properties.REG !== reg);
       L.geoJSON(
@@ -2211,12 +2578,14 @@ function buildRegionMap(targetFeature, userColor) {
         type: "FeatureCollection",
         features: data.features,
       }).getBounds();
-      // On recalcule la taille réelle du conteneur AVANT le fitBounds (sinon le
-      // zoom est estimé sur une taille erronée et le bas du Sénégal est rogné).
-      regionMap.invalidateSize(false);
-      regionMap.fitBounds(bounds, { padding: [4, 8], animate: false });
+      // fitPanelMap recalcule la taille réelle du conteneur avant le cadrage
+      // (sinon le bas du Sénégal est rogné, ou le carton reste vide).
+      fitPanelMap(m, bounds);
     })
-    .catch((e) => console.error("buildRegionMap error:", e));
+    .catch((e) => {
+      console.error("buildRegionMap error:", e);
+      track("carton_error", "region");
+    });
 }
 
 /* ════════════════════════════════
@@ -2405,7 +2774,18 @@ async function generateFinalMap() {
       return;
     }
 
-    track("generation", zoneName);
+    track("generation", zoneName, null, { maptype: selectedMapType, level: selectedLevel });
+
+    ficheReset(selectedMapType, zoneName, level, targetFeature, {
+      dept,
+      reg,
+      subCount:
+        level === "dept"
+          ? geoData.communes.features.filter((f) => f.properties.DEPT === dept && f.properties.REG === reg).length
+          : level === "region"
+            ? deptsOfRegion(reg).length
+            : 0,
+    });
 
     if (selectedMapType === "localisation") {
       await generateLocalisationMap(
@@ -2429,6 +2809,8 @@ async function generateFinalMap() {
     }
 
     fitMapTitle(); // titre complet dans l'aperçu
+    renderFicheTeaser();
+    loadTrustCount();
 
     // Le bouton affiche le prix réel du niveau/type choisi.
     const exportBtn = document.querySelector(".btn-export");
@@ -2466,8 +2848,25 @@ async function generateFinalMapIntl() {
     if (mapControls.scale) map.removeControl(mapControls.scale);
     if (mapControls.north) map.removeControl(mapControls.north);
 
-    track("generation", zoneName);
+    track("generation", zoneName, null, { maptype: selectedMapType });
+    const cfgI = countryCfg();
+    let parent = null;
+    if (target.levelIndex > 0) {
+      const top = cfgI.levels[0];
+      const topName = target.feature.properties[top.nameKey];
+      const topFem = /^(commune|région|préfecture|province)/i.test(top.label);
+      if (topName)
+        parent = `${topFem ? "la" : "le"} ${top.label.toLowerCase()} ${ficheDe(ficheName(topName))}`;
+    }
+    ficheReset("relief", zoneName, null, target.feature, {
+      intlLabel: target.label,
+      country: currentCountry,
+      countryName: cfgI.nom,
+      parent,
+    });
     await generateReliefMap(target.feature, zoneName, author, target.label);
+    renderFicheTeaser();
+    loadTrustCount();
 
     // Palier de prix selon la taille du niveau (tête = région, feuille = commune).
     const cfg = countryCfg();
@@ -2718,6 +3117,7 @@ async function generateLocalisationMap(
   if (neighbors.length) drawNeighborFill(neighbors);
 
   const hasOcean = await addOceanLayer("data/ocean.geojson", filterFeature);
+  if (fiche) Object.assign(fiche, { neighbors, hasOcean });
   const elOC = document.getElementById("legend-ocean");
   if (elOC) elOC.style.display = hasOcean ? "flex" : "none";
 
@@ -2726,10 +3126,11 @@ async function generateLocalisationMap(
   // remplissage prend la couleur choisie par l'utilisateur.
   const studyAreaLayer = L.geoJSON(targetFeature, {
     style: {
-      color: "#000000",
+      color: "#111111",
       fillColor: userColor,
-      fillOpacity: 0.5,
-      weight: 4,
+      fillOpacity: 0.55,
+      weight: 3,
+      lineJoin: "round",
     },
   }).addTo(map);
 
@@ -2753,11 +3154,12 @@ async function generateLocalisationMap(
   // ── Hydrographie + routes ──
   const hasCours = await addLayer(
     "data/cours_eau.geojson",
-    { color: "#3498db", weight: 2, opacity: 0.6 },
+    { color: "#3b8fd0", weight: 1.6, opacity: 0.85 },
     filterFeature,
   );
   // Routes classées par type (autoroute, nationale, régionale, départementale).
   const roadTypes = await addRoads("data/routes.geojson", filterFeature);
+  if (fiche) Object.assign(fiche, { roads: roadTypes, cours: hasCours });
   buildRoadLegend(roadTypes);
   const elCE = document.getElementById("legend-cours-eau");
   if (elCE) elCE.style.display = hasCours ? "flex" : "none";
@@ -2952,6 +3354,29 @@ async function generateOccupationMap(
   };
   const neighborFeatures = await computeNeighbors(targetFeature, zoneName, level);
   if (neighborFeatures.length > 0) drawNeighborFill(neighborFeatures, neighborStyle);
+
+  // Part de chaque classe dans la superficie (fiche de présentation).
+  if (fiche) {
+    fiche.neighbors = neighborFeatures;
+    const byClass = {};
+    let total = 0;
+    clipped.forEach((f) => {
+      const nom = (f.properties.NOM || "").trim();
+      if (!nom) return;
+      let a = 0;
+      try {
+        a = turf.area(f);
+      } catch (e) {}
+      byClass[nom] = (byClass[nom] || 0) + a;
+      total += a;
+    });
+    fiche.occ = total
+      ? Object.entries(byClass)
+          .map(([nom, a]) => ({ nom, pctRaw: (a / total) * 100 }))
+          .sort((x, y) => y.pctRaw - x.pctRaw)
+          .map((x) => ({ ...x, pct: ficheNum(Math.round(x.pctRaw * 10) / 10) }))
+      : [];
+  }
 
   // Couche occupation
   L.geoJSON(
@@ -3303,6 +3728,12 @@ async function generateReliefMap(targetFeature, zoneName, author, level) {
     return;
   }
 
+  if (fiche) {
+    let sum = 0;
+    for (let i = 0; i < vals.length; i++) sum += vals[i];
+    fiche.relief = { min: emin, max: emax, mean: sum / vals.length };
+  }
+
   // Découpage en 5 classes par quantiles (classes équilibrées, sommet visible).
   const classes = mntBuildClasses(vals);
   const out = document.createElement("canvas");
@@ -3328,6 +3759,7 @@ async function generateReliefMap(targetFeature, zoneName, author, level) {
   // Voisins (limitrophes) : fond dessiné SOUS le raster (transparent hors
   // polygone) ; étiquettes placées plus bas, APRÈS le fitBounds.
   const neighborFeatures = await computeNeighbors(targetFeature, zoneName, level);
+  if (fiche) fiche.neighbors = neighborFeatures;
   if (neighborFeatures.length > 0)
     drawNeighborFill(neighborFeatures, {
       color: "#aaa",
@@ -3534,7 +3966,7 @@ async function exportToPNG() {
     }
 
     // Paiement initié : commande créée, l'utilisateur part vers Bictorys.
-    track("payment_init", zoneName);
+    track("payment_init", zoneName, data.token);
 
     // Contexte pour la reprise et la régénération éventuelle après paiement.
     sessionStorage.setItem("sutura_token", data.token);
@@ -3981,6 +4413,28 @@ async function handleDownloadToken(token) {
     // ces positions pour que le PNG reflète les ajustements de l'utilisateur.
     lblSetKey(lblMapKey(mapType, level, commune), true);
 
+    // Fiche de présentation livrée avec la carte (recalculée ici).
+    if (zCountry && zCountry !== "SN") {
+      ficheReset("relief", commune, null, targetFeature, {
+        intlLabel: reliefLevelArg,
+        country: zCountry,
+        countryName: COUNTRIES[zCountry]?.nom,
+      });
+    } else {
+      const fDept = zDept || targetFeature.properties.DEPT;
+      const fReg = zReg || targetFeature.properties.REG;
+      ficheReset(mapType, commune, level, targetFeature, {
+        dept: fDept,
+        reg: fReg,
+        subCount:
+          level === "dept"
+            ? geoData.communes.features.filter((f) => f.properties.DEPT === fDept && f.properties.REG === fReg).length
+            : level === "region"
+              ? deptsOfRegion(fReg).length
+              : 0,
+      });
+    }
+
     // Générer la carte en step 3
     goToStep(3);
     await new Promise((r) => setTimeout(r, 300));
@@ -4172,6 +4626,8 @@ function showMapReadySheet(blob, url, filename) {
     ? `${location.origin}/map.html?token=${lastPaidToken}`
     : null;
   const showHint = IS_IOS || !!detectInApp();
+  const ficheText = buildFicheText();
+  const escHtml = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
 
   const ov = document.createElement("div");
   ov.id = "ready-sheet";
@@ -4210,6 +4666,19 @@ function showMapReadySheet(blob, url, filename) {
           : ""
       }
       ${
+        ficheText
+          ? `<div style="background:#fff;border-radius:14px;padding:14px;margin:6px 0 10px;text-align:left;
+                         border:1px solid rgba(20,32,42,.08);">
+               <div style="font-weight:700;font-size:.85rem;margin-bottom:8px;">Ta fiche de présentation</div>
+               <div style="font-size:.8rem;line-height:1.55;color:#3a454c;white-space:pre-line;
+                           max-height:150px;overflow:auto;margin-bottom:10px;">${escHtml(ficheText)}</div>
+               <a id="rs-fiche" href="#" style="display:block;text-align:center;border:1.5px solid #14202a;
+                  color:#14202a;padding:11px;border-radius:12px;font-weight:600;font-size:.88rem;
+                  text-decoration:none;">Copier le texte</a>
+             </div>`
+          : ""
+      }
+      ${
         relink
           ? `<p style="font-size:.75rem;color:#64727a;line-height:1.5;margin-top:6px;">
                Ton lien de re-téléchargement reste valable <b>7 jours</b>.
@@ -4235,10 +4704,28 @@ function showMapReadySheet(blob, url, filename) {
         .catch(() => {});
     });
   }
+  const ficheBtn = ov.querySelector("#rs-fiche");
+  if (ficheBtn) {
+    ficheBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      track("fiche_copy", null, lastPaidToken);
+      const done = () => {
+        ficheBtn.innerText = "Texte copié ✓";
+        ficheBtn.style.background = "#14202a";
+        ficheBtn.style.color = "#fff";
+      };
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(ficheText).then(done, () => prompt("Ta fiche :", ficheText));
+      } else {
+        prompt("Ta fiche :", ficheText);
+      }
+    });
+  }
   const copy = ov.querySelector("#rs-copy");
   if (copy) {
     copy.addEventListener("click", (e) => {
       e.preventDefault();
+      track("link_copy", null, lastPaidToken);
       const done = () => (copy.innerText = "Lien copié");
       if (navigator.clipboard) {
         navigator.clipboard.writeText(relink).then(done, () => prompt("Ton lien :", relink));
@@ -4271,14 +4758,22 @@ async function doExport(withWatermark = true) {
   } catch (e) {
     /* on capture quand même */
   }
-  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  refitPanelMaps(); // cartons recadrés sur leur taille finale
   fitMapTitle(); // titre complet, non tronqué, dans le PNG
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
+  // Filigrane d'aperçu RETIRÉ du DOM pendant la capture (le masquer ne suffit
+  // pas : dom-to-image clone aussi les éléments masqués et peut échouer).
   const liveWm = document.getElementById("live-watermark");
-  if (liveWm) liveWm.style.display = "none";
+  const wmParent = liveWm ? liveWm.parentNode : null;
+  if (liveWm) liveWm.remove();
+  const restoreWm = () => {
+    if (liveWm && wmParent && !liveWm.isConnected) wmParent.appendChild(liveWm);
+  };
 
   const container = document.getElementById("export-container");
-  const scale = 2;
+  // Carte payée en 3× : bien plus nette qu'une capture d'écran.
+  const scale = withWatermark ? 2 : 3;
   const width = container.scrollWidth;
   const height = container.scrollHeight;
 
@@ -4295,7 +4790,7 @@ async function doExport(withWatermark = true) {
       },
     })
     .then((dataUrl) => {
-      if (liveWm) liveWm.style.display = "block";
+      restoreWm();
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement("canvas");
@@ -4339,7 +4834,7 @@ async function doExport(withWatermark = true) {
       img.src = dataUrl;
     })
     .catch((e) => {
-      if (liveWm) liveWm.style.display = "block";
+      restoreWm();
       console.error("Export error:", e);
       track("download_error", String(e && e.message ? e.message : e).slice(0, 80), lastPaidToken);
       btn.disabled = false;

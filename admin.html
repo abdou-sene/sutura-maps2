@@ -3,304 +3,252 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sutura Maps — Administration</title>
+    <title>Sutura Maps — Tableau de bord</title>
     <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32.png" />
     <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&family=Barlow+Condensed:wght@600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap"
       rel="stylesheet"
     />
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       :root {
+        --bg: #f4f5f3;
+        --card: #ffffff;
         --ink: #14202a;
-        --sand: #f3f1ee;
-        --cream: #e8e5df;
-        --terra: #123c46;
-        --terra2: #1f5b68;
-        --gold: #e2673f;
-        --muted: #64727a;
-        --line: rgba(20,32,42, 0.1);
+        --muted: #6b7780;
+        --line: rgba(20, 32, 42, 0.09);
+        --soft: #eef1ef;
+        --brand: #123c46;
+        --brand-2: #2f7d8c;
+        --brand-soft: #cfe3e6;
+        --accent: #e2673f;
         --ok: #2e7d32;
+        --ok-soft: #e1f1e2;
         --warn: #b26a00;
+        --warn-soft: #fcefd6;
         --err: #c0392b;
+        --err-soft: #fbe3e0;
+        --shadow: 0 1px 2px rgba(20, 32, 42, 0.04), 0 4px 16px rgba(20, 32, 42, 0.04);
+        --r: 14px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1619;
+          --card: #172126;
+          --ink: #e8eef0;
+          --muted: #8e9ca3;
+          --line: rgba(232, 238, 240, 0.09);
+          --soft: #1e2a30;
+          --brand: #7cc4d1;
+          --brand-2: #4fa3b3;
+          --brand-soft: #23434b;
+          --ok-soft: #1d3320;
+          --warn-soft: #3a2c12;
+          --err-soft: #3b1d1a;
+          --ok: #6cc070;
+          --warn: #e0a54a;
+          --err: #ef7a6c;
+          --shadow: none;
+        }
       }
       body {
-        font-family: "DM Sans", sans-serif;
-        background: var(--sand);
+        font-family: "DM Sans", system-ui, sans-serif;
+        background: var(--bg);
         color: var(--ink);
         min-height: 100vh;
+        font-variant-numeric: tabular-nums;
       }
-      button { font-family: "DM Sans", sans-serif; }
+      button, input, select { font-family: inherit; color: inherit; }
 
       /* ── LOGIN ── */
-      #login-screen {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
-      }
+      #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 16px; }
       .login-card {
-        background: white;
-        padding: 3rem;
-        border: 1px solid var(--line);
-        text-align: center;
-        width: 100%;
-        max-width: 360px;
-        box-shadow: 0 8px 32px rgba(20,32,42, 0.08);
+        background: var(--card); padding: 2.4rem; border-radius: var(--r);
+        width: 100%; max-width: 360px; box-shadow: var(--shadow); border: 1px solid var(--line);
       }
-      .login-card h1 {
-        font-family: "Cormorant Garamond", serif;
-        font-size: 2rem;
-        font-weight: 700;
-        margin-bottom: 0.3rem;
-      }
-      .login-card h1 em { color: var(--terra); }
-      .login-card p {
-        font-size: 0.72rem;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        color: var(--muted);
-        margin-bottom: 2rem;
-      }
+      .login-card h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.2rem; }
+      .login-card p { font-size: 0.85rem; color: var(--muted); margin-bottom: 1.6rem; }
       .login-card input {
-        width: 100%;
-        padding: 12px 14px;
-        border: 1px solid var(--line);
-        font-size: 0.9rem;
-        margin-bottom: 1rem;
-        background: var(--sand);
-        font-family: "DM Sans", sans-serif;
+        width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px;
+        font-size: 0.95rem; margin-bottom: 0.8rem; background: var(--soft);
       }
       .btn-primary {
-        background: var(--terra);
-        color: white;
-        border: none;
-        padding: 12px 24px;
-        font-size: 0.78rem;
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
-        cursor: pointer;
-        width: 100%;
+        background: var(--brand); color: #fff; border: none; padding: 12px; border-radius: 10px;
+        font-size: 0.9rem; font-weight: 600; cursor: pointer; width: 100%;
       }
-      .btn-primary:hover { background: var(--ink); }
+      @media (prefers-color-scheme: dark) { .btn-primary { color: #0f1619; } }
 
-      /* ── LAYOUT ── */
+      /* ── HEADER ── */
       #admin-screen { display: none; }
       header {
-        background: var(--ink);
-        color: white;
-        padding: 1rem 2rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        flex-wrap: wrap;
+        position: sticky; top: 0; z-index: 10;
+        background: color-mix(in srgb, var(--bg) 85%, transparent);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--line);
       }
-      header h1 {
-        font-family: "Cormorant Garamond", serif;
-        font-size: 1.4rem;
-        font-weight: 700;
+      .hin {
+        max-width: 1280px; margin: 0 auto; padding: 12px 24px;
+        display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
       }
-      header h1 em { color: var(--terra2); }
-      header .sub {
-        font-size: 0.65rem;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.4);
-        margin-left: 10px;
+      .logo { font-weight: 700; font-size: 1.05rem; margin-right: auto; }
+      .logo span { color: var(--muted); font-weight: 500; margin-left: 8px; font-size: 0.85rem; }
+      .seg { display: inline-flex; background: var(--soft); border-radius: 10px; padding: 3px; }
+      .seg button {
+        border: none; background: transparent; padding: 6px 12px; border-radius: 8px;
+        font-size: 0.82rem; font-weight: 500; color: var(--muted); cursor: pointer;
       }
-      .hbtns { display: flex; gap: 8px; }
-      .hbtn {
-        background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: rgba(255, 255, 255, 0.7);
-        padding: 7px 16px;
-        font-size: 0.7rem;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        cursor: pointer;
+      .seg button.on { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
+      .ghost {
+        border: 1px solid var(--line); background: var(--card); padding: 7px 12px; border-radius: 10px;
+        font-size: 0.82rem; cursor: pointer;
       }
-      .hbtn:hover { border-color: var(--terra2); color: var(--terra2); }
+      .ghost:hover { border-color: var(--muted); }
+      .live { display: inline-flex; align-items: center; gap: 6px; }
+      .live .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+      .live.on .dot { background: var(--ok); animation: pulse 1.6s infinite; }
+      @keyframes pulse { 50% { opacity: 0.3; } }
+      .updated { font-size: 0.75rem; color: var(--muted); }
 
-      .wrap { padding: 1.6rem 2rem 3rem; max-width: 1280px; margin: 0 auto; }
+      .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 24px 48px; }
+      @media (max-width: 600px) { .wrap, .hin { padding-left: 16px; padding-right: 16px; } }
 
-      /* ── KPI ── */
-      .kpis {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-        gap: 1px;
-        background: var(--line);
-        border: 1px solid var(--line);
-        margin-bottom: 1.6rem;
+      .notice {
+        background: var(--warn-soft); color: var(--warn); border-radius: 12px; padding: 12px 16px;
+        font-size: 0.85rem; margin-bottom: 16px; display: none; line-height: 1.45;
       }
-      .kpi { background: white; padding: 1.3rem 1.4rem; }
-      .kpi .v {
-        font-family: "Cormorant Garamond", serif;
-        font-size: 2.4rem;
-        font-weight: 700;
-        line-height: 1;
-      }
-      .kpi .l {
-        font-size: 0.62rem;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        color: var(--muted);
-        margin-top: 0.45rem;
-        font-weight: 500;
-      }
-      .kpi .s { font-size: 0.7rem; color: var(--muted); margin-top: 0.35rem; }
-      .kpi.t .v { color: var(--terra); }
-      .kpi.g .v { color: var(--ok); }
+      .notice code { font-weight: 700; }
 
-      /* ── PANELS ── */
-      .panels {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1.2rem;
-        margin-bottom: 1.6rem;
+      /* ── CARDS ── */
+      .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 18px 20px; }
+      .card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+      .card .hint { font-size: 0.78rem; color: var(--muted); margin-bottom: 14px; }
+      .grid { display: grid; gap: 14px; margin-bottom: 14px; }
+      .g-kpi { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+      @media (max-width: 600px) {
+        .g-kpi { grid-template-columns: 1fr 1fr; gap: 10px; }
+        .g-kpi .card { padding: 14px; }
+        .kpi .v { font-size: 1.45rem; }
+        .kpi .d small { display: none; }
       }
-      @media (max-width: 760px) { .panels { grid-template-columns: 1fr; } }
-      .panel { background: white; border: 1px solid var(--line); padding: 1.2rem 1.4rem; }
-      .panel h3 {
-        font-family: "Cormorant Garamond", serif;
-        font-size: 1.15rem;
-        font-weight: 600;
-        margin-bottom: 0.9rem;
+      .g-2 { grid-template-columns: 3fr 2fr; }
+      .g-3 { grid-template-columns: repeat(3, 1fr); }
+      @media (max-width: 980px) { .g-2, .g-3 { grid-template-columns: 1fr; } }
+
+      .kpi .l { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+      .kpi .v { font-size: 1.9rem; font-weight: 700; margin: 6px 0 4px; letter-spacing: -0.5px; }
+      .kpi .d { font-size: 0.78rem; font-weight: 600; }
+      .kpi .d.up { color: var(--ok); }
+      .kpi .d.down { color: var(--err); }
+      .kpi .d.flat { color: var(--muted); }
+      .kpi .d small { color: var(--muted); font-weight: 400; }
+      .kpi.hl .v { color: var(--accent); }
+
+      /* ── CHART ── */
+      .legend { display: flex; gap: 14px; font-size: 0.78rem; color: var(--muted); margin-bottom: 8px; flex-wrap: wrap; }
+      .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+      #chart svg { width: 100%; height: 220px; display: block; }
+      #chart .tick { font-size: 10px; fill: var(--muted); }
+
+      /* ── FUNNEL ── */
+      .fn-row { display: grid; grid-template-columns: 160px 1fr 92px; gap: 10px; align-items: center; margin-bottom: 9px; }
+      .fn-label { font-size: 0.82rem; }
+      .fn-track { height: 26px; background: var(--soft); border-radius: 7px; overflow: hidden; }
+      .fn-fill { height: 100%; background: var(--brand-2); border-radius: 7px; display: flex; align-items: center; padding-left: 8px; color: #fff; font-size: 0.78rem; font-weight: 600; min-width: 28px; }
+      .fn-num { text-align: right; font-size: 0.78rem; color: var(--muted); }
+      .fn-num b { color: var(--ink); font-size: 0.85rem; }
+      .fn-drop { font-size: 0.72rem; color: var(--muted); margin: -4px 0 8px 170px; }
+      .fn-drop.worst { color: var(--accent); font-weight: 600; }
+      @media (max-width: 600px) {
+        .fn-row { grid-template-columns: 1fr 70px; }
+        .fn-label { grid-column: 1 / -1; }
+        .fn-drop { margin-left: 0; }
       }
-      .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
-      .bar-label { width: 150px; font-size: 0.76rem; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .bar-track { flex: 1; height: 8px; background: var(--cream); }
-      .bar-fill { height: 100%; background: var(--terra); }
-      .bar-n { width: 28px; text-align: right; font-size: 0.76rem; font-weight: 600; }
-      .panel .empty-s { font-size: 0.78rem; color: var(--muted); font-style: italic; }
+
+      /* ── LISTS ── */
+      .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 0.82rem; }
+      .bar-label { width: 42%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .bar-track { flex: 1; height: 8px; background: var(--soft); border-radius: 4px; overflow: hidden; }
+      .bar-fill { height: 100%; background: var(--brand-2); border-radius: 4px; }
+      .bar-n { width: 34px; text-align: right; font-weight: 600; }
+      .empty-s { font-size: 0.8rem; color: var(--muted); }
+
+      .pb { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+      .pb div { flex: 1; min-width: 110px; background: var(--soft); border-radius: 10px; padding: 10px 12px; }
+      .pb b { display: block; font-size: 1.3rem; }
+      .pb span { font-size: 0.75rem; color: var(--muted); }
+      .pb .bad b { color: var(--err); }
+      .errlist { font-size: 0.75rem; color: var(--muted); list-style: none; }
+      .errlist li { padding: 4px 0; border-top: 1px solid var(--line); }
+
+      /* ── JOURNEYS ── */
+      .j-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+      .j-head select { padding: 7px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--soft); font-size: 0.82rem; }
+      .journey { border-top: 1px solid var(--line); padding: 12px 0; display: grid; grid-template-columns: 190px 1fr; gap: 12px; }
+      @media (max-width: 700px) { .journey { grid-template-columns: 1fr; } }
+      .j-meta { font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
+      .j-meta b { color: var(--ink); font-weight: 600; }
+      .j-steps { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+      .chip { font-size: 0.74rem; padding: 3px 9px; border-radius: 999px; background: var(--soft); white-space: nowrap; }
+      .chip em { font-style: normal; color: var(--muted); margin-left: 4px; }
+      .chip.k-gen { background: var(--brand-soft); }
+      .chip.k-pay { background: var(--warn-soft); color: var(--warn); }
+      .chip.k-ok { background: var(--ok-soft); color: var(--ok); font-weight: 600; }
+      .chip.k-err { background: var(--err-soft); color: var(--err); }
+      .arrow { color: var(--muted); font-size: 0.7rem; }
+      .tag { font-size: 0.68rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; display: inline-block; margin-top: 4px; }
+      .tag.paid { background: var(--ok-soft); color: var(--ok); }
+      .tag.pay { background: var(--warn-soft); color: var(--warn); }
+      .tag.gen { background: var(--brand-soft); color: var(--ink); }
+      .tag.vis { background: var(--soft); color: var(--muted); }
+      .more { margin-top: 10px; }
 
       /* ── TABLE ── */
-      .table-card { background: white; border: 1px solid var(--line); }
-      .table-header {
-        padding: 1rem 1.4rem;
-        border-bottom: 1px solid var(--line);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        flex-wrap: wrap;
-      }
-      .table-header h3 {
-        font-family: "Cormorant Garamond", serif;
-        font-size: 1.25rem;
-        font-weight: 600;
-      }
+      .table-card { padding: 0; overflow: hidden; }
+      .table-header { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
       .filters { display: flex; gap: 8px; flex-wrap: wrap; }
-      .filters input, .filters select {
-        padding: 7px 11px;
-        border: 1px solid var(--line);
-        background: var(--sand);
-        font-size: 0.78rem;
-        font-family: "DM Sans", sans-serif;
-      }
-      .filters input { width: 210px; }
-
+      .filters input, .filters select { padding: 7px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); font-size: 0.82rem; }
+      .filters input { width: 220px; max-width: 100%; }
       .tbl-wrap { overflow-x: auto; }
       table { width: 100%; border-collapse: collapse; min-width: 880px; }
-      th {
-        font-size: 0.6rem;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        color: var(--muted);
-        font-weight: 500;
-        padding: 9px 13px;
-        border-bottom: 1px solid var(--line);
-        text-align: left;
-        background: #fbf9f5;
-      }
-      td {
-        padding: 10px 13px;
-        font-size: 0.8rem;
-        border-bottom: 1px solid rgba(20,32,42, 0.05);
-        vertical-align: middle;
-      }
-      tr:hover td { background: var(--sand); }
+      th { font-size: 0.72rem; color: var(--muted); font-weight: 500; padding: 10px 14px; border-bottom: 1px solid var(--line); text-align: left; }
+      td { padding: 11px 14px; font-size: 0.84rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
+      tr:hover td { background: var(--soft); }
       .zone-cell { font-weight: 600; }
-      .zone-cell .lvl {
-        display: inline-block;
-        margin-left: 6px;
-        padding: 1px 7px;
-        font-family: "Barlow Condensed", sans-serif;
-        font-size: 0.62rem;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        border: 1px solid var(--line);
-        color: var(--muted);
-      }
-      .type-pill {
-        display: inline-block;
-        padding: 2px 9px;
-        border-radius: 10px;
-        font-size: 0.64rem;
-        font-weight: 600;
-        letter-spacing: 0.6px;
-        text-transform: uppercase;
-      }
-      .type-loc { background: #ece5d8; color: #6b5b3e; }
-      .type-occ { background: #e1ead8; color: #3f6233; }
-      .st {
-        display: inline-block;
-        padding: 2px 9px;
-        border-radius: 10px;
-        font-size: 0.64rem;
-        font-weight: 600;
-        letter-spacing: 0.6px;
-        text-transform: uppercase;
-      }
-      .st-paid { background: #d9ecd9; color: var(--ok); }
-      .st-pending { background: #fdf0d4; color: var(--warn); }
-      .st-refund { background: #ece7e2; color: var(--muted); text-decoration: line-through; }
+      .zone-cell .lvl { margin-left: 6px; font-size: 0.68rem; color: var(--muted); font-weight: 500; }
+      .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; }
+      .st-paid { background: var(--ok-soft); color: var(--ok); }
+      .st-pending { background: var(--warn-soft); color: var(--warn); }
+      .st-refund { background: var(--soft); color: var(--muted); text-decoration: line-through; }
+      .type-pill { background: var(--soft); color: var(--muted); }
       .amount { font-weight: 600; white-space: nowrap; }
-      .dt { color: var(--muted); font-size: 0.74rem; white-space: nowrap; }
-
+      .dt { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
       .acts { display: flex; gap: 5px; flex-wrap: nowrap; }
-      .act {
-        border: 1px solid var(--line);
-        background: white;
-        padding: 5px 9px;
-        font-size: 0.72rem;
-        cursor: pointer;
-        white-space: nowrap;
-      }
-      .act:hover { border-color: var(--ink); }
+      .act { border: 1px solid var(--line); background: var(--card); padding: 5px 9px; border-radius: 8px; font-size: 0.75rem; cursor: pointer; white-space: nowrap; }
+      .act:hover { border-color: var(--muted); }
       .act.ok { color: var(--ok); }
       .act.warn { color: var(--warn); }
       .act.err { color: var(--err); }
-      .empty { text-align: center; padding: 3rem; color: var(--muted); font-style: italic; }
+      .empty { text-align: center; padding: 3rem; color: var(--muted); }
 
       /* ── TOAST ── */
       #toast {
-        position: fixed;
-        bottom: 24px;
-        left: 50%;
-        transform: translateX(-50%) translateY(80px);
-        background: var(--ink);
-        color: white;
-        padding: 11px 22px;
-        font-size: 0.8rem;
-        border-radius: 2px;
-        transition: transform 0.25s ease;
-        z-index: 99;
-        max-width: 90vw;
+        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(90px);
+        background: var(--ink); color: var(--bg); padding: 11px 20px; font-size: 0.85rem; border-radius: 10px;
+        transition: transform 0.25s ease; z-index: 99; max-width: 90vw;
       }
       #toast.show { transform: translateX(-50%) translateY(0); }
-      #toast.err { background: var(--err); }
+      #toast.err { background: var(--err); color: #fff; }
     </style>
   </head>
   <body>
     <!-- LOGIN -->
     <div id="login-screen">
       <div class="login-card">
-        <h1>Sutura<em>·Maps</em></h1>
-        <p>Administration</p>
+        <h1>Sutura Maps</h1>
+        <p>Tableau de bord administrateur</p>
         <input type="password" id="pwd-input" placeholder="Mot de passe admin" />
         <button class="btn-primary" onclick="login()">Accéder</button>
-        <div id="login-error" style="margin-top: 1rem; font-size: 0.78rem; color: var(--err); display: none">
+        <div id="login-error" style="margin-top: 0.8rem; font-size: 0.82rem; color: var(--err); display: none">
           Mot de passe incorrect
         </div>
       </div>
@@ -309,62 +257,92 @@
     <!-- DASHBOARD -->
     <div id="admin-screen">
       <header>
-        <h1>Sutura<em>·Maps</em><span class="sub">Tableau de bord</span></h1>
-        <div class="hbtns">
-          <button class="hbtn" onclick="loadData()">↺ Rafraîchir</button>
-          <button class="hbtn" onclick="logout()">Déconnexion</button>
+        <div class="hin">
+          <div class="logo">Sutura Maps<span>Tableau de bord</span></div>
+          <div class="seg" id="period">
+            <button data-d="1">24 h</button>
+            <button data-d="7">7 jours</button>
+            <button data-d="30">30 jours</button>
+            <button data-d="90">90 jours</button>
+          </div>
+          <button class="ghost live" id="live-btn" onclick="toggleLive()" title="Rafraîchir toutes les 60 secondes">
+            <span class="dot"></span>En direct
+          </button>
+          <button class="ghost" onclick="loadData()">Rafraîchir</button>
+          <button class="ghost" onclick="logout()">Déconnexion</button>
         </div>
       </header>
 
       <div class="wrap">
+        <div class="notice" id="notice"></div>
+
         <!-- KPI -->
-        <div class="kpis">
-          <div class="kpi"><div class="v" id="k-visits">—</div><div class="l">Visites</div></div>
-          <div class="kpi"><div class="v" id="k-gen">—</div><div class="l">Cartes générées</div></div>
-          <div class="kpi"><div class="v" id="k-init">—</div><div class="l">Paiements initiés</div></div>
-          <div class="kpi g">
-            <div class="v" id="k-paid">—</div>
-            <div class="l">Payés</div>
-            <div class="s" id="k-paid7">—</div>
+        <div class="grid g-kpi" id="kpis"></div>
+
+        <!-- COURBE + TUNNEL -->
+        <div class="grid g-2">
+          <div class="card">
+            <h3>Activité</h3>
+            <div class="hint" id="chart-hint">Visiteurs uniques, cartes générées et ventes</div>
+            <div class="legend">
+              <span><i style="background: var(--brand-soft)"></i>Visiteurs</span>
+              <span><i style="background: var(--brand-2)"></i>Cartes générées</span>
+              <span><i style="background: var(--accent)"></i>Ventes</span>
+            </div>
+            <div id="chart"></div>
           </div>
-          <div class="kpi t">
-            <div class="v" id="k-rev">—</div>
-            <div class="l">Revenus (FCFA)</div>
-            <div class="s" id="k-rev7">—</div>
-          </div>
-          <div class="kpi">
-            <div class="v" id="k-conv">—</div>
-            <div class="l">Conversion paiement</div>
-            <div class="s">payés / initiés</div>
+          <div class="card">
+            <h3>Tunnel de conversion</h3>
+            <div class="hint">Nombre de visites (sessions) qui atteignent chaque étape</div>
+            <div id="funnel"></div>
           </div>
         </div>
 
-        <!-- TUNNEL APRÈS GÉNÉRATION (mesuré depuis la mise à jour livraison) -->
-        <div class="panel" style="margin-bottom: 1.5rem">
-          <h3>Tunnel paiement → téléchargement</h3>
-          <div id="funnel-bars"></div>
-          <p style="font-size: 0.72rem; color: var(--muted); margin-top: 0.6rem">
-            Comptés à partir de la mise à jour « livraison ». Les visites et
-            générations plus anciennes n'ont pas ces étapes.
-          </p>
+        <!-- RÉPARTITIONS -->
+        <div class="grid g-3">
+          <div class="card"><h3>D'où viennent les visiteurs</h3><div class="hint">Source de la visite</div><div id="b-sources"></div></div>
+          <div class="card"><h3>Appareils</h3><div class="hint">Visites par type d'appareil</div><div id="b-devices"></div></div>
+          <div class="card"><h3>Pays des visiteurs</h3><div class="hint">Détecté à la connexion</div><div id="b-geo"></div></div>
+          <div class="card"><h3>Zones les plus générées</h3><div class="hint">Ce que les gens cherchent</div><div id="b-gen"></div></div>
+          <div class="card"><h3>Zones les plus vendues</h3><div class="hint">Sur la période</div><div id="b-sold"></div></div>
+          <div class="card"><h3>Types de carte générés</h3><div class="hint">Localisation, occupation, relief</div><div id="b-types"></div></div>
         </div>
 
-        <!-- PANELS -->
-        <div class="panels">
-          <div class="panel">
-            <h3>Zones les plus vendues</h3>
-            <div id="top-zones"><div class="empty-s">Aucune vente pour l'instant</div></div>
+        <!-- PROBLÈMES -->
+        <div class="grid">
+          <div class="card">
+            <h3>Points de friction</h3>
+            <div class="hint">Ce qui peut empêcher un visiteur d'aller au bout</div>
+            <div class="pb" id="problems"></div>
+            <ul class="errlist" id="errlist"></ul>
           </div>
-          <div class="panel">
-            <h3>Ventes par type de carte</h3>
-            <div id="by-type"><div class="empty-s">Aucune vente pour l'instant</div></div>
+        </div>
+
+        <!-- PARCOURS -->
+        <div class="grid">
+          <div class="card">
+            <div class="j-head">
+              <div>
+                <h3>Parcours des visiteurs</h3>
+                <div class="hint" style="margin-bottom: 0">Chaque ligne est une visite, avec ses actions dans l'ordre</div>
+              </div>
+              <select id="j-filter" onchange="renderJourneys()">
+                <option value="0">Toutes les visites</option>
+                <option value="1">A choisi une zone</option>
+                <option value="2">A généré une carte</option>
+                <option value="3">A cliqué sur Payer</option>
+                <option value="4">A payé</option>
+              </select>
+            </div>
+            <div id="journeys"></div>
+            <button class="ghost more" id="j-more" onclick="jLimit += 15; renderJourneys()">Voir plus</button>
           </div>
         </div>
 
         <!-- COMMANDES -->
-        <div class="table-card">
+        <div class="card table-card">
           <div class="table-header">
-            <h3>Commandes <span id="orders-count" style="font-size: 0.8rem; color: var(--muted)"></span></h3>
+            <h3>Commandes <span id="orders-count" style="font-size: 0.82rem; color: var(--muted); font-weight: 400"></span></h3>
             <div class="filters">
               <input type="search" id="f-search" placeholder="Rechercher zone, email, token…" oninput="renderOrders()" />
               <select id="f-status" onchange="renderOrders()">
@@ -377,6 +355,7 @@
                 <option value="">Tous types</option>
                 <option value="localisation">Localisation</option>
                 <option value="occupation">Occupation du sol</option>
+                <option value="relief">Relief</option>
               </select>
             </div>
           </div>
@@ -405,6 +384,20 @@
     <script>
       let adminPwd = sessionStorage.getItem("sutura_admin_pwd") || "";
       let ORDERS = [];
+      let JOURNEYS = [];
+      let jLimit = 15;
+      let days = 7;
+      let liveTimer = null;
+      try {
+        days = parseInt(localStorage.getItem("sutura_admin_days"), 10) || 7;
+      } catch (e) {}
+
+      const fmt = (n) => (n || 0).toLocaleString("fr-FR");
+      function esc(s) {
+        return String(s ?? "").replace(/[&<>"']/g, (c) =>
+          ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+        );
+      }
 
       /* ── Auth ── */
       function login() {
@@ -416,15 +409,40 @@
       function logout() {
         adminPwd = "";
         sessionStorage.removeItem("sutura_admin_pwd");
+        if (liveTimer) toggleLive();
         document.getElementById("login-screen").style.display = "flex";
         document.getElementById("admin-screen").style.display = "none";
+      }
+
+      /* ── Période et direct ── */
+      function setPeriod(d) {
+        days = d;
+        try {
+          localStorage.setItem("sutura_admin_days", d);
+        } catch (e) {}
+        document.querySelectorAll("#period button").forEach((b) =>
+          b.classList.toggle("on", +b.dataset.d === d),
+        );
+        loadData();
+      }
+      function toggleLive() {
+        const btn = document.getElementById("live-btn");
+        if (liveTimer) {
+          clearInterval(liveTimer);
+          liveTimer = null;
+          btn.classList.remove("on");
+        } else {
+          liveTimer = setInterval(loadData, 60000);
+          btn.classList.add("on");
+          loadData();
+        }
       }
 
       /* ── Chargement ── */
       async function loadData() {
         let res;
         try {
-          res = await fetch("/.netlify/functions/admin-stats", {
+          res = await fetch(`/.netlify/functions/admin-stats?days=${days}`, {
             headers: { "x-admin-password": adminPwd },
           });
         } catch (e) {
@@ -438,55 +456,169 @@
           document.getElementById("admin-screen").style.display = "none";
           return;
         }
+        if (!res.ok) {
+          toast("Erreur serveur (" + res.status + ")", true);
+          return;
+        }
         sessionStorage.setItem("sutura_admin_pwd", adminPwd);
         document.getElementById("login-error").style.display = "none";
         document.getElementById("login-screen").style.display = "none";
         document.getElementById("admin-screen").style.display = "block";
 
-        const { stats, funnel, top_zones, by_type, orders } = await res.json();
-        if (funnel) {
-          renderBars("funnel-bars", [
-            ["Clic sur « Payer »", funnel.pay_click],
-            ["Lien Bictorys reçu", stats.payment_inits],
-            ["Retour après paiement (mobile)", funnel.payment_return],
-            ["Paiement confirmé", funnel.paid_confirmed],
-            ["Téléchargement auto tenté", funnel.download_auto],
-            ["Clic « Télécharger ma carte »", funnel.download_click],
-            ["Partagée (WhatsApp…)", funnel.download_share],
-            ["Erreur d'export", funnel.download_error],
-            ["Visiteur dans un navigateur intégré", funnel.inapp_browser],
-          ]);
-        }
-        ORDERS = orders || [];
-
-        const fmt = (n) => (n || 0).toLocaleString("fr-FR");
-        document.getElementById("k-visits").innerText = fmt(stats.visits);
-        document.getElementById("k-gen").innerText = fmt(stats.generations);
-        document.getElementById("k-init").innerText = fmt(stats.payment_inits);
-        document.getElementById("k-paid").innerText = fmt(stats.paid_total);
-        document.getElementById("k-paid7").innerText =
-          `+${fmt(stats.paid_7d)} ces 7 jours` +
-          (stats.refunded_total ? ` · ${fmt(stats.refunded_total)} remboursé(s)` : "");
-        document.getElementById("k-rev").innerText = fmt(stats.revenue);
-        document.getElementById("k-rev7").innerText = `+${fmt(stats.revenue_7d)} ces 7 jours`;
-        const conv = stats.payment_inits
-          ? Math.round((stats.paid_total / stats.payment_inits) * 100)
-          : 0;
-        document.getElementById("k-conv").innerText = conv + " %";
-
-        renderBars("top-zones", (top_zones || []).map((z) => [z.zone, z.count]));
-        const typeLabels = { localisation: "Localisation", occupation: "Occupation du sol" };
-        renderBars(
-          "by-type",
-          Object.entries(by_type || {}).map(([k, v]) => [typeLabels[k] || k, v]),
-        );
+        const d = await res.json();
+        renderNotice(d);
+        renderKpis(d);
+        renderChart(d);
+        renderFunnel(d.funnel || []);
+        const b = d.breakdowns || {};
+        renderBars("b-sources", b.sources || []);
+        renderBars("b-devices", b.devices || []);
+        renderBars("b-geo", b.geo || []);
+        renderBars("b-gen", b.top_generated || []);
+        renderBars("b-sold", b.top_sold || [], "Aucune vente sur la période");
+        renderBars("b-types", b.map_types || []);
+        renderProblems(d.problems || {});
+        JOURNEYS = d.journeys || [];
+        renderJourneys();
+        ORDERS = d.orders || [];
         renderOrders();
       }
 
-      function renderBars(elId, pairs) {
+      function renderNotice(d) {
+        const el = document.getElementById("notice");
+        const msgs = [];
+        if (d.events_error)
+          msgs.push(
+            "Les événements détaillés ne peuvent pas être lus (" + esc(d.events_error) +
+              "). Joue le fichier <code>ANALYTICS-PARCOURS.sql</code> dans Supabase.",
+          );
+        else if (!d.tracking_ready)
+          msgs.push(
+            "Le suivi des parcours n'est pas encore actif. Joue le fichier <code>ANALYTICS-PARCOURS.sql</code> dans Supabase : les visites seront ensuite reliées entre elles.",
+          );
+        if (d.truncated) msgs.push("Période très chargée : seuls les 40 000 derniers événements sont analysés.");
+        el.innerHTML = msgs.join("<br>");
+        el.style.display = msgs.length ? "block" : "none";
+      }
+
+      /* ── KPI ── */
+      function delta(cur, prev) {
+        if (!prev && !cur) return '<span class="d flat">—</span>';
+        if (!prev) return '<span class="d up">nouveau <small>vs période préc.</small></span>';
+        const p = Math.round(((cur - prev) / prev) * 100);
+        const cls = p > 0 ? "up" : p < 0 ? "down" : "flat";
+        return `<span class="d ${cls}">${p > 0 ? "+" : ""}${p} % <small>vs période préc. (${fmt(prev)})</small></span>`;
+      }
+      function renderKpis(d) {
+        const c = d.current || {};
+        const p = d.previous || {};
+        const conv = (o) => (o.visitors ? (o.sales / o.visitors) * 100 : 0);
+        const cards = [
+          ["Visiteurs uniques", fmt(c.visitors), delta(c.visitors, p.visitors)],
+          ["Cartes générées", fmt(c.generations), delta(c.generations, p.generations)],
+          ["Clics « Payer »", fmt(c.pay_clicks), delta(c.pay_clicks, p.pay_clicks)],
+          ["Ventes", fmt(c.sales), delta(c.sales, p.sales)],
+          ["Revenus", fmt(c.revenue) + " F", delta(c.revenue, p.revenue), true],
+          [
+            "Conversion",
+            conv(c).toLocaleString("fr-FR", { maximumFractionDigits: 1 }) + " %",
+            `<span class="d flat"><small>ventes / visiteurs · avant ${conv(p).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %</small></span>`,
+          ],
+        ];
+        const t = d.totals || {};
+        document.getElementById("kpis").innerHTML =
+          cards
+            .map(
+              ([l, v, dl, hl]) =>
+                `<div class="card kpi${hl ? " hl" : ""}"><div class="l">${l}</div><div class="v">${v}</div>${dl}</div>`,
+            )
+            .join("") +
+          `<div class="card kpi"><div class="l">Depuis le début</div><div class="v">${fmt(t.revenue)} F</div>
+            <span class="d flat"><small>${fmt(t.paid_total)} ventes · ${fmt(t.visits)} visites${t.refunded_total ? " · " + fmt(t.refunded_total) + " remb." : ""}</small></span></div>`;
+      }
+
+      /* ── Courbe (SVG) ── */
+      function renderChart(d) {
+        const s = d.series || [];
+        const el = document.getElementById("chart");
+        if (!s.length) {
+          el.innerHTML = '<div class="empty-s">Pas de données</div>';
+          return;
+        }
+        document.getElementById("chart-hint").innerText = d.hourly
+          ? "Par heure, sur les dernières 24 h"
+          : `Par jour, sur les ${s.length} derniers jours`;
+        const W = 640, H = 220, L = 30, B = 22, T = 14;
+        const max = Math.max(1, ...s.map((x) => Math.max(x.visitors, x.generations)));
+        const bw = (W - L) / s.length;
+        const y = (v) => H - B - ((H - B - T) * v) / max;
+        const lab = (iso) => {
+          const dt = new Date(iso);
+          return d.hourly
+            ? dt.getUTCHours() + "h"
+            : dt.toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" });
+        };
+        const every = Math.ceil(s.length / 7);
+        let g = "";
+        [0, 0.5, 1].forEach((f) => {
+          const yy = y(max * f);
+          g += `<line x1="${L}" x2="${W}" y1="${yy}" y2="${yy}" stroke="var(--line)"/>`;
+          g += `<text class="tick" x="${L - 6}" y="${yy + 3}" text-anchor="end">${Math.round(max * f)}</text>`;
+        });
+        s.forEach((x, i) => {
+          const x0 = L + i * bw;
+          const w1 = Math.max(2, bw * 0.7);
+          const w2 = Math.max(1.5, bw * 0.38);
+          g += `<g><title>${lab(x.t)} : ${x.visitors} visiteurs, ${x.generations} cartes, ${x.sales} ventes</title>`;
+          g += `<rect x="${x0}" y="${T}" width="${bw}" height="${H - B - T}" fill="transparent"/>`;
+          g += `<rect x="${x0 + (bw - w1) / 2}" y="${y(x.visitors)}" width="${w1}" height="${H - B - y(x.visitors)}" rx="2" fill="var(--brand-soft)"/>`;
+          g += `<rect x="${x0 + (bw - w2) / 2}" y="${y(x.generations)}" width="${w2}" height="${H - B - y(x.generations)}" rx="1.5" fill="var(--brand-2)"/>`;
+          if (x.sales)
+            g += `<circle cx="${x0 + bw / 2}" cy="${y(x.generations) - 9}" r="5.5" fill="var(--accent)"/><text x="${x0 + bw / 2}" y="${y(x.generations) - 6}" font-size="8" font-weight="700" text-anchor="middle" fill="#fff">${x.sales}</text>`;
+          g += "</g>";
+          if (i % every === 0 || i === s.length - 1)
+            g += `<text class="tick" x="${x0 + bw / 2}" y="${H - 6}" text-anchor="middle">${lab(x.t)}</text>`;
+        });
+        el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${g}</svg>`;
+      }
+
+      /* ── Tunnel ── */
+      function renderFunnel(f) {
+        const el = document.getElementById("funnel");
+        const top = f[0]?.sessions || 0;
+        if (!top) {
+          el.innerHTML = '<div class="empty-s">Aucune visite sur la période</div>';
+          return;
+        }
+        // Plus grosse perte entre deux étapes (hors première visite seule).
+        let worst = -1, worstRate = -1;
+        for (let i = 1; i < f.length; i++) {
+          const prev = f[i - 1].sessions;
+          const lost = prev ? 1 - f[i].sessions / prev : 0;
+          if (prev >= 3 && lost > worstRate) { worstRate = lost; worst = i; }
+        }
+        el.innerHTML = f
+          .map((st, i) => {
+            const pct = Math.round((st.sessions / top) * 100);
+            let drop = "";
+            if (i > 0) {
+              const prev = f[i - 1].sessions;
+              const lost = prev ? Math.round((1 - st.sessions / prev) * 100) : 0;
+              drop = `<div class="fn-drop${i === worst ? " worst" : ""}">↓ ${lost > 0 ? lost + " % perdus" : "aucune perte"}${i === worst ? " : plus grosse perte ici" : ""}</div>`;
+            }
+            return `${drop}<div class="fn-row">
+              <div class="fn-label">${esc(st.label)}</div>
+              <div class="fn-track"><div class="fn-fill" style="width:${Math.max(pct, 2)}%">${pct >= 12 ? pct + " %" : ""}</div></div>
+              <div class="fn-num"><b>${fmt(st.sessions)}</b>${pct < 12 ? " · " + pct + " %" : ""}</div>
+            </div>`;
+          })
+          .join("");
+      }
+
+      function renderBars(elId, pairs, emptyMsg) {
         const el = document.getElementById(elId);
         if (!pairs.length) {
-          el.innerHTML = '<div class="empty-s">Aucune vente pour l\'instant</div>';
+          el.innerHTML = `<div class="empty-s">${emptyMsg || "Pas encore de données"}</div>`;
           return;
         }
         const max = Math.max(1, ...pairs.map(([, n]) => n || 0));
@@ -496,19 +628,108 @@
           <div class="bar-row">
             <div class="bar-label" title="${esc(label)}">${esc(label)}</div>
             <div class="bar-track"><div class="bar-fill" style="width:${Math.round((n / max) * 100)}%"></div></div>
-            <div class="bar-n">${n}</div>
+            <div class="bar-n">${fmt(n)}</div>
           </div>`,
           )
           .join("");
       }
 
-      /* ── Tableau ── */
-      function esc(s) {
-        return String(s ?? "").replace(/[&<>"']/g, (c) =>
-          ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
-        );
+      function renderProblems(p) {
+        const apps = (p.inapp_apps || []).map(([a, n]) => `${esc(a)} ${n}`).join(", ");
+        document.getElementById("problems").innerHTML = `
+          <div class="${p.download_error ? "bad" : ""}"><b>${fmt(p.download_error)}</b><span>Erreurs d'export</span></div>
+          <div class="${p.carton_error ? "bad" : ""}"><b>${fmt(p.carton_error)}</b><span>Cartons non chargés</span></div>
+          <div><b>${fmt(p.inapp_browser)}</b><span>Visites depuis une appli${apps ? " (" + apps + ")" : ""}</span></div>`;
+        document.getElementById("errlist").innerHTML = (p.last_errors || [])
+          .map((e) => `<li>${ago(e.t)} · ${esc(e.msg) || "erreur inconnue"}</li>`)
+          .join("");
       }
+
+      /* ── Parcours ── */
+      const EV = {
+        visit: ["Arrivée", ""],
+        country_select: ["Pays", ""],
+        maptype_select: ["Type", ""],
+        zone_select: ["Zone", ""],
+        generation: ["Carte générée", "k-gen"],
+        pay_click: ["Clic Payer", "k-pay"],
+        payment_init: ["Vers le paiement", "k-pay"],
+        payment_return: ["Retour du paiement", "k-pay"],
+        paid_confirmed: ["Payé", "k-ok"],
+        download_auto: ["Téléchargée", "k-ok"],
+        download_click: ["Téléchargée", "k-ok"],
+        download_share: ["Partagée", "k-ok"],
+        link_copy: ["Lien copié", "k-ok"],
+        fiche_copy: ["Fiche copiée", "k-ok"],
+        download_error: ["Erreur export", "k-err"],
+        carton_error: ["Carton vide", "k-err"],
+        inapp_browser: ["Navigateur d'appli", "k-err"],
+      };
+      const STAGE = { zone_select: 1, generation: 2, pay_click: 3, payment_init: 3, paid_confirmed: 4 };
+      const STAGE_TAG = [
+        ["vis", "Visite seule"],
+        ["vis", "A choisi une zone"],
+        ["gen", "A généré"],
+        ["pay", "A cliqué Payer"],
+        ["paid", "A payé"],
+      ];
+      function stageOf(j) {
+        return Math.max(0, ...j.events.map((e) => STAGE[e.e] || 0));
+      }
+      function ago(iso) {
+        const m = Math.round((Date.now() - new Date(iso)) / 60000);
+        if (m < 1) return "à l'instant";
+        if (m < 60) return `il y a ${m} min`;
+        if (m < 1440) return `il y a ${Math.round(m / 60)} h`;
+        return new Date(iso).toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+      }
+      function dur(a, b) {
+        const s = Math.round((new Date(b) - new Date(a)) / 1000);
+        return s < 60 ? `${s} s` : `${Math.round(s / 60)} min`;
+      }
+      function renderJourneys() {
+        const min = +document.getElementById("j-filter").value;
+        const list = JOURNEYS.filter((j) => stageOf(j) >= min);
+        const el = document.getElementById("journeys");
+        document.getElementById("j-more").style.display = list.length > jLimit ? "inline-block" : "none";
+        if (!list.length) {
+          el.innerHTML = '<div class="empty-s">Aucun parcours sur la période (le suivi démarre après la mise à jour).</div>';
+          return;
+        }
+        el.innerHTML = list
+          .slice(0, jLimit)
+          .map((j) => {
+            // Actions consécutives identiques regroupées (×n).
+            const steps = [];
+            j.events.forEach((e) => {
+              const [label, cls] = EV[e.e] || [e.e, ""];
+              const detail = ["zone_select", "generation", "country_select", "maptype_select"].includes(e.e) ? e.c : "";
+              const last = steps[steps.length - 1];
+              if (last && last.label === label && last.detail === detail) last.n++;
+              else steps.push({ label, cls, detail, n: 1 });
+            });
+            const chips = steps
+              .map(
+                (s) =>
+                  `<span class="chip ${s.cls}">${esc(s.label)}${s.detail ? `<em>${esc(s.detail)}</em>` : ""}${s.n > 1 ? `<em>×${s.n}</em>` : ""}</span>`,
+              )
+              .join('<span class="arrow">›</span>');
+            const [tc, tl] = STAGE_TAG[stageOf(j)];
+            return `<div class="journey">
+              <div class="j-meta">
+                <b>${ago(j.end)}</b> · ${dur(j.start, j.end)}<br>
+                ${esc(j.device || "?")} · ${esc(j.source || "direct")}${j.geo ? " · " + esc(j.geo) : ""}<br>
+                ${j.returning ? "Visiteur déjà venu · " : ""}<span class="tag ${tc}">${tl}</span>
+              </div>
+              <div class="j-steps">${chips}</div>
+            </div>`;
+          })
+          .join("");
+      }
+
+      /* ── Tableau des commandes ── */
       const LVL = { commune: "Commune", dept: "Département", region: "Région" };
+      const TYPE = { localisation: "Localisation", occupation: "Occupation", relief: "Relief" };
 
       function renderOrders() {
         const q = (document.getElementById("f-search").value || "").toLowerCase();
@@ -527,7 +748,7 @@
           return true;
         });
 
-        document.getElementById("orders-count").innerText = `(${rows.length})`;
+        document.getElementById("orders-count").innerText = `${rows.length} sur les 200 dernières`;
         const tb = document.getElementById("orders-tbody");
         if (!rows.length) {
           tb.innerHTML = '<tr><td colspan="7" class="empty">Aucune commande ne correspond</td></tr>';
@@ -536,8 +757,7 @@
 
         tb.innerHTML = rows
           .map((o) => {
-            const t = o.maptype === "occupation" ? "occ" : "loc";
-            const tLabel = o.maptype === "occupation" ? "Occupation" : "Localisation";
+            const tLabel = TYPE[o.maptype] || "Localisation";
             const lvl = LVL[o.level] || "Commune";
             const amount = (o.amount || 2000).toLocaleString("fr-FR");
             const date = new Date(o.created_at).toLocaleString("fr-FR", {
@@ -547,25 +767,25 @@
             const link = `${location.origin}/map.html?token=${o.token}`;
             const mail = o.user_email
               ? o.paid
-                ? `<button class="act" onclick="mailLink('${esc(o.user_email)}','${esc(o.commune)}','${o.token}')" title="Envoyer le lien de téléchargement">✉ Lien</button>`
-                : `<button class="act warn" onclick="mailRelance('${esc(o.user_email)}','${esc(o.commune)}')" title="Email de relance">✉ Relance</button>`
+                ? `<button class="act" onclick="mailLink('${esc(o.user_email)}','${esc(o.commune)}','${o.token}')" title="Envoyer le lien de téléchargement">Lien par email</button>`
+                : `<button class="act warn" onclick="mailRelance('${esc(o.user_email)}','${esc(o.commune)}')" title="Email de relance">Relancer</button>`
               : "";
-            const del = `<button class="act err" onclick="confirmAction('delete','${o.token}','Supprimer définitivement la commande ${esc(o.commune)} ?','Commande supprimée')" title="Supprimer">🗑</button>`;
+            const del = `<button class="act err" onclick="confirmAction('delete','${o.token}','Supprimer définitivement la commande ${esc(o.commune)} ?','Commande supprimée')" title="Supprimer">Suppr.</button>`;
             const acts = o.refunded_at
               ? `
-                <button class="act" onclick="copyLink('${link}')" title="Copier le lien de téléchargement">🔗</button>
-                <button class="act warn" onclick="confirmAction('unrefund','${o.token}','Annuler le remboursement de ${esc(o.commune)} ?','Remboursement annulé')" title="Marqué remboursé par erreur">↩ Annuler remb.</button>
+                <button class="act" onclick="copyLink('${link}')" title="Copier le lien de téléchargement">Copier lien</button>
+                <button class="act warn" onclick="confirmAction('unrefund','${o.token}','Annuler le remboursement de ${esc(o.commune)} ?','Remboursement annulé')" title="Marqué remboursé par erreur">Annuler remb.</button>
                 ${del}`
               : o.paid
                 ? `
-                <button class="act" onclick="copyLink('${link}')" title="Copier le lien de téléchargement">🔗</button>
-                <button class="act ok" onclick="doAction('extend','${o.token}','Lien prolongé d\\'une heure')" title="Redonner 1 h de téléchargement">⏱ +1 h</button>
+                <button class="act" onclick="copyLink('${link}')" title="Copier le lien de téléchargement">Copier lien</button>
+                <button class="act ok" onclick="doAction('extend','${o.token}','Lien réactivé pour 7 jours')" title="Redonner 7 jours de téléchargement">+7 j</button>
                 ${mail}
-                <button class="act warn" onclick="confirmAction('refund','${o.token}','Marquer ${esc(o.commune)} comme REMBOURSÉ ? (le remboursement mobile money se fait à part)','Marqué remboursé — pense au virement mobile money')" title="Garantie satisfait ou remboursé">💸 Remb.</button>
-                <button class="act warn" onclick="confirmAction('mark-unpaid','${o.token}','Annuler le paiement de ${esc(o.commune)} ?','Paiement annulé')" title="Annuler le paiement">↩</button>
+                <button class="act warn" onclick="confirmAction('refund','${o.token}','Marquer ${esc(o.commune)} comme REMBOURSÉ ? (le remboursement mobile money se fait à part)','Marqué remboursé, pense au virement mobile money')" title="Garantie satisfait ou remboursé">Rembourser</button>
+                <button class="act warn" onclick="confirmAction('mark-unpaid','${o.token}','Annuler le paiement de ${esc(o.commune)} ?','Paiement annulé')" title="Annuler le paiement">Annuler</button>
                 ${del}`
                 : `
-                <button class="act ok" onclick="confirmAction('mark-paid','${o.token}','Marquer ${esc(o.commune)} comme PAYÉ ?','Paiement validé — lien actif 1 h')" title="Valider le paiement manuellement">✓ Valider</button>
+                <button class="act ok" onclick="confirmAction('mark-paid','${o.token}','Marquer ${esc(o.commune)} comme PAYÉ ?','Paiement validé, lien actif 7 jours')" title="Valider le paiement manuellement">Valider</button>
                 ${mail}
                 ${del}`;
 
@@ -574,10 +794,10 @@
             return `
             <tr>
               <td class="dt">${date}</td>
-              <td class="zone-cell">${esc(o.commune)}<span class="lvl">${lvl}</span></td>
-              <td><span class="type-pill type-${t}">${tLabel}</span></td>
+              <td class="zone-cell">${esc(o.commune)}<span class="lvl">${lvl}${o.country && o.country !== "SN" ? " · " + esc(o.country) : ""}</span></td>
+              <td><span class="pill type-pill">${tLabel}</span></td>
               <td class="amount">${amount} F</td>
-              <td><span class="st ${stCls}">${stTxt}</span></td>
+              <td><span class="pill ${stCls}">${stTxt}</span></td>
               <td>${esc(o.user_email) || '<span style="color:var(--muted)">—</span>'}</td>
               <td><div class="acts">${acts}</div></td>
             </tr>`;
@@ -619,7 +839,7 @@
         const subject = encodeURIComponent(`Votre carte de ${commune} — Sutura Maps`);
         const body = encodeURIComponent(
           `Bonjour,\n\nVotre carte de ${commune} est prête.\n\n` +
-            `Téléchargez-la ici (lien actif pendant 1 heure) :\n${url}\n\n` +
+            `Téléchargez-la ici (lien actif pendant 7 jours) :\n${url}\n\n` +
             `Si le lien a expiré, répondez à cet email et nous le réactiverons.\n\n` +
             `Merci de votre confiance.\nSutura Maps — sutura-maps.com`,
         );
@@ -653,6 +873,10 @@
       window.onload = () => {
         document.getElementById("pwd-input").addEventListener("keydown", (e) => {
           if (e.key === "Enter") login();
+        });
+        document.querySelectorAll("#period button").forEach((b) => {
+          b.classList.toggle("on", +b.dataset.d === days);
+          b.onclick = () => setPeriod(+b.dataset.d);
         });
         if (adminPwd) loadData();
       };
