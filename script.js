@@ -4627,6 +4627,59 @@ function deliverPaidMap(blob, filename) {
   showMapReadySheet(blob, url, filename);
 }
 
+// Avis « achat vérifié » dans la fenêtre de fin : la note part dès le clic
+// sur une étoile, le commentaire (facultatif) complète ensuite.
+function sendReview(data) {
+  return fetch("/.netlify/functions/review", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: lastPaidToken, ...data }),
+  }).then((r) => r.ok);
+}
+
+function setupReview(ov) {
+  const box = ov.querySelector("#rs-review");
+  if (!box) return;
+  const key = `sutura_rev_${lastPaidToken}`;
+  try {
+    if (localStorage.getItem(key)) return box.remove();
+  } catch (e) {}
+  const stars = [...box.querySelectorAll(".rv-stars button")];
+  const more = box.querySelector(".rv-more");
+  const comment = box.querySelector("#rv-comment");
+  let rating = 0;
+
+  const thanks = () => {
+    try {
+      localStorage.setItem(key, "1");
+    } catch (e) {}
+    box.innerHTML = `<div style="font-weight:700;font-size:.9rem;">Merci, ça nous aide beaucoup.</div>`;
+    if (rating >= 4) ov.querySelector("#rs-invite").classList.add("rv-pulse");
+  };
+
+  stars.forEach((b) =>
+    b.addEventListener("click", () => {
+      rating = +b.dataset.n;
+      stars.forEach((s) => s.classList.toggle("on", +s.dataset.n <= rating));
+      more.hidden = false;
+      comment.placeholder =
+        rating >= 4 ? "Un mot pour les autres étudiants ? (facultatif)" : "Qu'est-ce qu'on doit améliorer ?";
+      track("review_rating", null, lastPaidToken, { rating });
+      sendReview({ rating }).catch(() => {});
+    }),
+  );
+
+  const send = box.querySelector("#rv-send");
+  send.addEventListener("click", (e) => {
+    e.preventDefault();
+    const text = comment.value.trim();
+    const name = box.querySelector("#rv-name").value.trim();
+    if (!text && !name) return thanks();
+    const fail = () => (send.innerText = "Envoi impossible, réessaie");
+    sendReview({ rating, comment: text, name }).then((ok) => (ok ? thanks() : fail()), fail);
+  });
+}
+
 function showMapReadySheet(blob, url, filename) {
   const old = document.getElementById("ready-sheet");
   if (old) old.remove();
@@ -4696,6 +4749,27 @@ function showMapReadySheet(blob, url, filename) {
           : ""
       }
       ${
+        lastPaidToken
+          ? `<div id="rs-review" style="background:#fff;border-radius:14px;padding:14px;margin:6px 0 10px;
+                         border:1px solid rgba(20,32,42,.08);">
+               <div style="font-weight:700;font-size:.85rem;margin-bottom:6px;">Ta carte te plaît ?</div>
+               <div class="rv-stars" role="radiogroup" aria-label="Ta note">
+                 ${[1, 2, 3, 4, 5].map((n) => `<button type="button" data-n="${n}" aria-label="${n} sur 5">★</button>`).join("")}
+               </div>
+               <div class="rv-more" hidden>
+                 <textarea id="rv-comment" rows="2" maxlength="600"></textarea>
+                 <input id="rv-name" type="text" maxlength="40" placeholder="Ton prénom (facultatif)" />
+                 <a id="rv-send" href="#" class="rv-send">Envoyer</a>
+               </div>
+             </div>`
+          : ""
+      }
+      <a id="rs-invite" href="#" style="display:flex;align-items:center;justify-content:center;gap:8px;
+         background:#25d366;color:#fff;padding:13px;border-radius:14px;font-weight:600;
+         text-decoration:none;margin-bottom:10px;">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2c-1.5 0-3-.4-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3Z"/></svg>
+        Fais-la découvrir à ta promo</a>
+      ${
         relink
           ? `<p style="font-size:.75rem;color:#64727a;line-height:1.5;margin-top:6px;">
                Ton lien de re-téléchargement reste valable <b>7 jours</b>.
@@ -4738,6 +4812,21 @@ function showMapReadySheet(blob, url, filename) {
       }
     });
   }
+  setupReview(ov);
+  ov.querySelector("#rs-invite").addEventListener("click", (e) => {
+    e.preventDefault();
+    track("share_invite", null, lastPaidToken);
+    // « LA COMMUNE DE DANKH SENE » → « la commune de Dankh Sene »
+    const SMALL = /^(la|le|les|de|du|des|d'|l'|commune|département|région|arrondissement|sous-préfecture|préfecture)$/;
+    const zone = (document.getElementById("display-commune")?.textContent || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^\s-]+/g, (w) => (SMALL.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)));
+    const msg =
+      (zone ? `J'ai eu la carte de ${zone} en 2 minutes sur Sutura Maps.` : "J'ai eu ma carte en 2 minutes sur Sutura Maps.") +
+      ` Tu vois ta carte gratuitement avant de payer : ${location.origin}/?src=partage`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+  });
   const copy = ov.querySelector("#rs-copy");
   if (copy) {
     copy.addEventListener("click", (e) => {

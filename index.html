@@ -485,6 +485,8 @@
             </figure>
           </div>
         </div>
+        <!-- Avis laissés après achat, validés depuis l'admin -->
+        <div id="verified-reviews" class="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mt-5"></div>
       </div>
     </section>
 
@@ -773,6 +775,32 @@
         };
         addEventListener("scroll", onScroll, { passive: true });
         onScroll();
+      })();
+
+      // Avis vérifiés (achat réel), ajoutés sous les témoignages s'il y en a
+      (function () {
+        const box = document.getElementById("verified-reviews");
+        const esc = (s) => String(s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+        fetch("/.netlify/functions/review")
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => {
+            const list = ((d && d.reviews) || []).filter((r) => r.comment).slice(0, 6);
+            box.innerHTML = list
+              .map(
+                (r) => `<figure class="rounded-3xl bg-sand border border-cream p-7 flex flex-col justify-between">
+                  <div>
+                    <div class="text-amber-400 text-lg tracking-wider mb-3">${"★".repeat(r.rating)}<span class="text-gray-300">${"★".repeat(5 - r.rating)}</span></div>
+                    <blockquote class="text-gray-600 leading-relaxed mb-6">« ${esc(r.comment)} »</blockquote>
+                  </div>
+                  <figcaption class="flex items-center justify-between gap-3 text-sm">
+                    <span><span class="font-semibold">${esc(r.name) || "Client"}</span>${r.zone ? `<span class="text-gray-400"> · ${esc(r.zone)}</span>` : ""}</span>
+                    <span class="inline-flex items-center gap-1 text-teal-600 font-medium whitespace-nowrap"><i class="fa-solid fa-circle-check"></i> Achat vérifié</span>
+                  </figcaption>
+                </figure>`,
+              )
+              .join("");
+          })
+          .catch(() => {});
       })();
 
       // Lien WhatsApp construit au clic (numéro non visible dans la page)

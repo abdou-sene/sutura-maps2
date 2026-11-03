@@ -44,6 +44,7 @@ async function fetchEvents(since) {
 
 // Regroupe les variantes d'une même source (l.facebook.com, appli Facebook…).
 const SOURCES = [
+  [/^partage$/i, "Partage d'un client"],
   [/facebook|fb\b|fban/i, "Facebook"],
   [/whatsapp|wa\.me/i, "WhatsApp"],
   [/tiktok/i, "TikTok"],

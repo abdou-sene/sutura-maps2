@@ -1259,3 +1259,55 @@ body.label-edit #map-canvas {
     box-shadow: 0 10px 30px rgba(226,103,63, 0.5);
   }
 }
+
+/* Avis dans la fenêtre de fin */
+.rv-stars {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+.rv-stars button {
+  font-size: 2rem;
+  line-height: 1;
+  color: #d9d4cc;
+  background: none;
+  border: 0;
+  padding: 2px 4px;
+  cursor: pointer;
+  transition: transform 0.15s, color 0.15s;
+}
+.rv-stars button.on { color: #f5a524; }
+.rv-stars button:active { transform: scale(1.2); }
+.rv-more {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.rv-more[hidden] { display: none; }
+.rv-more textarea,
+.rv-more input {
+  width: 100%;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(20, 32, 42, 0.15);
+  background: #faf9f7;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.rv-send {
+  display: block;
+  background: #14202a;
+  color: #fff;
+  padding: 11px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  text-decoration: none;
+}
+.rv-pulse { animation: rvPulse 1.6s ease-in-out 3; }
+@keyframes rvPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(37, 211, 102, 0); }
+}

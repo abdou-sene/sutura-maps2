@@ -230,6 +230,15 @@
       .act.err { color: var(--err); }
       .empty { text-align: center; padding: 3rem; color: var(--muted); }
 
+      .rv-row { padding: 12px 0; border-top: 1px solid var(--line); }
+      .rv-row:first-child { border-top: 0; }
+      .rv-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.85rem; }
+      .rv-st { color: #f5a524; letter-spacing: 1px; }
+      .rv-st i { color: var(--line); font-style: normal; }
+      .rv-meta { color: var(--muted); font-size: 0.76rem; }
+      .rv-row p { margin: 6px 0 8px; font-size: 0.86rem; line-height: 1.5; }
+      .rv-row .acts { margin-top: 6px; }
+
       /* ── TOAST ── */
       #toast {
         position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(90px);
@@ -336,6 +345,15 @@
             </div>
             <div id="journeys"></div>
             <button class="ghost more" id="j-more" onclick="jLimit += 15; renderJourneys()">Voir plus</button>
+          </div>
+        </div>
+
+        <!-- AVIS -->
+        <div class="grid">
+          <div class="card">
+            <h3>Avis clients <span id="rv-count" style="font-size: 0.82rem; color: var(--muted); font-weight: 400"></span></h3>
+            <div class="hint">Laissés après achat. Seuls les avis publiés s'affichent sur la page d'accueil.</div>
+            <div id="reviews"></div>
           </div>
         </div>
 
@@ -482,6 +500,62 @@
         renderJourneys();
         ORDERS = d.orders || [];
         renderOrders();
+        loadReviews();
+      }
+
+      /* ── Avis ── */
+      async function loadReviews() {
+        const el = document.getElementById("reviews");
+        let d;
+        try {
+          const res = await fetch("/.netlify/functions/review", { headers: { "x-admin-password": adminPwd } });
+          d = await res.json();
+          if (!res.ok) throw new Error(d.error);
+        } catch (e) {
+          el.innerHTML = `<div class="hint">Avis indisponibles. Joue le fichier <code>AVIS.sql</code> dans Supabase.</div>`;
+          return;
+        }
+        const list = d.reviews || [];
+        const avg = list.length ? list.reduce((s, r) => s + r.rating, 0) / list.length : 0;
+        document.getElementById("rv-count").innerText = list.length
+          ? `${list.length} · moyenne ${avg.toFixed(1).replace(".", ",")} / 5`
+          : "";
+        el.innerHTML = list.length
+          ? list
+              .map(
+                (r) => `<div class="rv-row">
+                  <div class="rv-top">
+                    <span class="rv-st">${"★".repeat(r.rating)}<i>${"★".repeat(5 - r.rating)}</i></span>
+                    <b>${esc(r.name) || "Anonyme"}</b>
+                    <span class="rv-meta">${esc(r.zone || "")} · ${new Date(r.created_at).toLocaleDateString("fr-FR")}</span>
+                    <span class="pill ${r.approved ? "st-paid" : "st-pending"}">${r.approved ? "Publié" : "À valider"}</span>
+                  </div>
+                  ${r.comment ? `<p>${esc(r.comment)}</p>` : ""}
+                  <div class="acts">
+                    ${r.approved
+                      ? `<button class="act warn" onclick="reviewAction('hide', ${r.id})">Masquer</button>`
+                      : r.comment ? `<button class="act ok" onclick="reviewAction('approve', ${r.id})">Publier</button>` : ""}
+                    <button class="act err" onclick="confirm('Supprimer cet avis ?') && reviewAction('delete', ${r.id})">Supprimer</button>
+                  </div>
+                </div>`,
+              )
+              .join("")
+          : `<div class="hint">Aucun avis pour l'instant.</div>`;
+      }
+      async function reviewAction(action, id) {
+        try {
+          const res = await fetch("/.netlify/functions/review", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-admin-password": adminPwd },
+            body: JSON.stringify({ action, id }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.success) throw new Error(data.error || "Erreur");
+          toast(action === "approve" ? "Avis publié" : action === "hide" ? "Avis masqué" : "Avis supprimé");
+          loadReviews();
+        } catch (e) {
+          toast(e.message, true);
+        }
       }
 
       function renderNotice(d) {
@@ -661,6 +735,8 @@
         download_share: ["Partagée", "k-ok"],
         link_copy: ["Lien copié", "k-ok"],
         fiche_copy: ["Fiche copiée", "k-ok"],
+        review_rating: ["A noté", "k-ok"],
+        share_invite: ["A invité sa promo", "k-ok"],
         download_error: ["Erreur export", "k-err"],
         carton_error: ["Carton vide", "k-err"],
         inapp_browser: ["Navigateur d'appli", "k-err"],
